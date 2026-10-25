@@ -1,5 +1,6 @@
 package com.mojud.identity.account;
 
+import com.mojud.identity.otp.OtpDestination;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,4 +17,11 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("select u from User u where u.email = :email and u.emailVerifiedAt is not null")
     Optional<User> findByVerifiedEmail(String email);
+
+    /** The account that has verified this phone or email, if any. */
+    default Optional<User> findVerified(OtpDestination destination) {
+        return destination.isPhone()
+                ? findByVerifiedPhone(destination.value())
+                : findByVerifiedEmail(destination.value());
+    }
 }

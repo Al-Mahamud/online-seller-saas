@@ -1,6 +1,8 @@
 package com.mojud.identity.auth;
 
+import com.mojud.identity.otp.OtpPurpose;
 import com.mojud.shared.ratelimit.RateLimiter;
+import java.util.Collection;
 import org.springframework.stereotype.Component;
 
 /**
@@ -41,7 +43,7 @@ class AuthRateLimits {
     }
 
     /** Limits on sending a code, applied before anything is looked up. */
-    void codeRequested(String destination, Object purpose, String clientIp) {
+    void codeRequested(String destination, OtpPurpose purpose, String clientIp) {
         otpPerIp.acquire(clientIp);
         otpCooldown.acquire(destination + "|" + purpose + "|" + clientIp);
         otpPerDestinationAndIp.acquire(destination + "|" + clientIp);
@@ -67,5 +69,30 @@ class AuthRateLimits {
     /** The overall count is kept: a success here says nothing about attempts from elsewhere. */
     void loginSucceeded(String account, String clientIp) {
         loginFailuresPerAccountAndIp.reset(account + "|" + clientIp);
+    }
+
+    /**
+     * Password reset is how an owner gets back in while someone attacks the account, so it ignores
+     * the per-account total that such an attack fills. Guessing is still bounded: five tries per
+     * code, failures per account and IP, and attempts per IP.
+     */
+    void checkReset(String account, String clientIp) {
+        loginPerIp.acquire(clientIp);
+        loginFailuresPerAccountAndIp.check(account + "|" + clientIp);
+    }
+
+    void resetFailed(String account, String clientIp) {
+        loginFailuresPerAccountAndIp.recordFailure(account + "|" + clientIp);
+    }
+
+    /**
+     * A successful reset proves the owner: earlier failures against any of the account's phone or
+     * email no longer count, so the owner can sign in with the new password at once.
+     */
+    void accountRecovered(Collection<String> logins, String clientIp) {
+        for (String login : logins) {
+            loginFailuresPerAccount.reset(login);
+            loginFailuresPerAccountAndIp.reset(login + "|" + clientIp);
+        }
     }
 }

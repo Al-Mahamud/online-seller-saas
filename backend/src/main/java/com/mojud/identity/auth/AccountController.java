@@ -35,8 +35,8 @@ class AccountController {
 
     /** Fields left out stay as they are. */
     record UpdateRequest(
-            @Size(min = 1, max = 120) @Pattern(regexp = ".*\\S.*", message = "{jakarta.validation.constraints.NotBlank.message}")
-            String name,
+            /** Checked for blankness after trimming, by the account (User#cleanName). */
+            @Size(min = 1, max = 120) String name,
             @Pattern(regexp = "bn|en", message = "{field.locale_invalid}") String locale) {
     }
 

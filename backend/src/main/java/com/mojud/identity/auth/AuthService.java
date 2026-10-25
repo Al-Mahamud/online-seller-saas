@@ -1,6 +1,7 @@
 package com.mojud.identity.auth;
 
 import com.mojud.identity.AuthenticatedUser;
+import com.mojud.identity.account.ContactConflicts;
 import com.mojud.identity.account.MeResponse;
 import com.mojud.identity.account.User;
 import com.mojud.identity.account.UserRepository;
@@ -14,6 +15,8 @@ import com.mojud.shared.phone.PhoneNumber;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -68,10 +71,13 @@ class AuthService {
         }
         otp.requireAvailable(destination.channel());
         limits.codeRequested(destination.value(), purpose, clientIp);
-        boolean registered = findVerified(destination).isPresent();
+        Optional<User> holder = users.findVerified(destination);
+        boolean registered = holder.isPresent();
+        // A disabled account gets no codes: it cannot use them, and each SMS costs money.
+        boolean active = holder.map(User::isActive).orElse(false);
         boolean usable = switch (purpose) {
             case SIGNUP -> !registered;
-            case LOGIN, PASSWORD_RESET -> registered;
+            case LOGIN, PASSWORD_RESET -> active;
             case VERIFY_CONTACT -> false;
         };
         if (usable) {
@@ -87,6 +93,8 @@ class AuthService {
      */
     MeResponse signUp(SignUp command, String clientIp, HttpServletRequest request, HttpServletResponse response) {
         limits.signupPerIp.acquire(clientIp);
+        // Checked before the code, so a bad name does not use the code up.
+        User.cleanName(command.name());
         OtpDestination verified = command.codeSentToPhone()
                 ? OtpDestination.phone(command.phone())
                 : OtpDestination.email(command.email());
@@ -100,7 +108,7 @@ class AuthService {
             // sign-ups racing for the same phone or email.
             user = transactions.execute(status -> users.saveAndFlush(account));
         } catch (DataIntegrityViolationException e) {
-            throw AccountService.contactTaken(e);
+            throw ContactConflicts.translate(e);
         }
         sessions.start(principal(user), user.getLocale(), request, response);
         return MeResponse.of(user);
@@ -129,7 +137,7 @@ class AuthService {
             limits.loginFailed(login.value(), clientIp);
             throw e;
         }
-        User user = findVerified(login.destination())
+        User user = users.findVerified(login.destination())
                 .orElseThrow(() -> new ApiException(ErrorCode.INVALID_CREDENTIALS));
         return start(user, login, clientIp, request, response);
     }
@@ -150,27 +158,28 @@ class AuthService {
      * sign-ins. The user then signs in with the new password.
      */
     void resetPassword(LoginIdentifier login, String code, String newPassword, String clientIp) {
-        limits.checkLogin(login.value(), clientIp);
+        limits.checkReset(login.value(), clientIp);
         try {
             otp.consume(login.destination(), OtpPurpose.PASSWORD_RESET, code);
         } catch (ApiException e) {
-            limits.loginFailed(login.value(), clientIp);
+            limits.resetFailed(login.value(), clientIp);
             throw e;
         }
-        User user = findVerified(login.destination()).orElseThrow(() -> new ApiException(ErrorCode.OTP_INVALID));
+        User user = users.findVerified(login.destination())
+                .orElseThrow(() -> new ApiException(ErrorCode.OTP_INVALID));
+        // Reported only after a right code, as for sign-in, so it reveals nothing to strangers.
+        if (!user.isActive()) {
+            throw new ApiException(ErrorCode.ACCOUNT_DISABLED);
+        }
         String hash = passwords.encode(newPassword);
         transactions.executeWithoutResult(status -> {
             User current = users.findById(user.getId()).orElseThrow();
             current.changePassword(hash, clock.instant());
         });
-        limits.loginSucceeded(login.value(), clientIp);
+        List<String> logins = new ArrayList<>(List.of(user.getPhone().e164()));
+        user.getEmail().ifPresent(email -> logins.add(email.value()));
+        limits.accountRecovered(logins, clientIp);
         sessions.revokeAll(user.getId());
-    }
-
-    private Optional<User> findVerified(OtpDestination destination) {
-        return destination.isPhone()
-                ? users.findByVerifiedPhone(destination.value())
-                : users.findByVerifiedEmail(destination.value());
     }
 
     private static AuthenticatedUser principal(User user) {

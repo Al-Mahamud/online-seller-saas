@@ -43,9 +43,9 @@ public class LocaleConfig {
                 return fromHeader.resolveLocale(request);
             }
 
+            /** Ignored: the language is saved on the account, with PATCH /api/v1/me. */
             @Override
             public void setLocale(HttpServletRequest request, HttpServletResponse response, Locale locale) {
-                throw new UnsupportedOperationException("The language is changed with PATCH /api/v1/me");
             }
         };
     }

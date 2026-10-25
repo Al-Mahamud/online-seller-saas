@@ -285,6 +285,117 @@ class AccountTests {
                 .expectError(409, "account.email_taken");
     }
 
+    // Fixes from the 1b code review.
+
+    @Test
+    void anotherUserCannotReplaceOrUseUpAPendingContactCode() {
+        ApiClient owner = client();
+        Account account = TestAccounts.signUpWithPhone(owner, messages);
+        String email = TestAccounts.newEmail();
+        owner.post("/api/v1/me/contact/code", Map.of("to", email)).expectStatus(202);
+        String ownersCode = codeFor(email);
+
+        ApiClient meddler = client().withHeader("X-Forwarded-For", "203.0.113.80");
+        Account other = TestAccounts.signUpWithPhone(meddler, messages);
+        meddler.post("/api/v1/me/contact/code", Map.of("to", email)).expectStatus(202);
+        String wrong = ownersCode.equals("111111") ? "222222" : "111111";
+        for (int i = 0; i < 5; i++) {
+            meddler.post("/api/v1/me/contact", Map.of("to", email, "code", wrong, "currentPassword", other.password()))
+                    .expectError(400, "otp.invalid");
+        }
+        meddler.post("/api/v1/me/contact", Map.of("to", email, "code", ownersCode, "currentPassword", other.password()))
+                .expectError(400, "otp.invalid");
+
+        owner.post("/api/v1/me/contact", Map.of("to", email, "code", ownersCode, "currentPassword", account.password()))
+                .expectStatus(200);
+    }
+
+    @Test
+    void theOwnerCanResetWhileTheAccountIsUnderAttack() {
+        Account account = TestAccounts.signUp(client(), messages);
+        for (int i = 0; i < 50; i++) {
+            client().withHeader("X-Forwarded-For", "192.0.2." + (i % 10))
+                    .post("/api/v1/auth/login", Map.of("login", account.email(), "password", "guess " + i))
+                    .expectError(401, "auth.invalid_credentials");
+        }
+        ApiClient owner = client().withHeader("X-Forwarded-For", "198.51.100.90");
+        owner.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+                .expectError(429, "rate_limited");
+
+        owner.post("/api/v1/auth/otp", Map.of("to", account.email(), "purpose", "PASSWORD_RESET")).expectStatus(202);
+        owner.post("/api/v1/auth/password/reset",
+                Map.of("login", account.email(), "code", codeFor(account.email()), "newPassword", NEW_PASSWORD))
+                .expectStatus(204);
+
+        owner.post("/api/v1/auth/login", Map.of("login", account.email(), "password", NEW_PASSWORD))
+                .expectStatus(200);
+    }
+
+    @Test
+    void aDisabledAccountGetsNoResetCodeAndCannotBeReset() {
+        Account account = TestAccounts.signUp(client(), messages);
+        ApiClient client = client().withHeader("X-Forwarded-For", "203.0.113.90");
+        client.post("/api/v1/auth/otp", Map.of("to", account.email(), "purpose", "PASSWORD_RESET")).expectStatus(202);
+        String codeFromBefore = codeFor(account.email());
+        JdbcClient.create(dataSource).sql("update users set status = 'DISABLED' where email = ?")
+                .param(account.email()).update();
+        int before = messages.to(account.email()).size();
+
+        client().withHeader("X-Forwarded-For", "203.0.113.91")
+                .post("/api/v1/auth/otp", Map.of("to", account.email(), "purpose", "PASSWORD_RESET")).expectStatus(202);
+        client.post("/api/v1/auth/password/reset",
+                Map.of("login", account.email(), "code", codeFromBefore, "newPassword", NEW_PASSWORD))
+                .expectError(403, "auth.account_disabled");
+
+        assertThat(messages.to(account.email())).hasSize(before);
+    }
+
+    @Test
+    void aNameOfOnlyUnusualSpacesIsBlank() {
+        ApiClient client = client();
+        TestAccounts.signUp(client, messages);
+
+        ApiResponse patched = client.patch("/api/v1/me", Map.of("name", "\u2003\u2002 ")).expectError(400, "validation.failed");
+
+        assertThat(patched.<List<String>>json("$.errors[*].field")).containsExactly("name");
+    }
+
+    @Test
+    void aBlankNameAtSignUpDoesNotUseUpTheCode() {
+        ApiClient client = client();
+        String email = TestAccounts.newEmail();
+        client.post("/api/v1/auth/otp", Map.of("to", email, "purpose", "SIGNUP")).expectStatus(202);
+        Map<String, Object> body = new java.util.HashMap<>(Map.of("name", "\u2003", "phone", TestAccounts.newPhone(),
+                "email", email, "password", TestAccounts.PASSWORD, "codeSentTo", "EMAIL", "code", codeFor(email)));
+
+        client.post("/api/v1/auth/signup", body).expectError(400, "validation.failed");
+        body.put("name", "Rahima");
+        client.post("/api/v1/auth/signup", body).expectStatus(201);
+    }
+
+    @Test
+    void simultaneousEditsGetAConflictNotAServerError() throws Exception {
+        ApiClient client = client();
+        TestAccounts.signUp(client, messages);
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(10);
+        try {
+            List<java.util.concurrent.Future<ApiResponse>> answers = new java.util.ArrayList<>();
+            for (int i = 0; i < 20; i++) {
+                String name = "Name " + i;
+                answers.add(pool.submit(() -> client.patch("/api/v1/me", Map.of("name", name))));
+            }
+            for (java.util.concurrent.Future<ApiResponse> answer : answers) {
+                ApiResponse response = answer.get(60, java.util.concurrent.TimeUnit.SECONDS);
+                assertThat(response.status()).as(response.body()).isIn(200, 409);
+                if (response.status() == 409) {
+                    response.expectError(409, "resource.modified");
+                }
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
     private ApiResponse confirm(ApiClient client, Account account, String to) {
         client.post("/api/v1/me/contact/code", Map.of("to", to)).expectStatus(202);
         String destination = to.contains("@") ? to : "+88" + to;

@@ -84,10 +84,20 @@ public class OtpService {
      */
     @Transactional
     public void issue(OtpDestination destination, OtpPurpose purpose) {
+        issue(destination, purpose, null);
+    }
+
+    /**
+     * Like {@link #issue(OtpDestination, OtpPurpose)}, for a code that belongs to the signed-in
+     * user {@code requestedBy} (VERIFY_CONTACT): it replaces only that user's earlier code.
+     */
+    @Transactional
+    public void issue(OtpDestination destination, OtpPurpose purpose, UUID requestedBy) {
         Instant now = clock.instant();
         UUID id = Ids.newId();
         String code = "%06d".formatted(RANDOM.nextInt(1_000_000));
-        challenges.save(new OtpChallenge(id, destination, purpose, hash(id, code), now.plus(settings.ttl()), now));
+        challenges.save(new OtpChallenge(id, destination, purpose, requestedBy, hash(id, code),
+                now.plus(settings.ttl()), now));
         // Texts are built here: the background thread does not know the request's language.
         Locale locale = LocaleContextHolder.getLocale();
         Object[] args = {code, settings.ttl().toMinutes()};
@@ -113,9 +123,16 @@ public class OtpService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = ApiException.class)
     public void consume(OtpDestination destination, OtpPurpose purpose, String code) {
+        consume(destination, purpose, null, code);
+    }
+
+    /** Like {@link #consume(OtpDestination, OtpPurpose, String)}, for a code issued to {@code requestedBy}. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = ApiException.class)
+    public void consume(OtpDestination destination, OtpPurpose purpose, UUID requestedBy, String code) {
         Instant now = clock.instant();
-        OtpChallenge challenge = challenges
-                .findFirstByDestinationAndPurposeOrderByCreatedAtDesc(destination.value(), purpose)
+        OtpChallenge challenge = (requestedBy == null
+                        ? challenges.findNewest(destination.value(), purpose)
+                        : challenges.findNewestFor(destination.value(), purpose, requestedBy))
                 .filter(c -> c.isUsable(now, settings.maxAttempts()))
                 .orElseThrow(OtpService::invalid);
         byte[] expected = challenge.getCodeHash().getBytes(StandardCharsets.US_ASCII);

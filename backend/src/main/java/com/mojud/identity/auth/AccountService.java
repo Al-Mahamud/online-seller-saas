@@ -1,5 +1,6 @@
 package com.mojud.identity.auth;
 
+import com.mojud.identity.account.ContactConflicts;
 import com.mojud.identity.account.MeResponse;
 import com.mojud.identity.account.User;
 import com.mojud.identity.account.UserRepository;
@@ -11,9 +12,7 @@ import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.phone.PhoneNumber;
 import java.time.Clock;
-import java.util.Optional;
 import java.util.UUID;
-import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -55,17 +54,19 @@ class AccountService {
 
     /** Null fields stay as they are. A new language applies at once on all the user's devices. */
     MeResponse update(UUID userId, String name, String locale) {
+        boolean[] languageChanged = {false};
         MeResponse updated = transactions.execute(status -> {
             User user = users.findById(userId).orElseThrow(ApiException::notFound);
             if (name != null) {
                 user.rename(name, clock.instant());
             }
-            if (locale != null) {
+            if (locale != null && !locale.equals(user.getLocale())) {
                 user.changeLocale(locale, clock.instant());
+                languageChanged[0] = true;
             }
             return MeResponse.of(users.saveAndFlush(user));
         });
-        if (locale != null) {
+        if (languageChanged[0]) {
             sessions.changeLanguage(userId, locale);
         }
         return updated;
@@ -84,14 +85,15 @@ class AccountService {
     /**
      * Sends a code to prove a phone or email for this account. Nothing is sent when it is already
      * verified here or by another account; the answer is the same, so signed-in users cannot use
-     * this to learn which phones and emails have accounts.
+     * this to learn which phones and emails have accounts. The code belongs to this user: another
+     * user asking for a code to the same address neither replaces nor uses up this one.
      */
     void requestContactCode(UUID userId, OtpDestination destination, String clientIp) {
         otp.requireAvailable(destination.channel());
         limits.codeRequested(destination.value(), OtpPurpose.VERIFY_CONTACT, clientIp);
         User user = users.findById(userId).orElseThrow(ApiException::notFound);
-        if (!user.hasVerified(destination.value()) && findVerified(destination).isEmpty()) {
-            otp.issue(destination, OtpPurpose.VERIFY_CONTACT);
+        if (!user.hasVerified(destination.value()) && users.findVerified(destination).isEmpty()) {
+            otp.issue(destination, OtpPurpose.VERIFY_CONTACT, userId);
         }
     }
 
@@ -106,7 +108,7 @@ class AccountService {
         requirePassword(userId, currentPassword, clientIp);
         String limitKey = "user:" + userId;
         try {
-            otp.consume(destination, OtpPurpose.VERIFY_CONTACT, code);
+            otp.consume(destination, OtpPurpose.VERIFY_CONTACT, userId, code);
         } catch (ApiException e) {
             limits.loginFailed(limitKey, clientIp);
             throw e;
@@ -123,7 +125,7 @@ class AccountService {
                 return MeResponse.of(users.saveAndFlush(user));
             });
         } catch (DataIntegrityViolationException e) {
-            throw contactTaken(e);
+            throw ContactConflicts.translate(e);
         }
     }
 
@@ -136,22 +138,5 @@ class AccountService {
             throw new ApiException(ErrorCode.WRONG_PASSWORD);
         }
         limits.loginSucceeded(limitKey, clientIp);
-    }
-
-    private Optional<User> findVerified(OtpDestination destination) {
-        return destination.isPhone()
-                ? users.findByVerifiedPhone(destination.value())
-                : users.findByVerifiedEmail(destination.value());
-    }
-
-    static RuntimeException contactTaken(DataIntegrityViolationException e) {
-        String reason = String.valueOf(NestedExceptionUtils.getMostSpecificCause(e).getMessage());
-        if (reason.contains("uq_users_verified_phone")) {
-            return new ApiException(ErrorCode.PHONE_TAKEN);
-        }
-        if (reason.contains("uq_users_verified_email")) {
-            return new ApiException(ErrorCode.EMAIL_TAKEN);
-        }
-        return e;
     }
 }

@@ -25,6 +25,9 @@ class OtpChallenge {
 
     private String codeHash;
 
+    /** The signed-in user a VERIFY_CONTACT code was sent for; null for other purposes. */
+    private UUID requestedBy;
+
     private short attempts;
 
     private Instant expiresAt;
@@ -36,9 +39,10 @@ class OtpChallenge {
     protected OtpChallenge() {
     }
 
-    OtpChallenge(UUID id, OtpDestination destination, OtpPurpose purpose, String codeHash, Instant expiresAt,
-            Instant createdAt) {
+    OtpChallenge(UUID id, OtpDestination destination, OtpPurpose purpose, UUID requestedBy, String codeHash,
+            Instant expiresAt, Instant createdAt) {
         this.id = id;
+        this.requestedBy = requestedBy;
         this.channel = destination.channel();
         this.destination = destination.value();
         this.purpose = purpose;
