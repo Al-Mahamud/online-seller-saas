@@ -44,7 +44,7 @@ One Spring Boot application with PostgreSQL as the only stateful service. **(cha
 | Password hashing | Argon2id (Bouncy Castle) | |
 | Background jobs | db-scheduler (PostgreSQL-backed) **(changed from BullMQ)** | Recurring and one-off jobs, safe with several app instances |
 | Cross-module events | Spring Modulith events with the JDBC event publication registry | An event that fails its listener is retried after restart |
-| Rate limits | Bucket4j, in memory | One app instance at launch; switch to the Bucket4j PostgreSQL backend if we run two |
+| Rate limits | Small in-memory fixed-window limiter (Caffeine) | One app instance at launch; move the counters to PostgreSQL if we run two |
 | Files | S3 API (Cloudflare R2) via AWS SDK v2; local disk in dev | Uploads go browser → R2 with presigned URLs |
 | Images | Thumbnailator; EXIF stripped on re-encode | |
 | Excel / CSV | Apache POI streaming reader for `.xlsx`, FastCSV for `.csv` | |
@@ -422,7 +422,7 @@ The phase-by-phase breakdown is in [implementation-plan.md](implementation-plan.
 
 ## 14. Changes to the product plan, in one list
 
-1. PostgreSQL-only infrastructure (db-scheduler, Bucket4j) instead of Redis + BullMQ.
+1. PostgreSQL-only infrastructure (db-scheduler, in-memory rate limits) instead of Redis + BullMQ.
 2. Cookie sessions instead of access + refresh tokens.
 3. SSE instead of Socket.IO for the inbox (release 2).
 4. `stock_levels` table separate from variants; ledger with two delta columns so reservations are in it too.

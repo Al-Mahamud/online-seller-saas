@@ -27,6 +27,12 @@ spring:
     fallback-to-system-locale: false
   jackson:
     time-zone: UTC
+  session:
+    # Idle timeout: a signed-in user stays signed in for a week of inactivity.
+    timeout: 7d
+    jdbc:
+      # V4 creates the session tables.
+      initialize-schema: never
   modulith:
     # Spring Modulith's hourly and daily time events are not used; jobs schedule themselves.
     moments:
@@ -44,6 +50,22 @@ db-scheduler:
   enabled: ${JOBS_ENABLED:true}
 
 mojud:
+  # No real SMS gateway or email provider yet (backend-plan.md §13; email arrives in Phase 13a).
+  # "log" writes messages, codes included, to the log: local runs and tests only.
+  sms:
+    provider: ${SMS_PROVIDER:none}
+  email:
+    provider: ${EMAIL_PROVIDER:none}
+  identity:
+    otp:
+      ttl: 5m
+      max-attempts: 5
+    rate-limits:
+      login-per-account: { max: 10, window: 15m }
+      login-per-ip: { max: 100, window: 15m }
+      otp-cooldown: { max: 1, window: 60s }
+      otp-per-destination: { max: 5, window: 1h }
+      otp-per-ip: { max: 20, window: 1h }
   db:
     system:
       url: ${spring.datasource.url}
@@ -54,6 +76,13 @@ server:
   error:
     include-stacktrace: never
     include-message: never
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        secure: true
+        same-site: lax
+        max-age: 7d
 
 management:
   endpoints:

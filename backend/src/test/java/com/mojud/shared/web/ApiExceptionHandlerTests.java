@@ -20,7 +20,13 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
  * files), using a controller that exists only in this test.
  */
 @IntegrationTest
-@Import(ApiExceptionHandlerTests.ExampleController.class)
+@Import({ApiExceptionHandlerTests.ExampleController.class, ApiExceptionHandlerTests.OpenTestRoutes.class})
 class ApiExceptionHandlerTests {
 
     private static final HttpClient HTTP = HttpClient.newHttpClient();
@@ -183,6 +189,20 @@ class ApiExceptionHandlerTests {
             List<String> messages = json.read("$.errors[?(@.field == '" + field + "')].message");
             assertThat(messages).as("errors for field %s in %s", field, body).hasSize(1);
             return messages.get(0);
+        }
+    }
+
+    /** The example routes are open and need no CSRF token, so each test sees only its own error. */
+    @TestConfiguration(proxyBeanMethods = false)
+    static class OpenTestRoutes {
+
+        @Bean
+        @Order(0)
+        SecurityFilterChain openTestRoutes(HttpSecurity http) throws Exception {
+            return http.securityMatcher("/test/**")
+                    .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
+                    .csrf(AbstractHttpConfigurer::disable)
+                    .build();
         }
     }
 

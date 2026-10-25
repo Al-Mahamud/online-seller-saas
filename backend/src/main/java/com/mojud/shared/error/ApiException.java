@@ -1,5 +1,6 @@
 package com.mojud.shared.error;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,6 +14,8 @@ import java.util.Map;
  */
 public class ApiException extends RuntimeException {
 
+    public static final String RETRY_AFTER_SECONDS = "retryAfterSeconds";
+
     private final ErrorCode code;
     private final Object[] messageArgs;
     private final Map<String, Object> details = new LinkedHashMap<>();
@@ -25,6 +28,15 @@ public class ApiException extends RuntimeException {
 
     public static ApiException notFound() {
         return new ApiException(ErrorCode.NOT_FOUND);
+    }
+
+    /**
+     * Too many attempts. The handler sends {@code retryAfterSeconds} also as the
+     * {@code Retry-After} header.
+     */
+    public static ApiException rateLimited(Duration retryAfter) {
+        long seconds = Math.max(1, (retryAfter.toMillis() + 999) / 1000);
+        return new ApiException(ErrorCode.RATE_LIMITED).withDetail(RETRY_AFTER_SECONDS, seconds);
     }
 
     /**

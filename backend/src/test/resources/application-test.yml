@@ -10,3 +10,22 @@ db-scheduler:
 springdoc:
   api-docs:
     enabled: true
+
+mojud:
+  sms:
+    provider: log
+  email:
+    provider: log
+  identity:
+    rate-limits:
+      # Every test client comes from 127.0.0.1, so per-IP limits are effectively off here;
+      # RateLimiterTest covers the limiter itself.
+      login-per-ip: { max: 1000000, window: 15m }
+      otp-per-ip: { max: 1000000, window: 1h }
+
+server:
+  servlet:
+    session:
+      cookie:
+        # The test client talks plain http.
+        secure: false

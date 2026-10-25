@@ -19,6 +19,22 @@ public enum ErrorCode {
     /** Optimistic-lock conflict: someone else changed the resource first. */
     CONCURRENT_MODIFICATION("resource.modified", HttpStatus.CONFLICT),
 
+    RATE_LIMITED("rate_limited", HttpStatus.TOO_MANY_REQUESTS),
+
+    // Authentication and accounts.
+    UNAUTHENTICATED("auth.required", HttpStatus.UNAUTHORIZED),
+    FORBIDDEN("access.denied", HttpStatus.FORBIDDEN),
+    CSRF_TOKEN_INVALID("csrf.invalid", HttpStatus.FORBIDDEN),
+    /** Wrong password, wrong code or unknown account; deliberately not distinguished. */
+    INVALID_CREDENTIALS("auth.invalid_credentials", HttpStatus.UNAUTHORIZED),
+    ACCOUNT_DISABLED("auth.account_disabled", HttpStatus.FORBIDDEN),
+    /** Wrong, expired, already used or too many attempts; deliberately not distinguished. */
+    OTP_INVALID("otp.invalid", HttpStatus.BAD_REQUEST),
+    /** No sender is configured for this channel (no SMS gateway yet, backend-plan.md §13). */
+    OTP_CHANNEL_UNAVAILABLE("otp.channel_unavailable", HttpStatus.BAD_REQUEST),
+    PHONE_TAKEN("account.phone_taken", HttpStatus.CONFLICT),
+    EMAIL_TAKEN("account.email_taken", HttpStatus.CONFLICT),
+
     // Errors raised by the framework before a controller runs.
     MALFORMED_REQUEST("request.malformed", HttpStatus.BAD_REQUEST),
     ROUTE_NOT_FOUND("route.not_found", HttpStatus.NOT_FOUND),

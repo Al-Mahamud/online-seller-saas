@@ -1,5 +1,24 @@
 # Local development only. Never enable this profile on a server.
 
+mojud:
+  sms:
+    provider: log
+  email:
+    provider: log
+  identity:
+    rate-limits:
+      # Everything local comes from 127.0.0.1, so per-IP limits would stop a busy session or an
+      # end-to-end test run; per-account and per-destination limits stay as configured.
+      login-per-ip: { max: 1000000, window: 15m }
+      otp-per-ip: { max: 1000000, window: 1h }
+
+server:
+  servlet:
+    session:
+      cookie:
+        # Local runs use plain http.
+        secure: false
+
 springdoc:
   api-docs:
     enabled: true

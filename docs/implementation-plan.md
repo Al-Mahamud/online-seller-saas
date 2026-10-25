@@ -16,8 +16,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 
 | Phase | Sub-phases | Days | Status |
 | --- | --- | --- | --- |
-| 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | 0a done · 0b in review |
-| 1 Identity | 1a sign-up and login · 1b account management | 4 | Not started |
+| 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | Done |
+| 1 Identity | 1a sign-up and login · 1b account management | 4 | 1a in review |
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Not started |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Not started |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Not started |
@@ -87,7 +87,7 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `SmsSender` and `EmailSender` interfaces, each with a logging implementation. With no SMS gateway, OTPs go by email; the phone is stored but marked unverified until the gateway is added.
 - `POST /auth/otp`, `POST /auth/signup`, `POST /auth/login` (password, or OTP), `POST /auth/logout`, `GET /me`.
 - Spring Session JDBC cookie session, CSRF (cookie-to-header), CORS for the frontend origin, Argon2id.
-- Bucket4j rate limits: OTP send per phone/email and IP, verify attempts, login failures (§11).
+- Rate limits (an in-memory fixed-window limiter, as in the marketplace project, instead of Bucket4j): OTP send per phone/email and IP, verify attempts, login attempts (§11).
 - Dev-only `GET /dev/otp` endpoint (test sources only) so local runs and later end-to-end tests can read codes.
 
 **Checked by:** sign-up → login → `/me`; wrong code 5 times locks the challenge; expired code rejected; rate limits return 429 with `Retry-After`.

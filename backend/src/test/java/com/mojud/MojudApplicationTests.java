@@ -44,8 +44,22 @@ class MojudApplicationTests {
 
     @Test
     void exposesNoOtherActuatorEndpoint() throws Exception {
-        assertThat(get("/env").statusCode()).isEqualTo(404);
-        assertThat(get("/actuator/health").statusCode()).isEqualTo(404);
+        assertThat(get("/env").statusCode()).isIn(401, 404);
+        assertThat(get("/actuator/env").statusCode()).isIn(401, 404);
+        assertThat(get("/healthz/db").body()).doesNotContain("mojud_app");
+    }
+
+    @Test
+    void apiAnswersCarrySecurityHeaders() throws Exception {
+        HttpResponse<String> response = get("/api/v1/auth/options");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.headers().firstValue("Content-Security-Policy"))
+                .hasValue("default-src 'none'; frame-ancestors 'none'; sandbox");
+        assertThat(response.headers().firstValue("Referrer-Policy")).hasValue("no-referrer");
+        assertThat(response.headers().firstValue("Permissions-Policy")).get().asString().contains("camera=()");
+        assertThat(response.headers().firstValue("X-Content-Type-Options")).hasValue("nosniff");
+        assertThat(response.headers().firstValue("X-Frame-Options")).hasValue("DENY");
     }
 
     @Test

@@ -17,6 +17,6 @@ import org.springframework.test.context.ActiveProfiles;
 @Retention(RetentionPolicy.RUNTIME)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Import(EmbeddedPostgresConfig.class)
+@Import({EmbeddedPostgresConfig.class, DevSupportConfig.class})
 public @interface IntegrationTest {
 }

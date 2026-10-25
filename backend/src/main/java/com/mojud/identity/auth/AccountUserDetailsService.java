@@ -1,0 +1,55 @@
+package com.mojud.identity.auth;
+
+import com.mojud.identity.account.User;
+import com.mojud.identity.account.UserRepository;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+/**
+ * Looks accounts up by stored phone ({@code +880…}) or email, for password checks only. Account
+ * status is checked after the password, in {@link AuthService}, so a wrong password never reveals
+ * whether an account is disabled. For unknown accounts Spring still hashes the given password, so
+ * the answer takes as long as for a wrong password.
+ */
+@Service
+class AccountUserDetailsService implements UserDetailsService {
+
+    private final UserRepository users;
+
+    AccountUserDetailsService(UserRepository users) {
+        this.users = users;
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String login) {
+        Optional<User> user = login.startsWith("+") ? users.findByPhone(login) : users.findByEmail(login);
+        return user.map(found -> new Account(found.getId(), found.getPasswordHash()))
+                .orElseThrow(() -> new UsernameNotFoundException("No account"));
+    }
+
+    /** Lives only during the password check; never stored in the session. */
+    record Account(UUID id, String passwordHash) implements UserDetails {
+
+        @Override
+        public Collection<? extends GrantedAuthority> getAuthorities() {
+            return List.of();
+        }
+
+        @Override
+        public String getPassword() {
+            return passwordHash;
+        }
+
+        @Override
+        public String getUsername() {
+            return id.toString();
+        }
+    }
+}

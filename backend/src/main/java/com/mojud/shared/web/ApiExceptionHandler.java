@@ -18,6 +18,9 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -48,7 +51,30 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     ResponseEntity<ProblemDetail> handleApiException(ApiException ex) {
         ProblemDetail problem = problem(ex.code(), ex.messageArgs());
         ex.details().forEach((name, value) -> problem.setProperty(name, translateFieldProblems(value)));
-        return respond(problem);
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(problem.getStatus());
+        Object retryAfter = ex.details().get(ApiException.RETRY_AFTER_SECONDS);
+        if (retryAfter != null) {
+            response.header(HttpHeaders.RETRY_AFTER, retryAfter.toString());
+        }
+        return response.body(problem);
+    }
+
+    // The three security handlers below also receive errors raised by the security filter chain,
+    // which forwards them here (SecurityConfig) so that every error uses the same format.
+
+    @ExceptionHandler(AuthenticationException.class)
+    ResponseEntity<ProblemDetail> handleUnauthenticated(AuthenticationException ex) {
+        return respond(problem(ErrorCode.UNAUTHENTICATED));
+    }
+
+    @ExceptionHandler(CsrfException.class)
+    ResponseEntity<ProblemDetail> handleCsrf(CsrfException ex) {
+        return respond(problem(ErrorCode.CSRF_TOKEN_INVALID));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException ex) {
+        return respond(problem(ErrorCode.FORBIDDEN));
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
