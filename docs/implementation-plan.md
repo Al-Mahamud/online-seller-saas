@@ -16,7 +16,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 
 | Phase | Sub-phases | Days | Status |
 | --- | --- | --- | --- |
-| 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | Not started |
+| 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | 0a in review |
 | 1 Identity | 1a sign-up and login · 1b account management | 4 | Not started |
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Not started |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Not started |

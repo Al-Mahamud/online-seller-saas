@@ -1,0 +1,7 @@
+# Local development only. Never enable this profile on a server.
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

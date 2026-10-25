@@ -1,0 +1,15 @@
+# Weekly pull requests for dependency updates; small updates are grouped to keep the noise down.
+# Security fixes arrive as soon as GitHub knows of them.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

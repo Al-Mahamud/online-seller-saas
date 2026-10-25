@@ -1,0 +1,10 @@
+# Staging and production servers. Phase 13b adds addresses, secrets and proxy settings.
+
+server:
+  shutdown: graceful
+
+logging:
+  # One JSON object per line, ready for a log collector.
+  structured:
+    format:
+      console: ecs

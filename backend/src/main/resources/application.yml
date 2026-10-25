@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: mojud
+  messages:
+    basename: messages
+    encoding: UTF-8
+    # Unknown languages fall back to messages.properties (English), not to the server's locale.
+    fallback-to-system-locale: false
+  jackson:
+    time-zone: UTC
+  modulith:
+    # Spring Modulith's hourly and daily time events are not used; jobs schedule themselves.
+    moments:
+      enabled: false
+
+server:
+  error:
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      # Only health is exposed, at /healthz.
+      base-path: /
+      path-mapping:
+        health: healthz
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  # Off unless asked for: the API description helps attackers as much as developers. The local
+  # and test profiles turn it on.
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:false}
+    path: /api/v1/openapi
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:false}
+    path: /api/docs
