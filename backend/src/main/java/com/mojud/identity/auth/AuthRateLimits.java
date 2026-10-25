@@ -40,7 +40,19 @@ class AuthRateLimits {
         this.otpPerDestination = limits.otpPerDestination().toLimiter("otp-per-destination");
     }
 
-    /** Fails when this account already has too many failed sign-ins, from this IP or overall. */
+    /** Limits on sending a code, applied before anything is looked up. */
+    void codeRequested(String destination, Object purpose, String clientIp) {
+        otpPerIp.acquire(clientIp);
+        otpCooldown.acquire(destination + "|" + purpose + "|" + clientIp);
+        otpPerDestinationAndIp.acquire(destination + "|" + clientIp);
+        otpPerDestination.acquire(destination);
+    }
+
+    /**
+     * Fails when this account already has too many failed sign-ins, from this IP or overall.
+     * {@code account} is the phone or email typed, or {@code user:<id>} for a signed-in user
+     * re-entering their password.
+     */
     void checkLogin(String account, String clientIp) {
         loginPerIp.acquire(clientIp);
         loginFailuresPerAccountAndIp.check(account + "|" + clientIp);

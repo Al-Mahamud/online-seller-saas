@@ -99,6 +99,23 @@ class AuthController {
                 body.codeSentTo() == OtpChannel.PHONE, body.code()), request.getRemoteAddr(), request, response);
     }
 
+    record PasswordResetRequest(
+            @NotBlank String login,
+            @NotBlank @Pattern(regexp = SIX_DIGITS, message = "{field.six_digit_code}") String code,
+            @NotBlank @Size(min = 8, max = 128) String newPassword) {
+    }
+
+    /**
+     * Sets a new password with a PASSWORD_RESET code sent to the account's verified phone or
+     * email, and signs out every device.
+     */
+    @PostMapping("/password/reset")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void resetPassword(@Valid @RequestBody PasswordResetRequest body, HttpServletRequest request) {
+        auth.resetPassword(LoginIdentifier.parse(body.login(), "login"), body.code(), body.newPassword(),
+                request.getRemoteAddr());
+    }
+
     /** {@code login} is a phone number or an email address; give a password or a sign-in code. */
     record LoginRequest(
             @NotBlank String login,

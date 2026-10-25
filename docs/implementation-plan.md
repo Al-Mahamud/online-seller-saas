@@ -17,7 +17,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | Phase | Sub-phases | Days | Status |
 | --- | --- | --- | --- |
 | 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | Done |
-| 1 Identity | 1a sign-up and login · 1b account management | 4 | 1a in review |
+| 1 Identity | 1a sign-up and login · 1b account management | 4 | 1a done · 1b in review |
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Not started |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Not started |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Not started |
@@ -102,6 +102,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Add or change email and phone, each confirmed by OTP.
 
 **Checked by:** reset logs out other sessions; locale changes the language of error messages.
+
+**As built:** the saved language is kept in the session and wins over `Accept-Language` on every device of the user. Changing a phone or email needs a code to the new one **and** the current password (a stolen session alone cannot move the account to an attacker's email). Endpoints: `PATCH /me`, `POST /me/password`, `POST /me/contact/code`, `POST /me/contact`, `POST /auth/password/reset` (code purpose `PASSWORD_RESET` via `POST /auth/otp`).
 
 ---
 

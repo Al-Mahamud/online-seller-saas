@@ -15,7 +15,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Clock;
 import java.util.Optional;
-import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -63,15 +62,17 @@ class AuthService {
      * learn whether an account exists.
      */
     void requestCode(OtpDestination destination, OtpPurpose purpose, String clientIp) {
+        if (purpose == OtpPurpose.VERIFY_CONTACT) {
+            // Only for signed-in users, through /api/v1/me/contact/code.
+            throw ApiException.invalidField("purpose", "field.invalid_value");
+        }
         otp.requireAvailable(destination.channel());
-        limits.otpPerIp.acquire(clientIp);
-        limits.otpCooldown.acquire(destination.value() + "|" + purpose + "|" + clientIp);
-        limits.otpPerDestinationAndIp.acquire(destination.value() + "|" + clientIp);
-        limits.otpPerDestination.acquire(destination.value());
+        limits.codeRequested(destination.value(), purpose, clientIp);
         boolean registered = findVerified(destination).isPresent();
         boolean usable = switch (purpose) {
             case SIGNUP -> !registered;
-            case LOGIN -> registered;
+            case LOGIN, PASSWORD_RESET -> registered;
+            case VERIFY_CONTACT -> false;
         };
         if (usable) {
             otp.issue(destination, purpose);
@@ -99,9 +100,9 @@ class AuthService {
             // sign-ups racing for the same phone or email.
             user = transactions.execute(status -> users.saveAndFlush(account));
         } catch (DataIntegrityViolationException e) {
-            throw contactTaken(e);
+            throw AccountService.contactTaken(e);
         }
-        sessions.start(principal(user), request, response);
+        sessions.start(principal(user), user.getLocale(), request, response);
         return MeResponse.of(user);
     }
 
@@ -139,26 +140,37 @@ class AuthService {
             throw new ApiException(ErrorCode.ACCOUNT_DISABLED);
         }
         limits.loginSucceeded(login.value(), clientIp);
-        sessions.start(principal(user), request, response);
+        sessions.start(principal(user), user.getLocale(), request, response);
         return MeResponse.of(user);
+    }
+
+    /**
+     * Sets a new password after proving the phone or email with a code, and signs the user out on
+     * every device, in case someone else knew the old password. Wrong codes count as failed
+     * sign-ins. The user then signs in with the new password.
+     */
+    void resetPassword(LoginIdentifier login, String code, String newPassword, String clientIp) {
+        limits.checkLogin(login.value(), clientIp);
+        try {
+            otp.consume(login.destination(), OtpPurpose.PASSWORD_RESET, code);
+        } catch (ApiException e) {
+            limits.loginFailed(login.value(), clientIp);
+            throw e;
+        }
+        User user = findVerified(login.destination()).orElseThrow(() -> new ApiException(ErrorCode.OTP_INVALID));
+        String hash = passwords.encode(newPassword);
+        transactions.executeWithoutResult(status -> {
+            User current = users.findById(user.getId()).orElseThrow();
+            current.changePassword(hash, clock.instant());
+        });
+        limits.loginSucceeded(login.value(), clientIp);
+        sessions.revokeAll(user.getId());
     }
 
     private Optional<User> findVerified(OtpDestination destination) {
         return destination.isPhone()
                 ? users.findByVerifiedPhone(destination.value())
                 : users.findByVerifiedEmail(destination.value());
-    }
-
-    /** The unique index that refused the insert says which contact is taken. */
-    private static RuntimeException contactTaken(DataIntegrityViolationException e) {
-        String reason = String.valueOf(NestedExceptionUtils.getMostSpecificCause(e).getMessage());
-        if (reason.contains("uq_users_verified_phone")) {
-            return new ApiException(ErrorCode.PHONE_TAKEN);
-        }
-        if (reason.contains("uq_users_verified_email")) {
-            return new ApiException(ErrorCode.EMAIL_TAKEN);
-        }
-        return e;
     }
 
     private static AuthenticatedUser principal(User user) {

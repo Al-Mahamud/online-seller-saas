@@ -74,6 +74,42 @@ public class User {
         return user;
     }
 
+    public void rename(String newName, Instant now) {
+        name = newName.strip();
+        updatedAt = now;
+    }
+
+    /** @param newLocale {@code "bn"} or {@code "en"} */
+    public void changeLocale(String newLocale, Instant now) {
+        locale = newLocale;
+        updatedAt = now;
+    }
+
+    public void changePassword(String newPasswordHash, Instant now) {
+        passwordHash = newPasswordHash;
+        updatedAt = now;
+    }
+
+    /** The phone received a code: it becomes this account's verified phone, replacing any other. */
+    public void verifyPhone(PhoneNumber verified, Instant now) {
+        phone = verified.e164();
+        phoneVerifiedAt = now;
+        updatedAt = now;
+    }
+
+    /** The email received a code: it becomes this account's verified email, replacing any other. */
+    public void verifyEmail(EmailAddress verified, Instant now) {
+        email = verified.value();
+        emailVerifiedAt = now;
+        updatedAt = now;
+    }
+
+    /** True when {@code destination} (E.164 phone or lower-case email) is already verified here. */
+    public boolean hasVerified(String destination) {
+        return destination.equals(phone) ? phoneVerifiedAt != null
+                : destination.equals(email) && emailVerifiedAt != null;
+    }
+
     public boolean isActive() {
         return status == UserStatus.ACTIVE;
     }
