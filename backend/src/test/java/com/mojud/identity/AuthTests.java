@@ -10,9 +10,16 @@ import com.mojud.support.TestAccounts;
 import com.mojud.support.TestAccounts.Account;
 import com.mojud.support.TestClock;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.function.IntFunction;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -95,23 +102,51 @@ class AuthTests {
 
     @Test
     void signUpCodesAreNotSentToSomeoneWhoAlreadyHasAnAccount() {
-        Account existing = TestAccounts.signUp(client(), messages);
+        Account existing = TestAccounts.signUpWithPhone(client(), messages);
+
+        int before = messages.to(existing.e164()).size();
 
         // Same answer as for a new number, so nobody can probe which numbers have accounts.
-        client().post("/api/v1/auth/otp", Map.of("to", existing.phone(), "purpose", "SIGNUP")).expectStatus(202);
+        client().withHeader("X-Forwarded-For", "203.0.113.50")
+                .post("/api/v1/auth/otp", Map.of("to", existing.phone(), "purpose", "SIGNUP")).expectStatus(202);
 
-        assertThat(messages.to(existing.e164())).isEmpty();
+        assertThat(messages.to(existing.e164())).hasSize(before);
     }
 
     @Test
-    void aPhoneNumberCanHaveOnlyOneAccount() {
-        Account existing = TestAccounts.signUp(client(), messages);
+    void anUnverifiedPhoneBlocksNobodyAndCannotBeUsedToSignIn() {
+        // A stranger signs up with an email code and someone else's phone number.
+        Account squatter = TestAccounts.signUp(client(), messages);
+
+        client().post("/api/v1/auth/login", Map.of("login", squatter.phone(), "password", squatter.password()))
+                .expectError(401, "auth.invalid_credentials");
+
+        // The number's owner can still sign up with it, proving it with a code.
+        ApiClient owner = client();
+        owner.post("/api/v1/auth/otp", Map.of("to", squatter.phone(), "purpose", "SIGNUP")).expectStatus(202);
+        Map<String, Object> body = signUp(squatter.phone(), null, codeFor(squatter.e164()));
+        body.put("codeSentTo", "PHONE");
+        String ownerId = owner.post("/api/v1/auth/signup", body).expectStatus(201).json("$.id");
+
+        ApiResponse login = client()
+                .post("/api/v1/auth/login", Map.of("login", squatter.phone(), "password", TestAccounts.PASSWORD))
+                .expectStatus(200);
+        assertThat(login.<String>json("$.id")).isEqualTo(ownerId);
+    }
+
+    @Test
+    void anEmailProvedByAnotherAccountMeanwhileIsTaken() {
         ApiClient client = client();
         String email = TestAccounts.newEmail();
         client.post("/api/v1/auth/otp", Map.of("to", email, "purpose", "SIGNUP")).expectStatus(202);
+        // Another account proves the same email before this sign-up completes.
+        Account other = TestAccounts.signUpWithPhone(client(), messages);
+        JdbcClient.create(dataSource)
+                .sql("update users set email = ?, email_verified_at = now() where phone = ?")
+                .params(email, other.e164()).update();
 
-        client.post("/api/v1/auth/signup", signUp(existing.phone(), email, codeFor(email)))
-                .expectError(409, "account.phone_taken");
+        client.post("/api/v1/auth/signup", signUp(TestAccounts.newPhone(), email, codeFor(email)))
+                .expectError(409, "account.email_taken");
     }
 
     @Test
@@ -187,11 +222,11 @@ class AuthTests {
     // Sign-in.
 
     @Test
-    void passwordSignInAcceptsThePhoneInAnyFormOrTheEmail() {
-        Account account = TestAccounts.signUp(client(), messages);
+    void passwordSignInAcceptsAVerifiedPhoneInAnyForm() {
+        Account account = TestAccounts.signUpWithPhone(client(), messages);
         String spaced = account.phone().substring(0, 5) + "-" + account.phone().substring(5);
 
-        for (String login : List.of(account.phone(), "+88" + account.phone(), spaced, account.email().toUpperCase())) {
+        for (String login : List.of(account.phone(), "+88" + account.phone(), spaced)) {
             ApiClient client = client();
             client.post("/api/v1/auth/login", Map.of("login", login, "password", account.password())).expectStatus(200);
             client.get("/api/v1/me").expectStatus(200);
@@ -199,11 +234,21 @@ class AuthTests {
     }
 
     @Test
+    void passwordSignInAcceptsAVerifiedEmailInAnyCase() {
+        Account account = TestAccounts.signUp(client(), messages);
+        ApiClient client = client();
+
+        client.post("/api/v1/auth/login", Map.of("login", account.email().toUpperCase(), "password", account.password()))
+                .expectStatus(200);
+        client.get("/api/v1/me").expectStatus(200);
+    }
+
+    @Test
     void aWrongPasswordAndAnUnknownAccountGetTheSameAnswer() {
         Account account = TestAccounts.signUp(client(), messages);
 
         ApiResponse wrongPassword = client()
-                .post("/api/v1/auth/login", Map.of("login", account.phone(), "password", "wrong password"))
+                .post("/api/v1/auth/login", Map.of("login", account.email(), "password", "wrong password"))
                 .expectError(401, "auth.invalid_credentials");
         ApiResponse unknown = client()
                 .post("/api/v1/auth/login", Map.of("login", TestAccounts.newPhone(), "password", "wrong password"))
@@ -213,25 +258,27 @@ class AuthTests {
     }
 
     @Test
-    void aSignInCodeSignsInAndVerifiesWhereItWasSent() {
-        Account account = TestAccounts.signUp(client(), messages);
+    void aSignInCodeSignsIn() {
+        Account account = TestAccounts.signUpWithPhone(client(), messages);
         ApiClient client = client();
         client.post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "LOGIN")).expectStatus(202);
 
-        ApiResponse me = client.post("/api/v1/auth/login",
-                Map.of("login", account.phone(), "code", codeFor(account.e164()))).expectStatus(200);
+        client.post("/api/v1/auth/login", Map.of("login", account.phone(), "code", codeFor(account.e164())))
+                .expectStatus(200);
 
-        assertThat(me.<Boolean>json("$.phoneVerified")).isTrue();
         client.get("/api/v1/me").expectStatus(200);
     }
 
     @Test
-    void signInCodesAreNotSentToUnknownAccounts() {
-        String phone = TestAccounts.newPhone();
+    void signInCodesAreNotSentToUnknownOrUnverifiedContacts() {
+        String unknown = TestAccounts.newPhone();
+        Account account = TestAccounts.signUp(client(), messages);
 
-        client().post("/api/v1/auth/otp", Map.of("to", phone, "purpose", "LOGIN")).expectStatus(202);
+        client().post("/api/v1/auth/otp", Map.of("to", unknown, "purpose", "LOGIN")).expectStatus(202);
+        client().post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "LOGIN")).expectStatus(202);
 
-        assertThat(messages.to("+88" + phone)).isEmpty();
+        assertThat(messages.to("+88" + unknown)).isEmpty();
+        assertThat(messages.to(account.e164())).isEmpty();
     }
 
     @Test
@@ -249,10 +296,10 @@ class AuthTests {
     @Test
     void aDisabledAccountCannotSignIn() {
         Account account = TestAccounts.signUp(client(), messages);
-        JdbcClient.create(dataSource).sql("update users set status = 'DISABLED' where phone = ?")
-                .param(account.e164()).update();
+        JdbcClient.create(dataSource).sql("update users set status = 'DISABLED' where email = ?")
+                .param(account.email()).update();
 
-        client().post("/api/v1/auth/login", Map.of("login", account.phone(), "password", account.password()))
+        client().post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
                 .expectError(403, "auth.account_disabled");
     }
 
@@ -263,7 +310,7 @@ class AuthTests {
         Account account = TestAccounts.signUp(client(), messages);
 
         ApiResponse login = client().post("/api/v1/auth/login",
-                Map.of("login", account.phone(), "password", account.password())).expectStatus(200);
+                Map.of("login", account.email(), "password", account.password())).expectStatus(200);
 
         assertThat(login.setCookies()).anySatisfy(cookie -> assertThat(cookie)
                 .startsWith("SESSION=").contains("HttpOnly").contains("SameSite=Lax"));
@@ -274,10 +321,10 @@ class AuthTests {
         Account account = TestAccounts.signUp(client(), messages);
         ApiClient client = client();
         client.get("/api/v1/auth/csrf").expectStatus(204);
-        client.post("/api/v1/auth/login", Map.of("login", account.phone(), "password", "wrong password"));
+        client.post("/api/v1/auth/login", Map.of("login", account.email(), "password", "wrong password"));
         String before = client.cookie("SESSION").orElse("none");
 
-        client.post("/api/v1/auth/login", Map.of("login", account.phone(), "password", account.password()))
+        client.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
                 .expectStatus(200);
 
         assertThat(client.cookie("SESSION")).isPresent().get().isNotEqualTo(before);
@@ -335,18 +382,110 @@ class AuthTests {
     }
 
     @Test
-    void tenSignInAttemptsPerAccountAreAllowedIn15Minutes() {
+    void tenFailedSignInsFromOneClientBlockOnlyThatClient() {
         Account account = TestAccounts.signUp(client(), messages);
+        ApiClient attacker = client().withHeader("X-Forwarded-For", "203.0.113.10");
 
         for (int i = 0; i < 10; i++) {
-            client().post("/api/v1/auth/login", Map.of("login", account.phone(), "password", "wrong password"))
+            attacker.post("/api/v1/auth/login", Map.of("login", account.email(), "password", "wrong password"))
                     .expectError(401, "auth.invalid_credentials");
         }
 
-        client().post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
-                .expectStatus(200);
-        client().post("/api/v1/auth/login", Map.of("login", account.phone(), "password", account.password()))
+        attacker.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
                 .expectError(429, "rate_limited");
+        client().withHeader("X-Forwarded-For", "198.51.100.20")
+                .post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+                .expectStatus(200);
+    }
+
+    @Test
+    void aSuccessfulSignInClearsEarlierTypos() {
+        Account account = TestAccounts.signUp(client(), messages);
+
+        for (int round = 0; round < 2; round++) {
+            for (int i = 0; i < 9; i++) {
+                client().post("/api/v1/auth/login", Map.of("login", account.email(), "password", "typo"))
+                        .expectError(401, "auth.invalid_credentials");
+            }
+            client().post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+                    .expectStatus(200);
+        }
+    }
+
+    @Test
+    void failedSignInsFromManyClientsAreCappedPerAccount() {
+        Account account = TestAccounts.signUp(client(), messages);
+
+        for (int i = 0; i < 50; i++) {
+            client().withHeader("X-Forwarded-For", "192.0.2." + (i % 10))
+                    .post("/api/v1/auth/login", Map.of("login", account.email(), "password", "guess " + i))
+                    .expectError(401, "auth.invalid_credentials");
+        }
+
+        client().withHeader("X-Forwarded-For", "192.0.2.99")
+                .post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+                .expectError(429, "rate_limited");
+    }
+
+    @Test
+    void someoneElseAskingForCodesDoesNotStopTheOwnerGettingOne() {
+        Account account = TestAccounts.signUpWithPhone(client(), messages);
+        client().withHeader("X-Forwarded-For", "203.0.113.30")
+                .post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "LOGIN")).expectStatus(202);
+
+        ApiClient owner = client().withHeader("X-Forwarded-For", "198.51.100.40");
+        owner.post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "LOGIN")).expectStatus(202);
+
+        owner.post("/api/v1/auth/login", Map.of("login", account.phone(), "code", codeFor(account.e164())))
+                .expectStatus(200);
+    }
+
+    @Test
+    void parallelGuessesAtACodeGetFiveTriesInTotal() throws Exception {
+        String email = TestAccounts.newEmail();
+        client().post("/api/v1/auth/otp", Map.of("to", email, "purpose", "SIGNUP")).expectStatus(202);
+        String code = codeFor(email);
+        String wrong = code.equals("111111") ? "222222" : "111111";
+
+        List<ApiResponse> answers = inParallel(50, i -> signUp(TestAccounts.newPhone(), email, wrong));
+
+        assertThat(answers).allSatisfy(answer -> answer.expectError(400, "otp.invalid"));
+        assertThat(JdbcClient.create(dataSource)
+                .sql("select attempts from otp_challenges where destination = ?").param(email)
+                .query(Integer.class).single()).isEqualTo(5);
+        client().post("/api/v1/auth/signup", signUp(TestAccounts.newPhone(), email, code))
+                .expectError(400, "otp.invalid");
+    }
+
+    @Test
+    void aRightCodeSentInParallelWorksOnce() throws Exception {
+        String email = TestAccounts.newEmail();
+        client().post("/api/v1/auth/otp", Map.of("to", email, "purpose", "SIGNUP")).expectStatus(202);
+        String code = codeFor(email);
+
+        List<ApiResponse> answers = inParallel(10, i -> signUp(TestAccounts.newPhone(), email, code));
+
+        assertThat(answers).filteredOn(answer -> answer.status() == 201).hasSize(1);
+        assertThat(answers).filteredOn(answer -> answer.status() != 201)
+                .allSatisfy(answer -> answer.expectError(400, "otp.invalid"));
+    }
+
+    // Session cookie.
+
+    @Test
+    void anActiveUsersCookieIsRenewedOnceADay() {
+        ApiClient client = client();
+        TestAccounts.signUp(client, messages);
+
+        ApiResponse sameDay = client.get("/api/v1/me").expectStatus(200);
+        clock.advance(Duration.ofDays(1).plusMinutes(1));
+        ApiResponse nextDay = client.get("/api/v1/me").expectStatus(200);
+        ApiResponse sameDayAgain = client.get("/api/v1/me").expectStatus(200);
+
+        assertThat(sameDay.setCookies()).noneMatch(cookie -> cookie.startsWith("SESSION="));
+        assertThat(nextDay.setCookies()).anySatisfy(cookie -> assertThat(cookie)
+                .startsWith("SESSION=").contains("Max-Age=604800").contains("HttpOnly"));
+        assertThat(sameDayAgain.setCookies()).noneMatch(cookie -> cookie.startsWith("SESSION="));
     }
 
     @Test
@@ -357,6 +496,37 @@ class AuthTests {
 
     private ApiClient client() {
         return new ApiClient(port);
+    }
+
+    /** Sends {@code count} sign-ups at once, each from its own client with its CSRF token ready. */
+    private List<ApiResponse> inParallel(int count, IntFunction<Map<String, Object>> body) throws Exception {
+        List<ApiClient> clients = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            ApiClient client = client();
+            client.get("/api/v1/auth/csrf").expectStatus(204);
+            clients.add(client);
+        }
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(count);
+        try {
+            List<Future<ApiResponse>> futures = new ArrayList<>();
+            for (int i = 0; i < count; i++) {
+                ApiClient client = clients.get(i);
+                Map<String, Object> request = body.apply(i);
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    return client.post("/api/v1/auth/signup", request);
+                }));
+            }
+            start.countDown();
+            List<ApiResponse> answers = new ArrayList<>();
+            for (Future<ApiResponse> future : futures) {
+                answers.add(future.get(60, TimeUnit.SECONDS));
+            }
+            return answers;
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     private String codeFor(String destination) {

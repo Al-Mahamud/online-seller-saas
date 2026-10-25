@@ -12,11 +12,14 @@ public record IdentityProperties(Otp otp, RateLimits rateLimits) {
     }
 
     public record RateLimits(
-            Limit loginPerAccount,
             Limit loginPerIp,
+            Limit loginFailuresPerAccountAndIp,
+            Limit loginFailuresPerAccount,
+            Limit signupPerIp,
+            Limit otpPerIp,
             Limit otpCooldown,
-            Limit otpPerDestination,
-            Limit otpPerIp) {
+            Limit otpPerDestinationAndIp,
+            Limit otpPerDestination) {
     }
 
     public record Limit(int max, Duration window) {

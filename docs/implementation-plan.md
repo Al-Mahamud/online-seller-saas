@@ -92,6 +92,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 
 **Checked by:** sign-up → login → `/me`; wrong code 5 times locks the challenge; expired code rejected; rate limits return 429 with `Retry-After`.
 
+**Review fixes (after `/code-review`):** row lock on code checks (parallel guesses, double use); unverified phones and emails are not unique and cannot sign in (V5); failure-only sign-in limits per account and IP, cleared on success; per-IP sign-up limit; one database connection per request; unique-index races answered as 409; codes sent after commit on a background thread; session cookie renewed daily while active; no size cap on rate-limit counters.
+
 ### 1b: Account management (1.5 days)
 
 **Builds**

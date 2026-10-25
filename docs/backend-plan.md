@@ -138,7 +138,7 @@ Additions and changes to the product plan's table list are marked **new** or **(
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| users | id, phone (E.164, unique), email (unique, nullable), password_hash, name, locale, phone_verified_at, is_platform_admin, status | Phone is the main login. Email optional, used for receipts and as a second OTP route. |
+| users | id, phone (E.164), email (nullable), password_hash, name, locale, phone_verified_at, email_verified_at, is_platform_admin, status | Phone is the main login. Email optional, used for receipts and as a second OTP route. A phone or email is unique, and usable to sign in, only once verified by a code, so nobody can squat someone else's number (1a review). |
 | otp_challenges **new** | id, phone_or_email, purpose (signup, login, reset, change_phone), code_hash, expires_at, attempts, consumed_at | 6 digits, 5 min, 5 tries |
 | businesses | id, name, slug, logo_file_id, phone, address, timezone (`Asia/Dhaka`), status (active, suspended, deleted) | Currency column dropped **(changed)**: BDT only |
 | business_settings **new** | business_id, stock_commit_point, low_stock_default, order_number_prefix, next_order_number, invoice_footer, ai_auto_confirm (R2) | One row per business |
@@ -358,7 +358,7 @@ VAT: one config value `billing.vat-rate` (0 until your accountant answers), show
 
 ## 11. Security checklist (built into the phases, reviewed in B13)
 
-- Login, OTP send and OTP verify rate limits per phone and per IP; resend cooldown 60 s; lock after 10 failed passwords in 15 min.
+- Login, OTP send and OTP verify rate limits per IP and per account or destination; resend cooldown 60 s; 10 failed sign-ins per account and client IP in 15 min (cleared by a success), 50 per account from anywhere. Code checks lock the code's row, so parallel guesses still get only 5 tries.
 - Session cookie: `HttpOnly`, `Secure`, `SameSite=Lax`; idle timeout 7 days; all sessions ended on password change; staff removal ends that user's sessions for that business at once.
 - CSRF protection on all cookie-authenticated writes; CORS allows only the frontend origin.
 - Owner TOTP two-factor (P1, B13); required for platform admins.

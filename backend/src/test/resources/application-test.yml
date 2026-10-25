@@ -12,6 +12,9 @@ springdoc:
     enabled: true
 
 mojud:
+  async:
+    # Messages are sent inline (still after commit), so a test can read a code right away.
+    background: false
   sms:
     provider: log
   email:
@@ -22,8 +25,12 @@ mojud:
       # RateLimiterTest covers the limiter itself.
       login-per-ip: { max: 1000000, window: 15m }
       otp-per-ip: { max: 1000000, window: 1h }
+      signup-per-ip: { max: 1000000, window: 1h }
 
 server:
+  # Tests set X-Forwarded-For to act as different clients (Tomcat trusts it from localhost only).
+  # Production sets this too, behind its proxy (Phase 13b).
+  forward-headers-strategy: native
   servlet:
     session:
       cookie:

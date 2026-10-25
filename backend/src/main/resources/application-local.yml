@@ -11,6 +11,7 @@ mojud:
       # end-to-end test run; per-account and per-destination limits stay as configured.
       login-per-ip: { max: 1000000, window: 15m }
       otp-per-ip: { max: 1000000, window: 1h }
+      signup-per-ip: { max: 1000000, window: 1h }
 
 server:
   servlet:

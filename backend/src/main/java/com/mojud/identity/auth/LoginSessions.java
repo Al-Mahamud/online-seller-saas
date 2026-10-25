@@ -3,6 +3,7 @@ package com.mojud.identity.auth;
 import com.mojud.identity.AuthenticatedUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Clock;
 import java.util.List;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,6 +22,11 @@ class LoginSessions {
 
     private final SecurityContextRepository contexts = new HttpSessionSecurityContextRepository();
     private final SecurityContextHolderStrategy holder = SecurityContextHolder.getContextHolderStrategy();
+    private final Clock clock;
+
+    LoginSessions(Clock clock) {
+        this.clock = clock;
+    }
 
     void start(AuthenticatedUser user, HttpServletRequest request, HttpServletResponse response) {
         if (request.getSession(false) != null) {
@@ -31,6 +37,7 @@ class LoginSessions {
         context.setAuthentication(authentication(user));
         holder.setContext(context);
         contexts.saveContext(context, request, response);
+        request.getSession().setAttribute(SessionCookieRenewal.RENEWED_AT, clock.instant());
     }
 
     private static Authentication authentication(AuthenticatedUser user) {

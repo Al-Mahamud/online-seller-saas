@@ -52,7 +52,7 @@ public class User {
 
     /**
      * A new account. Signing up proves ownership of the phone or the email that received the code,
-     * so that one starts verified.
+     * so that one starts verified; the other stays unverified until proved (Phase 1b).
      */
     public static User signUp(String name, PhoneNumber phone, EmailAddress email, String passwordHash,
             String locale, boolean codeSentToPhone, Instant now) {
@@ -72,17 +72,6 @@ public class User {
             user.emailVerifiedAt = now;
         }
         return user;
-    }
-
-    /** Receiving a code at the phone or email proves it belongs to this user. */
-    public void markVerified(boolean phoneChannel, Instant now) {
-        if (phoneChannel && phoneVerifiedAt == null) {
-            phoneVerifiedAt = now;
-            updatedAt = now;
-        } else if (!phoneChannel && emailVerifiedAt == null) {
-            emailVerifiedAt = now;
-            updatedAt = now;
-        }
     }
 
     public boolean isActive() {

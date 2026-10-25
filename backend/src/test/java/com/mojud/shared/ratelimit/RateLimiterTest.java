@@ -48,6 +48,39 @@ class RateLimiterTest {
         limiter.acquire("a");
     }
 
+    @Test
+    void countingOnlyFailuresAllowsTheLimitThenBlocks() {
+        for (int i = 0; i < 3; i++) {
+            limiter.check("a");
+            limiter.recordFailure("a");
+        }
+
+        assertThatThrownBy(() -> limiter.check("a")).isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void resetForgetsFailures() {
+        limiter.recordFailure("a");
+        limiter.recordFailure("a");
+        limiter.recordFailure("a");
+
+        limiter.reset("a");
+
+        limiter.check("a");
+    }
+
+    @Test
+    void manyOtherKeysNeverResetAKeysCount() {
+        for (int i = 0; i < 3; i++) {
+            limiter.acquire("target");
+        }
+        for (int i = 0; i < 200_000; i++) {
+            limiter.acquire("noise-" + i);
+        }
+
+        assertThatThrownBy(() -> limiter.acquire("target")).isInstanceOf(ApiException.class);
+    }
+
     private void advance(Duration duration) {
         nanos.addAndGet(duration.toNanos());
     }

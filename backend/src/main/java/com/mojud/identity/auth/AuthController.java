@@ -96,7 +96,7 @@ class AuthController {
         }
         String locale = "bn".equals(LocaleContextHolder.getLocale().getLanguage()) ? "bn" : "en";
         return auth.signUp(new AuthService.SignUp(body.name(), phone, email, body.password(), locale,
-                body.codeSentTo() == OtpChannel.PHONE, body.code()), request, response);
+                body.codeSentTo() == OtpChannel.PHONE, body.code()), request.getRemoteAddr(), request, response);
     }
 
     /** {@code login} is a phone number or an email address; give a password or a sign-in code. */

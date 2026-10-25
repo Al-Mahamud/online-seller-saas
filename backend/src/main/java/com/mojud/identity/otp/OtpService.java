@@ -1,6 +1,7 @@
 package com.mojud.identity.otp;
 
 import com.mojud.identity.auth.IdentityProperties;
+import com.mojud.shared.async.AfterCommitTasks;
 import com.mojud.shared.email.EmailAddress;
 import com.mojud.shared.email.EmailSender;
 import com.mojud.shared.error.ApiException;
@@ -44,15 +45,17 @@ public class OtpService {
     private final ObjectProvider<SmsSender> sms;
     private final ObjectProvider<EmailSender> email;
     private final MessageSource messages;
+    private final AfterCommitTasks afterCommit;
     private final Clock clock;
     private final IdentityProperties.Otp settings;
 
     OtpService(OtpChallengeRepository challenges, ObjectProvider<SmsSender> sms, ObjectProvider<EmailSender> email,
-            MessageSource messages, Clock clock, IdentityProperties properties) {
+            MessageSource messages, AfterCommitTasks afterCommit, Clock clock, IdentityProperties properties) {
         this.challenges = challenges;
         this.sms = sms;
         this.email = email;
         this.messages = messages;
+        this.afterCommit = afterCommit;
         this.clock = clock;
         this.settings = properties.otp();
     }
@@ -75,29 +78,38 @@ public class OtpService {
         }
     }
 
+    /**
+     * Stores a new code and sends it once the transaction commits, in the background (see
+     * {@link AfterCommitTasks}). The caller checks {@link #requireAvailable} first.
+     */
     @Transactional
     public void issue(OtpDestination destination, OtpPurpose purpose) {
-        requireAvailable(destination.channel());
         Instant now = clock.instant();
         UUID id = Ids.newId();
         String code = "%06d".formatted(RANDOM.nextInt(1_000_000));
         challenges.save(new OtpChallenge(id, destination, purpose, hash(id, code), now.plus(settings.ttl()), now));
-        // Sent inside the transaction on purpose: if sending fails, no unusable challenge is left.
+        // Texts are built here: the background thread does not know the request's language.
         Locale locale = LocaleContextHolder.getLocale();
         Object[] args = {code, settings.ttl().toMinutes()};
         if (destination.isPhone()) {
-            sms.getObject().send(new PhoneNumber(destination.value()), messages.getMessage("otp.sms", args, locale));
+            SmsSender sender = sms.getObject();
+            PhoneNumber to = new PhoneNumber(destination.value());
+            String text = messages.getMessage("otp.sms", args, locale);
+            afterCommit.run(() -> sender.send(to, text));
         } else {
-            email.getObject().send(new EmailAddress(destination.value()),
-                    messages.getMessage("otp.email.subject", args, locale),
-                    messages.getMessage("otp.email.body", args, locale));
+            EmailSender sender = email.getObject();
+            EmailAddress to = new EmailAddress(destination.value());
+            String subject = messages.getMessage("otp.email.subject", args, locale);
+            String body = messages.getMessage("otp.email.body", args, locale);
+            afterCommit.run(() -> sender.send(to, subject, body));
         }
     }
 
     /**
      * Uses up the newest code for this destination and purpose, or fails with
-     * {@code otp.invalid}. Runs in its own transaction so that a failed attempt is counted even
-     * though the caller's transaction rolls back.
+     * {@code otp.invalid}. Runs in its own transaction so that a failed attempt is counted even when
+     * the caller fails. Callers must not hold a transaction of their own: that would need a second
+     * database connection per request.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = ApiException.class)
     public void consume(OtpDestination destination, OtpPurpose purpose, String code) {

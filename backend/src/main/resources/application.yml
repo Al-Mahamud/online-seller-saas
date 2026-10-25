@@ -61,11 +61,15 @@ mojud:
       ttl: 5m
       max-attempts: 5
     rate-limits:
-      login-per-account: { max: 10, window: 15m }
       login-per-ip: { max: 100, window: 15m }
-      otp-cooldown: { max: 1, window: 60s }
-      otp-per-destination: { max: 5, window: 1h }
+      # Counted per failure and cleared by a success (AuthRateLimits).
+      login-failures-per-account-and-ip: { max: 10, window: 15m }
+      login-failures-per-account: { max: 50, window: 15m }
+      signup-per-ip: { max: 20, window: 1h }
       otp-per-ip: { max: 20, window: 1h }
+      otp-cooldown: { max: 1, window: 60s }
+      otp-per-destination-and-ip: { max: 5, window: 1h }
+      otp-per-destination: { max: 10, window: 1h }
   db:
     system:
       url: ${spring.datasource.url}
