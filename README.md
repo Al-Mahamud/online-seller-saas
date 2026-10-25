@@ -15,8 +15,12 @@ Needs JDK 17. Maven comes with the wrapper.
 ```sh
 cd backend
 ./mvnw verify                                             # build and run every test
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local   # run on http://localhost:8080
+./mvnw spring-boot:test-run                               # run on http://localhost:8080
 ```
+
+`spring-boot:test-run` starts an embedded PostgreSQL (no Docker or installed server needed), set up with the same three roles as production (`backend/src/main/resources/db/bootstrap/roles.sql`). The database is fresh on every start.
+
+Against a real PostgreSQL, run `roles.sql` once as a superuser, create the database (`CREATE DATABASE mojud OWNER mojud_owner`), and set `DB_URL`, `DB_OWNER_PASSWORD`, `DB_APP_PASSWORD` and `DB_SYSTEM_PASSWORD`.
 
 With the `local` profile: health at `/healthz`, API docs at `/api/docs`, OpenAPI JSON at `/api/v1/openapi`.
 

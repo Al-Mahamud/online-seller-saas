@@ -22,6 +22,9 @@
         <java.version>17</java.version>
         <spring-modulith.version>2.1.1</spring-modulith.version>
         <springdoc.version>3.1.1</springdoc.version>
+        <db-scheduler.version>16.12.0</db-scheduler.version>
+        <embedded-postgres.version>2.2.2</embedded-postgres.version>
+        <embedded-postgres-binaries.version>18.6.0</embedded-postgres-binaries.version>
     </properties>
 
     <dependencyManagement>
@@ -30,6 +33,13 @@
                 <groupId>org.springframework.modulith</groupId>
                 <artifactId>spring-modulith-bom</artifactId>
                 <version>${spring-modulith.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.zonky.test.postgres</groupId>
+                <artifactId>embedded-postgres-binaries-bom</artifactId>
+                <version>${embedded-postgres-binaries.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -49,14 +59,37 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-        <!-- Data-access exceptions for the error handler; Phase 0b's JPA starter brings it too. -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-tx</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-core</artifactId>
+        </dependency>
+        <!-- Cross-module events are stored before listeners run and retried if a listener fails. -->
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-starter-jdbc</artifactId>
+        </dependency>
+        <!-- Background jobs stored in PostgreSQL (backend-plan.md §2, §10). -->
+        <dependency>
+            <groupId>com.github.kagkarlsson</groupId>
+            <artifactId>db-scheduler-spring-boot-4-starter</artifactId>
+            <version>${db-scheduler.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -72,6 +105,13 @@
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Real PostgreSQL for tests and local runs, without Docker. -->
+        <dependency>
+            <groupId>io.zonky.test</groupId>
+            <artifactId>embedded-postgres</artifactId>
+            <version>${embedded-postgres.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

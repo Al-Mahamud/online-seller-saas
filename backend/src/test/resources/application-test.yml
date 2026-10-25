@@ -1,3 +1,12 @@
+spring:
+  flyway:
+    # Adds tables that exist only to test database rules (R__rls_probe.sql).
+    locations: classpath:db/migration,classpath:db/testmigration
+
+db-scheduler:
+  # Tests run job code themselves, at moments they choose.
+  enabled: false
+
 springdoc:
   api-docs:
     enabled: true

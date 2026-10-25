@@ -16,7 +16,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 
 | Phase | Sub-phases | Days | Status |
 | --- | --- | --- | --- |
-| 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | 0a in review |
+| 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | 0a done · 0b in review |
 | 1 Identity | 1a sign-up and login · 1b account management | 4 | Not started |
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Not started |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Not started |
@@ -67,7 +67,7 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 
 **Builds**
 - Embedded PostgreSQL (zonky) for tests and for `./mvnw spring-boot:test-run`.
-- `V1__roles.sql`: roles `mojud_owner`, `mojud_app`, `mojud_system` (§4). Flyway runs as owner; the app pool connects as `mojud_app`.
+- Roles `mojud_owner`, `mojud_app`, `mojud_system` (§4) in `db/bootstrap/roles.sql`, run once per server by a superuser (creating roles and `BYPASSRLS` need one, so this cannot be a Flyway migration). `V1__role_privileges.sql` grants data access to the two login roles. Flyway runs as owner; the app pool connects as `mojud_app`.
 - `TenantAwareDataSource`: sets `app.business_id` on every connection checkout (empty when no tenant).
 - `SystemDataSource` bean for `mojud_system`, plus an ArchUnit rule that only `..system..` packages may use it.
 - `shared` types: `Money` (poisha `long`), `PhoneNumber` (BD E.164 parsing), UUID v7 id generator, cursor paging.

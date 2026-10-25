@@ -1,6 +1,25 @@
 spring:
   application:
     name: mojud
+  # The application pool connects as mojud_app (row-level security applies); Flyway as the
+  # schema owner; the system pool as mojud_system (backend-plan.md §4, db/bootstrap/roles.sql).
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/mojud}
+    username: ${DB_APP_USER:mojud_app}
+    password: ${DB_APP_PASSWORD:}
+  flyway:
+    user: ${DB_OWNER_USER:mojud_owner}
+    password: ${DB_OWNER_PASSWORD:}
+    locations: classpath:db/migration
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema; Hibernate only checks that entities match it.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
   messages:
     basename: messages
     encoding: UTF-8
@@ -12,6 +31,24 @@ spring:
     # Spring Modulith's hourly and daily time events are not used; jobs schedule themselves.
     moments:
       enabled: false
+    events:
+      # V3 creates the table; mojud_app may not create tables.
+      jdbc:
+        schema-initialization:
+          enabled: false
+      # Events whose listeners had not finished when the app stopped are delivered again.
+      republish-outstanding-events-on-restart: true
+
+db-scheduler:
+  # Off on an API-only instance once there are two (backend-plan.md §2, "process layout").
+  enabled: ${JOBS_ENABLED:true}
+
+mojud:
+  db:
+    system:
+      url: ${spring.datasource.url}
+      username: ${DB_SYSTEM_USER:mojud_system}
+      password: ${DB_SYSTEM_PASSWORD:}
 
 server:
   error:

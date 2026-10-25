@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.mojud.shared.error.ApiException;
-import com.mojud.shared.error.ErrorCode;
+import com.mojud.support.IntegrationTest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
@@ -19,11 +19,9 @@ import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,8 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * The error format through the whole web stack (locale resolution, Bean Validation, message
  * files), using a controller that exists only in this test.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
+@IntegrationTest
 @Import(ApiExceptionHandlerTests.ExampleController.class)
 class ApiExceptionHandlerTests {
 
