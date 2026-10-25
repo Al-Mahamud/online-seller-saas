@@ -1,0 +1,220 @@
+package com.mojud.tenancy;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.mojud.shared.db.system.SystemDatabase;
+import com.mojud.support.ApiClient;
+import com.mojud.support.ApiResponse;
+import com.mojud.support.CapturedMessages;
+import com.mojud.support.IntegrationTest;
+import com.mojud.support.TestAccounts;
+import com.mojud.support.TestAccounts.Account;
+import com.mojud.support.TestBusinesses;
+import com.mojud.tenancy.membership.MembershipRepository;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/** Businesses and the business each request works in (implementation-plan.md 2a). */
+@IntegrationTest
+class BusinessTests {
+
+    @LocalServerPort
+    int port;
+
+    @Autowired
+    CapturedMessages messages;
+
+    @Autowired
+    MembershipRepository memberships;
+
+    @Autowired
+    TransactionTemplate transactions;
+
+    @Autowired
+    SystemDatabase systemDatabase;
+
+    @Test
+    void creatingABusinessMakesTheCallerOwnerAndSelectsIt() {
+        ApiClient client = signedIn();
+
+        ApiResponse created = client.post("/api/v1/businesses",
+                Map.of("name", "Rahima's Kurti House", "phone", "01712-345678", "address", "Mirpur 10, Dhaka"))
+                .expectStatus(201);
+
+        assertThat(created.<String>json("$.role")).isEqualTo("OWNER");
+        assertThat(created.<String>json("$.phone")).isEqualTo("+8801712345678");
+        ApiResponse current = client.get("/api/v1/business").expectStatus(200);
+        assertThat(current.<String>json("$.name")).isEqualTo("Rahima's Kurti House");
+        assertThat(client.get("/api/v1/business/settings").expectStatus(200).<String>json("$.stockCommitPoint"))
+                .isEqualTo("SHIP");
+    }
+
+    @Test
+    void aUserInTwoBusinessesSeesEachOnlyAfterSwitching() {
+        ApiClient client = signedIn();
+        UUID first = TestBusinesses.create(client, "First Shop");
+        UUID second = TestBusinesses.create(client, "Second Shop");
+
+        assertThat(client.get("/api/v1/business").<String>json("$.name")).isEqualTo("Second Shop");
+        client.patch("/api/v1/business/settings", Map.of("stockCommitPoint", "CONFIRM", "lowStockDefault", 12))
+                .expectStatus(200);
+
+        client.post("/api/v1/me/switch-business", Map.of("businessId", first.toString())).expectStatus(200);
+
+        assertThat(client.get("/api/v1/business").<String>json("$.name")).isEqualTo("First Shop");
+        ApiResponse settings = client.get("/api/v1/business/settings").expectStatus(200);
+        assertThat(settings.<String>json("$.stockCommitPoint")).isEqualTo("SHIP");
+        assertThat(settings.<Integer>json("$.lowStockDefault")).isEqualTo(5);
+
+        List<Map<String, Object>> mine = client.get("/api/v1/businesses").expectStatus(200).json("$");
+        assertThat(mine).extracting(b -> b.get("name")).containsExactly("First Shop", "Second Shop");
+        assertThat(mine).extracting(b -> b.get("selected")).containsExactly(true, false);
+        assertThat(second).isNotEqualTo(first);
+    }
+
+    @Test
+    void nobodyCanSwitchToABusinessTheyDoNotBelongTo() {
+        UUID someoneElses = TestBusinesses.create(signedIn(), "Not Yours");
+        ApiClient client = signedIn();
+        TestBusinesses.create(client, "Mine");
+
+        client.post("/api/v1/me/switch-business", Map.of("businessId", someoneElses.toString()))
+                .expectError(404, "resource.not_found");
+        client.post("/api/v1/me/switch-business", Map.of("businessId", UUID.randomUUID().toString()))
+                .expectError(404, "resource.not_found");
+
+        assertThat(client.get("/api/v1/business").<String>json("$.name")).isEqualTo("Mine");
+    }
+
+    @Test
+    void withoutABusinessBusinessEndpointsSaySoAndTheListIsEmpty() {
+        ApiClient client = signedIn();
+
+        client.get("/api/v1/business").expectError(409, "business.not_selected");
+        assertThat(client.get("/api/v1/businesses").expectStatus(200).<List<Object>>json("$")).isEmpty();
+    }
+
+    @Test
+    void afterSignInTheBusinessUsedLastIsSelected() {
+        ApiClient client = signedIn();
+        Account account = accountOf(client);
+        UUID first = TestBusinesses.create(client, "Used Last");
+        TestBusinesses.create(client, "Created Last");
+        client.post("/api/v1/me/switch-business", Map.of("businessId", first.toString())).expectStatus(200);
+
+        ApiClient fresh = new ApiClient(port);
+        fresh.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+                .expectStatus(200);
+
+        assertThat(fresh.get("/api/v1/business").expectStatus(200).<String>json("$.name")).isEqualTo("Used Last");
+    }
+
+    @Test
+    void rolesDecideWhatAMemberMayChange() {
+        UUID business = TestBusinesses.create(signedIn(), "Team Shop");
+        ApiClient staff = signedIn();
+        ApiClient manager = signedIn();
+        TestBusinesses.addMember(memberships, transactions, business, TestBusinesses.userId(staff), BusinessRole.STAFF);
+        TestBusinesses.addMember(memberships, transactions, business, TestBusinesses.userId(manager), BusinessRole.MANAGER);
+
+        assertThat(staff.get("/api/v1/business").expectStatus(200).<String>json("$.role")).isEqualTo("STAFF");
+        staff.get("/api/v1/business/settings").expectStatus(200);
+        staff.patch("/api/v1/business/settings", Map.of("lowStockDefault", 1)).expectError(403, "access.denied");
+        staff.patch("/api/v1/business", Map.of("name", "Hacked")).expectError(403, "access.denied");
+
+        manager.patch("/api/v1/business/settings", Map.of("lowStockDefault", 7)).expectStatus(200);
+        manager.patch("/api/v1/business", Map.of("address", "Uttara, Dhaka")).expectStatus(200);
+        assertThat(staff.get("/api/v1/business/settings").<Integer>json("$.lowStockDefault")).isEqualTo(7);
+    }
+
+    @Test
+    void aRemovedMemberLosesTheBusinessOnTheNextRequest() {
+        UUID business = TestBusinesses.create(signedIn(), "Strict Shop");
+        ApiClient staff = signedIn();
+        UUID staffId = TestBusinesses.userId(staff);
+        TestBusinesses.addMember(memberships, transactions, business, staffId, BusinessRole.STAFF);
+        staff.get("/api/v1/business").expectStatus(200);
+
+        systemDatabase.jdbc().sql("update memberships set status = 'REMOVED' where business_id = ? and user_id = ?")
+                .params(business, staffId).update();
+
+        staff.get("/api/v1/business").expectError(409, "business.not_selected");
+        assertThat(staff.get("/api/v1/businesses").<List<Object>>json("$")).isEmpty();
+    }
+
+    @Test
+    void aRoleChangeCountsFromTheNextRequest() {
+        UUID business = TestBusinesses.create(signedIn(), "Promoting Shop");
+        ApiClient member = signedIn();
+        UUID memberId = TestBusinesses.userId(member);
+        TestBusinesses.addMember(memberships, transactions, business, memberId, BusinessRole.STAFF);
+        member.patch("/api/v1/business/settings", Map.of("lowStockDefault", 2)).expectError(403, "access.denied");
+
+        systemDatabase.jdbc().sql("update memberships set role = 'MANAGER' where business_id = ? and user_id = ?")
+                .params(business, memberId).update();
+
+        member.patch("/api/v1/business/settings", Map.of("lowStockDefault", 2)).expectStatus(200);
+    }
+
+    @Test
+    void businessFieldsAreValidated() {
+        ApiClient client = signedIn();
+        client.post("/api/v1/businesses", Map.of("name", " ")).expectError(400, "validation.failed");
+        client.post("/api/v1/businesses", Map.of("name", "Shop", "phone", "12345")).expectError(400, "validation.failed");
+        TestBusinesses.create(client, "Valid Shop");
+
+        ApiResponse settings = client.patch("/api/v1/business/settings",
+                Map.of("stockCommitPoint", "LATER", "lowStockDefault", -1)).expectError(400, "validation.failed");
+        assertThat(settings.<List<String>>json("$.errors[*].field")).contains("stockCommitPoint");
+        ApiResponse prefix = client.patch("/api/v1/business/settings", Map.of("lowStockDefault", -1, "orderNumberPrefix", "ab c"))
+                .expectError(400, "validation.failed");
+        assertThat(prefix.<List<String>>json("$.errors[*].field")).containsExactlyInAnyOrder("lowStockDefault", "orderNumberPrefix");
+        client.patch("/api/v1/business", Map.of("name", " ")).expectError(400, "validation.failed");
+    }
+
+    @Test
+    void anEmptyPhoneOrAddressClearsIt() {
+        ApiClient client = signedIn();
+        client.post("/api/v1/businesses", Map.of("name", "Shop", "phone", "01712345678", "address", "Dhaka"))
+                .expectStatus(201);
+
+        ApiResponse updated = client.patch("/api/v1/business", Map.of("phone", "", "address", "")).expectStatus(200);
+
+        assertThat(updated.<String>json("$.phone")).isNull();
+        assertThat(updated.<String>json("$.address")).isNull();
+        assertThat(updated.<String>json("$.name")).isEqualTo("Shop");
+    }
+
+    @Test
+    void oneAccountCanOwnAtMostFiveBusinesses() {
+        ApiClient client = signedIn();
+        for (int i = 1; i <= 5; i++) {
+            TestBusinesses.create(client, "Shop " + i);
+        }
+
+        client.post("/api/v1/businesses", Map.of("name", "Shop 6")).expectError(409, "business.limit_reached");
+    }
+
+    @Test
+    void businessEndpointsNeedASession() {
+        new ApiClient(port).get("/api/v1/business").expectError(401, "auth.required");
+        new ApiClient(port).post("/api/v1/businesses", Map.of("name", "x")).expectError(401, "auth.required");
+    }
+
+    private final Map<ApiClient, Account> accounts = new java.util.IdentityHashMap<>();
+
+    private ApiClient signedIn() {
+        ApiClient client = new ApiClient(port);
+        accounts.put(client, TestAccounts.signUp(client, messages));
+        return client;
+    }
+
+    private Account accountOf(ApiClient client) {
+        return accounts.get(client);
+    }
+}

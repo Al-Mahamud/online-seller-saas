@@ -17,8 +17,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | Phase | Sub-phases | Days | Status |
 | --- | --- | --- | --- |
 | 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | Done |
-| 1 Identity | 1a sign-up and login · 1b account management | 4 | 1a done · 1b in review |
-| 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Not started |
+| 1 Identity | 1a sign-up and login · 1b account management | 4 | Done |
+| 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | 2a in review |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Not started |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Not started |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Not started |
@@ -119,6 +119,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Role annotations (`@OwnerOnly`, `@ManagerOrAbove`, any member) built on `@PreAuthorize`.
 
 **Checked by:** a user in two businesses sees each one's data only after switching; a non-member cannot switch to a business.
+
+**As built:** roles are enforced by `@RequiresRole` (a Spring MVC interceptor, so a missing business answers `business.not_selected` rather than a bare 403) instead of `@PreAuthorize`. The membership is re-read on every request, so removals and role changes count at once. Listing a user's businesses uses the system role (`tenancy.system.MembershipDirectory`), because row-level security shows one business at a time. `GET /businesses` (the switcher) was added; an account may own at most 5 businesses. Order numbering is left out of `business_settings`: the orders module will own its counter (7a).
 
 ### 2b: Staff and roles (1.5 days)
 

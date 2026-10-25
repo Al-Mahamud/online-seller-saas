@@ -37,6 +37,12 @@ public enum ErrorCode {
     /** A signed-in user re-entered their password wrongly. */
     WRONG_PASSWORD("account.wrong_password", HttpStatus.BAD_REQUEST),
 
+    // Businesses.
+    /** The request needs a selected business and the session has none; the client shows the switcher. */
+    BUSINESS_NOT_SELECTED("business.not_selected", HttpStatus.CONFLICT),
+    /** {0} is the limit. */
+    BUSINESS_LIMIT_REACHED("business.limit_reached", HttpStatus.CONFLICT),
+
     // Errors raised by the framework before a controller runs.
     MALFORMED_REQUEST("request.malformed", HttpStatus.BAD_REQUEST),
     ROUTE_NOT_FOUND("route.not_found", HttpStatus.NOT_FOUND),

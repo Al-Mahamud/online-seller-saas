@@ -140,8 +140,8 @@ Additions and changes to the product plan's table list are marked **new** or **(
 | --- | --- | --- |
 | users | id, phone (E.164), email (nullable), password_hash, name, locale, phone_verified_at, email_verified_at, is_platform_admin, status | Phone is the main login. Email optional, used for receipts and as a second OTP route. A phone or email is unique, and usable to sign in, only once verified by a code, so nobody can squat someone else's number (1a review). |
 | otp_challenges **new** | id, phone_or_email, purpose (signup, login, reset, change_phone), code_hash, expires_at, attempts, consumed_at | 6 digits, 5 min, 5 tries |
-| businesses | id, name, slug, logo_file_id, phone, address, timezone (`Asia/Dhaka`), status (active, suspended, deleted) | Currency column dropped **(changed)**: BDT only |
-| business_settings **new** | business_id, stock_commit_point, low_stock_default, order_number_prefix, next_order_number, invoice_footer, ai_auto_confirm (R2) | One row per business |
+| businesses | id, name, phone, address, status (active, suspended), logo_file_id (3c) | Currency, timezone and slug dropped **(changed)**: BDT and Dhaka only, and no storefront needs a slug. Row-level security on its own id. |
+| business_settings **new** | business_id, stock_commit_point, low_stock_default, order_number_prefix, invoice_footer, ai_auto_confirm (R2) | One row per business. The next order number lives in a table the orders module owns (7a), so no other module writes this one. |
 | memberships | business_id, user_id, role (OWNER, MANAGER, STAFF), status | Exactly one OWNER per business (partial unique index) |
 | invites **new** | id, business_id, phone_or_email, role, token_hash, expires_at, accepted_at, invited_by | Token sent by SMS or email; 7-day expiry |
 

@@ -39,6 +39,21 @@ class SchemaRulesTests {
     }
 
     @Test
+    void theBusinessesTableIsProtectedByItsOwnId() {
+        Boolean protectedTable = systemDatabase.jdbc().sql("""
+                        select c.relrowsecurity and c.relforcerowsecurity
+                               and exists (select 1 from pg_policies p
+                                           where p.tablename = 'businesses' and p.policyname = 'tenant_isolation'
+                                             and p.qual like '%id = mojud_current_business()%')
+                        from pg_class c where c.relname = 'businesses'
+                        """)
+                .query(Boolean.class)
+                .single();
+
+        assertThat(protectedTable).isTrue();
+    }
+
+    @Test
     void theApplicationRoleOwnsNothing() {
         List<String> owned = systemDatabase.jdbc().sql("""
                         select c.relname from pg_class c

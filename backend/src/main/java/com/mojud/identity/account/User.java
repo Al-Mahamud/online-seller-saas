@@ -1,7 +1,7 @@
 package com.mojud.identity.account;
 
 import com.mojud.shared.email.EmailAddress;
-import com.mojud.shared.error.ApiException;
+import com.mojud.shared.text.Text;
 import com.mojud.shared.id.Ids;
 import com.mojud.shared.phone.PhoneNumber;
 import jakarta.persistence.Entity;
@@ -80,18 +80,9 @@ public class User {
         updatedAt = now;
     }
 
-    /**
-     * Trims the name with Java's full notion of white space, which also covers spaces such as
-     * U+2003 that Bean Validation's {@code @NotBlank} lets through.
-     *
-     * @throws ApiException a validation error on {@code name} when nothing is left
-     */
+    /** @throws com.mojud.shared.error.ApiException a validation error on {@code name} when it is blank */
     public static String cleanName(String name) {
-        String cleaned = name == null ? "" : name.strip();
-        if (cleaned.isEmpty()) {
-            throw ApiException.invalidField("name", "jakarta.validation.constraints.NotBlank.message");
-        }
-        return cleaned;
+        return Text.requireNonBlank(name, "name");
     }
 
     /** @param newLocale {@code "bn"} or {@code "en"} */
