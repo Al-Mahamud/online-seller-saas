@@ -40,9 +40,22 @@ public class MembershipDirectory {
                 .list();
     }
 
-    /** The business to select when the session has none: the one used last. */
+    /**
+     * The business to select when the session has none: the one used last. One indexed row
+     * (ix_memberships_user), since it runs on requests until a business is selected.
+     */
     public Optional<UUID> lastUsedBusiness(UUID userId) {
-        return businessesOf(userId).stream().findFirst().map(UserBusiness::businessId);
+        return database.jdbc().sql("""
+                        select m.business_id
+                        from memberships m
+                        join businesses b on b.id = m.business_id
+                        where m.user_id = ? and m.status = 'ACTIVE' and b.status = 'ACTIVE'
+                        order by m.last_used_at desc
+                        limit 1
+                        """)
+                .param(userId)
+                .query(UUID.class)
+                .optional();
     }
 
     public int ownedBusinessCount(UUID userId) {

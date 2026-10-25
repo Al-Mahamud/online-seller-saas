@@ -1,5 +1,6 @@
 package com.mojud.tenancy;
 
+import com.mojud.shared.tenant.TenantScope;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.web.context.request.RequestAttributes;
@@ -9,15 +10,22 @@ import org.springframework.web.context.request.RequestContextHolder;
  * The business the current request works in, and the signed-in user's role there. Set for each
  * request by the tenancy module from the session and a fresh membership check, so a removed member
  * or a changed role takes effect on the next request.
+ *
+ * <p>It is only ever returned while the request works in that business: code that opens another
+ * business's {@code TenantScope} (creating a business, switching) sees none, rather than a role
+ * that belongs to a different business.
  */
 public record CurrentBusiness(UUID businessId, UUID userId, BusinessRole role) {
 
     /** Empty outside a request, before sign-in, or when no business is selected. */
     public static Optional<CurrentBusiness> get() {
         RequestAttributes request = RequestContextHolder.getRequestAttributes();
-        return request == null
-                ? Optional.empty()
-                : Optional.ofNullable((CurrentBusiness) request.getAttribute(CurrentBusiness.class.getName(), RequestAttributes.SCOPE_REQUEST));
+        if (request == null) {
+            return Optional.empty();
+        }
+        Optional<UUID> scope = TenantScope.current();
+        return Optional.ofNullable((CurrentBusiness) request.getAttribute(CurrentBusiness.class.getName(), RequestAttributes.SCOPE_REQUEST))
+                .filter(business -> scope.filter(business.businessId()::equals).isPresent());
     }
 
     /**

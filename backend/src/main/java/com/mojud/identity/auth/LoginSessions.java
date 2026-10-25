@@ -4,6 +4,7 @@ import com.mojud.identity.AuthenticatedUser;
 import com.mojud.shared.web.LocaleConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
@@ -41,9 +42,11 @@ class LoginSessions {
 
     /** Signs the user in on this device, in their saved language. */
     void start(AuthenticatedUser user, String language, HttpServletRequest request, HttpServletResponse response) {
-        if (request.getSession(false) != null) {
-            // A new session id at sign-in prevents session fixation.
-            request.changeSessionId();
+        HttpSession previous = request.getSession(false);
+        if (previous != null) {
+            // A brand-new session at sign-in: a new id prevents session fixation, and nothing from
+            // the previous user of this browser (such as their selected business) carries over.
+            previous.invalidate();
         }
         SecurityContext context = holder.createEmptyContext();
         context.setAuthentication(authentication(user));

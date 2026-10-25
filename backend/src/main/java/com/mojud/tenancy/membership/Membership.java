@@ -54,10 +54,6 @@ public class Membership {
         this.updatedAt = now;
     }
 
-    public void markUsed(Instant now) {
-        lastUsedAt = now;
-    }
-
     public boolean isActive() {
         return status == MembershipStatus.ACTIVE;
     }

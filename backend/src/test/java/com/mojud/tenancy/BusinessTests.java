@@ -206,6 +206,103 @@ class BusinessTests {
         new ApiClient(port).post("/api/v1/businesses", Map.of("name", "x")).expectError(401, "auth.required");
     }
 
+    // Fixes from the 2a code review.
+
+    @Test
+    void parallelCreatesCannotPassTheOwnerLimitTogether() throws Exception {
+        ApiClient client = signedIn();
+        for (int i = 1; i <= 4; i++) {
+            TestBusinesses.create(client, "Shop " + i);
+        }
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(6);
+        try {
+            List<java.util.concurrent.Future<ApiResponse>> answers = new java.util.ArrayList<>();
+            for (int i = 0; i < 6; i++) {
+                String name = "Racing " + i;
+                answers.add(pool.submit(() -> client.post("/api/v1/businesses", Map.of("name", name))));
+            }
+            int created = 0;
+            for (java.util.concurrent.Future<ApiResponse> answer : answers) {
+                ApiResponse response = answer.get(60, java.util.concurrent.TimeUnit.SECONDS);
+                if (response.status() == 201) {
+                    created++;
+                } else {
+                    response.expectError(409, "business.limit_reached");
+                }
+            }
+            assertThat(created).isEqualTo(1);
+        } finally {
+            pool.shutdownNow();
+        }
+        assertThat(client.get("/api/v1/businesses").<List<Object>>json("$")).hasSize(5);
+    }
+
+    @Test
+    void aSuspendedBusinessCannotBeUsedOrSwitchedTo() {
+        ApiClient client = signedIn();
+        UUID suspended = TestBusinesses.create(client, "Suspended Shop");
+        UUID other = TestBusinesses.create(client, "Other Shop");
+        client.post("/api/v1/me/switch-business", Map.of("businessId", suspended.toString())).expectStatus(200);
+
+        systemDatabase.jdbc().sql("update businesses set status = 'SUSPENDED' where id = ?").param(suspended).update();
+
+        assertThat(client.get("/api/v1/business").expectStatus(200).<String>json("$.id")).isEqualTo(other.toString());
+        client.post("/api/v1/me/switch-business", Map.of("businessId", suspended.toString()))
+                .expectError(404, "resource.not_found");
+    }
+
+    @Test
+    void someoneRemovedFromTheSelectedBusinessLandsInTheirOtherOneAtOnce() {
+        UUID shared = TestBusinesses.create(signedIn(), "Shared Shop");
+        ApiClient member = signedIn();
+        UUID own = TestBusinesses.create(member, "Own Shop");
+        TestBusinesses.addMember(memberships, transactions, shared, TestBusinesses.userId(member), BusinessRole.STAFF);
+        member.post("/api/v1/me/switch-business", Map.of("businessId", shared.toString())).expectStatus(200);
+
+        systemDatabase.jdbc().sql("update memberships set status = 'REMOVED' where business_id = ? and user_id = ?")
+                .params(shared, TestBusinesses.userId(member)).update();
+
+        assertThat(member.get("/api/v1/business").expectStatus(200).<String>json("$.id")).isEqualTo(own.toString());
+    }
+
+    @Test
+    void switchingDoesNotCountAsEditingTheMembership() {
+        ApiClient client = signedIn();
+        UUID first = TestBusinesses.create(client, "First");
+        TestBusinesses.create(client, "Second");
+        UUID userId = TestBusinesses.userId(client);
+        Long before = membershipVersion(first, userId);
+
+        client.post("/api/v1/me/switch-business", Map.of("businessId", first.toString())).expectStatus(200);
+
+        assertThat(membershipVersion(first, userId)).isEqualTo(before);
+        assertThat(client.get("/api/v1/businesses").<List<String>>json("$[*].name")).first().isEqualTo("First");
+    }
+
+    @Test
+    void signingInOnTheSameBrowserStartsFresh() {
+        ApiClient browser = signedIn();
+        UUID shared = TestBusinesses.create(browser, "Counter Shop");
+        ApiClient second = signedIn();
+        Account secondAccount = accountOf(second);
+        UUID secondsOwn = TestBusinesses.create(second, "Second's Shop");
+        TestBusinesses.addMember(memberships, transactions, shared, TestBusinesses.userId(second), BusinessRole.STAFF);
+        systemDatabase.jdbc().sql("update memberships set last_used_at = now() - interval '1 day' where business_id = ? and user_id = ?")
+                .params(shared, TestBusinesses.userId(second)).update();
+        browser.get("/api/v1/business").expectStatus(200);
+
+        // The second user signs in on the first user's browser without signing them out.
+        browser.post("/api/v1/auth/login", Map.of("login", secondAccount.email(), "password", secondAccount.password()))
+                .expectStatus(200);
+
+        assertThat(browser.get("/api/v1/business").expectStatus(200).<String>json("$.id")).isEqualTo(secondsOwn.toString());
+    }
+
+    private Long membershipVersion(UUID businessId, UUID userId) {
+        return systemDatabase.jdbc().sql("select version from memberships where business_id = ? and user_id = ?")
+                .params(businessId, userId).query(Long.class).single();
+    }
+
     private final Map<ApiClient, Account> accounts = new java.util.IdentityHashMap<>();
 
     private ApiClient signedIn() {

@@ -10,6 +10,7 @@ import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.membership.Membership;
 import com.mojud.tenancy.membership.MembershipRepository;
 import com.mojud.tenancy.system.MembershipDirectory;
+import jakarta.persistence.EntityManager;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -32,31 +33,42 @@ class BusinessService {
     private final MembershipRepository memberships;
     private final MembershipDirectory directory;
     private final TransactionTemplate transactions;
+    private final EntityManager entityManager;
     private final Clock clock;
     private final int maxOwnedBusinesses;
 
     BusinessService(BusinessRepository businesses, BusinessSettingsRepository settings,
             MembershipRepository memberships, MembershipDirectory directory, TransactionTemplate transactions,
-            Clock clock, @Value("${mojud.tenancy.max-owned-businesses}") int maxOwnedBusinesses) {
+            EntityManager entityManager, Clock clock,
+            @Value("${mojud.tenancy.max-owned-businesses}") int maxOwnedBusinesses) {
         this.businesses = businesses;
         this.settings = settings;
         this.memberships = memberships;
         this.directory = directory;
         this.transactions = transactions;
+        this.entityManager = entityManager;
         this.clock = clock;
         this.maxOwnedBusinesses = maxOwnedBusinesses;
     }
 
-    /** Creates a business with default settings and the caller as its owner. */
-    BusinessResponse create(UUID userId, String name, PhoneNumber phone, String address) {
-        if (directory.ownedBusinessCount(userId) >= maxOwnedBusinesses) {
-            throw new ApiException(ErrorCode.BUSINESS_LIMIT_REACHED, maxOwnedBusinesses);
-        }
+    /**
+     * Creates a business with default settings and the caller as its owner. One user's creations
+     * take turns (a transaction-scoped advisory lock), so the owned-business count is always read
+     * after the previous creation committed and parallel requests cannot pass the limit together.
+     */
+    BusinessResponse create(UUID userId, String name, String phone, String address) {
+        PhoneNumber businessPhone = PhoneNumber.fromOptionalInput(phone, "phone");
         UUID businessId = Ids.newId();
         return TenantScope.call(businessId, () -> transactions.execute(status -> {
+            entityManager.createNativeQuery("select count(*) from (select pg_advisory_xact_lock(hashtextextended(?1, 0))) l")
+                    .setParameter(1, "create-business:" + userId)
+                    .getSingleResult();
+            if (directory.ownedBusinessCount(userId) >= maxOwnedBusinesses) {
+                throw new ApiException(ErrorCode.BUSINESS_LIMIT_REACHED, maxOwnedBusinesses);
+            }
             Instant now = clock.instant();
             Business business = new Business(businessId, name, now);
-            business.changeContact(phone, address, now);
+            business.changeContact(businessPhone, address, now);
             businesses.saveAndFlush(business);
             settings.save(BusinessSettings.defaults(businessId, now));
             memberships.save(new Membership(userId, BusinessRole.OWNER, now));
@@ -65,17 +77,17 @@ class BusinessService {
     }
 
     /**
-     * Checks the caller is an active member and remembers the switch, so this business is
-     * selected again after the next sign-in.
+     * Checks the caller is an active member of an active business and remembers the switch, so
+     * this business is selected again after the next sign-in.
      *
-     * @throws ApiException {@code resource.not_found} for a business the caller does not belong to
+     * @throws ApiException {@code resource.not_found} for a business the caller does not belong to,
+     *         or one that is suspended
      */
     BusinessResponse switchTo(UUID userId, UUID businessId) {
         return TenantScope.call(businessId, () -> transactions.execute(status -> {
-            Membership membership = memberships.findByUserId(userId).filter(Membership::isActive)
-                    .orElseThrow(ApiException::notFound);
+            Membership membership = memberships.findActive(userId).orElseThrow(ApiException::notFound);
             Business business = businesses.findById(businessId).orElseThrow(ApiException::notFound);
-            membership.markUsed(clock.instant());
+            memberships.markUsed(membership.getId(), clock.instant());
             return BusinessResponse.of(business, membership.getRole());
         }));
     }
@@ -101,8 +113,7 @@ class BusinessService {
         }
         if (phone != null || address != null) {
             PhoneNumber newPhone = phone == null ? business.getPhone().orElse(null)
-                    : phone.isBlank() ? null
-                    : PhoneNumber.tryParse(phone).orElseThrow(() -> ApiException.invalidField("phone", "field.phone_invalid"));
+                    : PhoneNumber.fromOptionalInput(phone, "phone");
             business.changeContact(newPhone, address == null ? business.getAddress() : address, now);
         }
         return BusinessResponse.of(businesses.saveAndFlush(business), current.role());

@@ -1,8 +1,6 @@
 package com.mojud.tenancy.business;
 
 import com.mojud.identity.AuthenticatedUser;
-import com.mojud.shared.error.ApiException;
-import com.mojud.shared.phone.PhoneNumber;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.RequiresRole;
@@ -49,9 +47,7 @@ class BusinessController {
     @ResponseStatus(HttpStatus.CREATED)
     BusinessResponse create(@AuthenticationPrincipal AuthenticatedUser user, @Valid @RequestBody CreateRequest body,
             HttpServletRequest request) {
-        PhoneNumber phone = body.phone() == null || body.phone().isBlank() ? null
-                : PhoneNumber.tryParse(body.phone()).orElseThrow(() -> ApiException.invalidField("phone", "field.phone_invalid"));
-        BusinessResponse created = businesses.create(user.id(), body.name(), phone, body.address());
+        BusinessResponse created = businesses.create(user.id(), body.name(), body.phone(), body.address());
         SelectedBusiness.set(request, created.id());
         return created;
     }

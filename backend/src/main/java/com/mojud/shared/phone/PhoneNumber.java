@@ -1,6 +1,7 @@
 package com.mojud.shared.phone;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.mojud.shared.error.ApiException;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -38,6 +39,26 @@ public record PhoneNumber(String e164) {
             digits = digits.substring(2);
         }
         return NATIONAL.matcher(digits).matches() ? Optional.of(new PhoneNumber("+88" + digits)) : Optional.empty();
+    }
+
+    /**
+     * A number typed into a form field.
+     *
+     * @throws ApiException a validation error on {@code field} when it is missing or not a
+     *         Bangladesh mobile number
+     */
+    public static PhoneNumber fromInput(String input, String field) {
+        return tryParse(input).orElseThrow(() -> ApiException.invalidField(field, "field.phone_invalid"));
+    }
+
+    /**
+     * An optional number typed into a form field: blank means none.
+     *
+     * @return the number, or null when blank
+     * @throws ApiException a validation error on {@code field} when it is not a Bangladesh mobile number
+     */
+    public static PhoneNumber fromOptionalInput(String input, String field) {
+        return input == null || input.isBlank() ? null : fromInput(input, field);
     }
 
     /** The way people write it in Bangladesh: {@code 01712345678}. */

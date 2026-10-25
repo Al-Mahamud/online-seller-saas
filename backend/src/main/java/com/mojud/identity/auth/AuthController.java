@@ -85,8 +85,7 @@ class AuthController {
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
     MeResponse signUp(@Valid @RequestBody SignUpRequest body, HttpServletRequest request, HttpServletResponse response) {
-        PhoneNumber phone = PhoneNumber.tryParse(body.phone())
-                .orElseThrow(() -> ApiException.invalidField("phone", "field.phone_invalid"));
+        PhoneNumber phone = PhoneNumber.fromInput(body.phone(), "phone");
         EmailAddress email = null;
         if (body.email() != null && !body.email().isBlank()) {
             email = EmailAddress.tryParse(body.email())

@@ -22,11 +22,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * Puts each signed-in request inside its business (backend-plan.md §4):
  * <ol>
- * <li>The business comes from the session, never from the request; a session without one gets the
- * business the user used last.
- * <li>The membership is read again, inside that business's TenantScope: a removed member or a
- * changed role counts from the next request. Without an active membership the selection is
- * dropped and the request runs with no business.
+ * <li>The business comes from the session, never from the request.
+ * <li>The membership is read again, inside that business's TenantScope: a removed member, a
+ * changed role or a suspended business counts from the next request.
+ * <li>When the session has no usable business (none yet, or the member was removed, or the business
+ * was suspended), the business the user used last is selected in the same request; if there is
+ * none, the request runs with no business.
  * <li>The rest of the request runs in the business's {@link TenantScope}, so every database
  * connection carries it, and {@link CurrentBusiness} holds the role.
  * </ol>
@@ -57,29 +58,27 @@ class TenantFilter extends OncePerRequestFilter {
             return;
         }
         UUID userId = user.get().id();
-        Optional<UUID> selected = SelectedBusiness.get(request).or(() -> {
-            Optional<UUID> lastUsed = directory.lastUsedBusiness(userId);
-            lastUsed.ifPresent(businessId -> SelectedBusiness.set(request, businessId));
-            return lastUsed;
-        });
-        Optional<Membership> membership = selected.flatMap(businessId -> TenantScope.call(businessId,
-                () -> memberships.findByUserId(userId).filter(Membership::isActive)));
+        Optional<Membership> membership = SelectedBusiness.get(request).flatMap(id -> activeMembership(id, userId));
         if (membership.isEmpty()) {
-            selected.ifPresent(dropped -> SelectedBusiness.clear(request));
+            membership = directory.lastUsedBusiness(userId).flatMap(id -> activeMembership(id, userId));
+            membership.ifPresentOrElse(
+                    found -> SelectedBusiness.set(request, found.getBusinessId()),
+                    () -> SelectedBusiness.clear(request));
+        }
+        if (membership.isEmpty()) {
             chain.doFilter(request, response);
             return;
         }
         UUID businessId = membership.get().getBusinessId();
         request.setAttribute(CurrentBusiness.class.getName(),
                 new CurrentBusiness(businessId, userId, membership.get().getRole()));
-        try {
-            TenantScope.call(businessId, () -> {
-                doFilterUnchecked(chain, request, response);
-                return null;
-            });
-        } catch (FilterFailure failure) {
-            failure.rethrow();
+        try (TenantScope.Opened ignored = TenantScope.open(businessId)) {
+            chain.doFilter(request, response);
         }
+    }
+
+    private Optional<Membership> activeMembership(UUID businessId, UUID userId) {
+        return TenantScope.call(businessId, () -> memberships.findActive(userId));
     }
 
     private static Optional<AuthenticatedUser> signedInUser() {
@@ -87,28 +86,5 @@ class TenantFilter extends OncePerRequestFilter {
         return authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user
                 ? Optional.of(user)
                 : Optional.empty();
-    }
-
-    private static void doFilterUnchecked(FilterChain chain, HttpServletRequest request, HttpServletResponse response) {
-        try {
-            chain.doFilter(request, response);
-        } catch (IOException | ServletException e) {
-            throw new FilterFailure(e);
-        }
-    }
-
-    /** Carries a checked exception out of the TenantScope lambda. */
-    private static final class FilterFailure extends RuntimeException {
-
-        FilterFailure(Exception cause) {
-            super(cause);
-        }
-
-        void rethrow() throws IOException, ServletException {
-            if (getCause() instanceof IOException io) {
-                throw io;
-            }
-            throw (ServletException) getCause();
-        }
     }
 }

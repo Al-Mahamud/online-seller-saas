@@ -62,6 +62,10 @@ class Business {
         updatedAt = now;
     }
 
+    boolean isActive() {
+        return status == BusinessStatus.ACTIVE;
+    }
+
     UUID getId() {
         return id;
     }

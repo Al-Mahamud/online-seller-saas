@@ -29,6 +29,17 @@ class TenantScopeTest {
     }
 
     @Test
+    void anOpenedScopeLastsUntilClosed() throws Exception {
+        UUID business = Ids.newId();
+
+        try (TenantScope.Opened ignored = TenantScope.open(business)) {
+            assertThat(TenantScope.current()).contains(business);
+        }
+
+        assertThat(TenantScope.current()).isEmpty();
+    }
+
+    @Test
     void theScopeEndsEvenWhenTheWorkFails() {
         assertThatThrownBy(() -> TenantScope.run(Ids.newId(), () -> {
             throw new IllegalStateException("boom");
