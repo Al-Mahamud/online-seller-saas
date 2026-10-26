@@ -1,6 +1,7 @@
 package com.mojud.tenancy.membership;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,6 +12,8 @@ import org.springframework.data.jpa.repository.Query;
 public interface MembershipRepository extends JpaRepository<Membership, UUID> {
 
     Optional<Membership> findByUserId(UUID userId);
+
+    List<Membership> findAllByStatusOrderByCreatedAt(MembershipStatus status);
 
     /** The user's membership, if it is active and the business is active (not suspended). */
     @Query("""

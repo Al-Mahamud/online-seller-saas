@@ -73,6 +73,13 @@ mojud:
   tenancy:
     # Stops one account from creating businesses in bulk; staff memberships are not counted.
     max-owned-businesses: 5
+    invites:
+      ttl: 7d
+      # Each invite is a message we pay for (SMS) or that could be spam.
+      per-business: { max: 30, window: 1d }
+  web:
+    # Where the web app lives; invite links point here.
+    base-url: ${WEB_BASE_URL:http://localhost:5173}
   db:
     system:
       url: ${spring.datasource.url}

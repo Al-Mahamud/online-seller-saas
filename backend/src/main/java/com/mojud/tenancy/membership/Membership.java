@@ -54,6 +54,25 @@ public class Membership {
         this.updatedAt = now;
     }
 
+    /** OWNER only through ownership transfer (StaffService). */
+    public void changeRole(BusinessRole newRole, Instant now) {
+        role = newRole;
+        updatedAt = now;
+    }
+
+    public void remove(Instant now) {
+        status = MembershipStatus.REMOVED;
+        updatedAt = now;
+    }
+
+    /** A former member accepted a new invite. */
+    public void rejoin(BusinessRole newRole, Instant now) {
+        status = MembershipStatus.ACTIVE;
+        role = newRole;
+        lastUsedAt = now;
+        updatedAt = now;
+    }
+
     public boolean isActive() {
         return status == MembershipStatus.ACTIVE;
     }
@@ -64,6 +83,10 @@ public class Membership {
 
     public UUID getBusinessId() {
         return businessId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 
     public UUID getUserId() {

@@ -46,6 +46,9 @@ class SecurityConfig {
                         .requestMatchers("/healthz/**", "/error", "/api/docs/**", "/swagger-ui/**",
                                 "/api/v1/openapi/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        // Endpoints anyone may call, such as looking up an invite from its link.
+                        // Each module puts its open endpoints here rather than adding rules above.
+                        .requestMatchers("/api/v1/public/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("PLATFORM_ADMIN")
                         .anyRequest().authenticated())
                 // Spring's defaults (nosniff, frame DENY, no-store, HSTS on HTTPS) plus: API answers

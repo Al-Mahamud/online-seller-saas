@@ -43,6 +43,19 @@ public enum ErrorCode {
     /** {0} is the limit. */
     BUSINESS_LIMIT_REACHED("business.limit_reached", HttpStatus.CONFLICT),
 
+    // Staff and invites.
+    STAFF_ALREADY_MEMBER("staff.already_member", HttpStatus.CONFLICT),
+    /** The owner is changed only by transferring ownership, never by role changes or removal. */
+    STAFF_OWNER_PROTECTED("staff.owner_protected", HttpStatus.CONFLICT),
+    /** Members cannot change their own role or remove themselves. */
+    STAFF_SELF_CHANGE("staff.self_change", HttpStatus.CONFLICT),
+    /** Unknown, expired, used or revoked; deliberately not distinguished. */
+    INVITE_INVALID("invite.invalid", HttpStatus.NOT_FOUND),
+    /** {0} is the invited phone or email, partly hidden. */
+    INVITE_WRONG_ACCOUNT("invite.wrong_account", HttpStatus.FORBIDDEN),
+    /** No sender for this channel yet (no SMS gateway). */
+    INVITE_CHANNEL_UNAVAILABLE("invite.channel_unavailable", HttpStatus.BAD_REQUEST),
+
     // Errors raised by the framework before a controller runs.
     MALFORMED_REQUEST("request.malformed", HttpStatus.BAD_REQUEST),
     ROUTE_NOT_FOUND("route.not_found", HttpStatus.NOT_FOUND),

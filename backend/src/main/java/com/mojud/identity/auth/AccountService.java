@@ -1,5 +1,6 @@
 package com.mojud.identity.auth;
 
+import com.mojud.identity.PasswordConfirmation;
 import com.mojud.identity.account.ContactConflicts;
 import com.mojud.identity.account.MeResponse;
 import com.mojud.identity.account.User;
@@ -9,7 +10,6 @@ import com.mojud.identity.otp.OtpPurpose;
 import com.mojud.identity.otp.OtpService;
 import com.mojud.shared.email.EmailAddress;
 import com.mojud.shared.error.ApiException;
-import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.phone.PhoneNumber;
 import java.time.Clock;
 import java.util.UUID;
@@ -33,16 +33,19 @@ class AccountService {
     private final OtpService otp;
     private final PasswordEncoder passwords;
     private final LoginSessions sessions;
+    private final PasswordConfirmation passwordConfirmation;
     private final AuthRateLimits limits;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
     AccountService(UserRepository users, OtpService otp, PasswordEncoder passwords, LoginSessions sessions,
-            AuthRateLimits limits, TransactionTemplate transactions, Clock clock) {
+            PasswordConfirmation passwordConfirmation, AuthRateLimits limits, TransactionTemplate transactions,
+            Clock clock) {
         this.users = users;
         this.otp = otp;
         this.passwords = passwords;
         this.sessions = sessions;
+        this.passwordConfirmation = passwordConfirmation;
         this.limits = limits;
         this.transactions = transactions;
         this.clock = clock;
@@ -75,7 +78,7 @@ class AccountService {
     /** Signs the user out everywhere except this device, in case someone else knew the old password. */
     void changePassword(UUID userId, String currentPassword, String newPassword, String currentSessionId,
             String clientIp) {
-        requirePassword(userId, currentPassword, clientIp);
+        passwordConfirmation.confirm(userId, currentPassword, clientIp);
         String hash = passwords.encode(newPassword);
         transactions.executeWithoutResult(status ->
                 users.findById(userId).orElseThrow(ApiException::notFound).changePassword(hash, clock.instant()));
@@ -105,8 +108,8 @@ class AccountService {
      */
     MeResponse confirmContact(UUID userId, OtpDestination destination, String code, String currentPassword,
             String clientIp) {
-        requirePassword(userId, currentPassword, clientIp);
-        String limitKey = "user:" + userId;
+        passwordConfirmation.confirm(userId, currentPassword, clientIp);
+        String limitKey = PasswordConfirmationService.limitKey(userId);
         try {
             otp.consume(destination, OtpPurpose.VERIFY_CONTACT, userId, code);
         } catch (ApiException e) {
@@ -127,16 +130,5 @@ class AccountService {
         } catch (DataIntegrityViolationException e) {
             throw ContactConflicts.translate(e);
         }
-    }
-
-    private void requirePassword(UUID userId, String password, String clientIp) {
-        String limitKey = "user:" + userId;
-        limits.checkLogin(limitKey, clientIp);
-        String hash = users.findById(userId).map(User::getPasswordHash).orElseThrow(ApiException::notFound);
-        if (!passwords.matches(password, hash)) {
-            limits.loginFailed(limitKey, clientIp);
-            throw new ApiException(ErrorCode.WRONG_PASSWORD);
-        }
-        limits.loginSucceeded(limitKey, clientIp);
     }
 }

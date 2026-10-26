@@ -18,7 +18,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | --- | --- | --- | --- |
 | 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | Done |
 | 1 Identity | 1a sign-up and login · 1b account management | 4 | Done |
-| 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | 2a in review |
+| 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | 2a done · 2b in review |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Not started |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Not started |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Not started |
@@ -130,6 +130,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Removing a member or changing their role updates their live sessions at once.
 
 **Checked by:** the role rules in §7 (a manager cannot create an owner; staff cannot invite); removed staff get 404 on their next request.
+
+**As built:** accepting needs a signed-in account that has verified the invited phone or email (a new person signs up with that email first), so a forwarded link is useless to others. The link is `<web>/invites#<token>`: the token sits in the fragment and travels in request bodies, never in URLs that servers log. Preview is `POST /api/v1/public/invites/lookup` (new `/api/v1/public/**` area for open endpoints); accept is `POST /api/v1/invites/accept`. Ownership transfer is `POST /staff/{userId}/make-owner` with the owner's password. Members cannot remove themselves yet ("leave business" can come later).
 
 ### 2c: Cross-tenant suite and audit log (1.5 days)
 
