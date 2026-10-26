@@ -18,7 +18,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | --- | --- | --- | --- |
 | 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | Done |
 | 1 Identity | 1a sign-up and login · 1b account management | 4 | Done |
-| 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | 2a done · 2b in review |
+| 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | 2a, 2b done · 2c in review |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Not started |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Not started |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Not started |
@@ -141,6 +141,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `GET /business/audit-log` (owner).
 
 **Checked by:** the harness itself (it fails on purpose if a test endpoint skips the tenant check); audit rows written for 2a and 2b actions.
+
+**As built:** `CrossTenantTests` holds one case per endpoint (`"METHOD /path"`), each run by business B's owner against business A; endpoints without business data are listed with a reason. `CrossTenantSuiteSelfTest` adds a deliberately leaky endpoint and checks the suite reports both the missing case and the leak. Modules write audit entries through `shared.audit.AuditTrail` (a generic `AuditEvent`, so modules need not know the audit module) inside the transaction of the change; the `audit` module writes them on the same connection. `audit_logs` is append-only (UPDATE and DELETE revoked). The plan's "audit log of platform admin actions" will be a separate table in 12a, since every entry here belongs to one business.
 
 ---
 

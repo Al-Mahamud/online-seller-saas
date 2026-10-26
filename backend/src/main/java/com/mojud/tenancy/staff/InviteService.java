@@ -2,6 +2,7 @@ package com.mojud.tenancy.staff;
 
 import com.mojud.identity.UserDirectory;
 import com.mojud.shared.async.AfterCommitTasks;
+import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.db.AdvisoryLocks;
 import com.mojud.shared.email.EmailAddress;
 import com.mojud.shared.email.EmailSender;
@@ -61,6 +62,7 @@ class InviteService {
     private final TransactionTemplate transactions;
     private final TransactionTemplate readOnly;
     private final AdvisoryLocks locks;
+    private final AuditTrail audit;
     private final Clock clock;
     private final Duration ttl;
     private final String webBaseUrl;
@@ -69,7 +71,7 @@ class InviteService {
     InviteService(InviteRepository invites, MembershipRepository memberships, InviteDirectory directory,
             BusinessNames businessNames, UserDirectory users, ObjectProvider<SmsSender> sms,
             ObjectProvider<EmailSender> email, AfterCommitTasks afterCommit, MessageSource messages,
-            PlatformTransactionManager transactionManager, AdvisoryLocks locks, Clock clock,
+            PlatformTransactionManager transactionManager, AdvisoryLocks locks, AuditTrail audit, Clock clock,
             @Value("${mojud.tenancy.invites.ttl}") Duration ttl,
             @Value("${mojud.tenancy.invites.per-business.max}") int perBusinessMax,
             @Value("${mojud.tenancy.invites.per-business.window}") Duration perBusinessWindow,
@@ -87,6 +89,7 @@ class InviteService {
         this.readOnly = new TransactionTemplate(transactionManager);
         this.readOnly.setReadOnly(true);
         this.locks = locks;
+        this.audit = audit;
         this.clock = clock;
         this.ttl = ttl;
         this.webBaseUrl = webBaseUrl;
@@ -120,7 +123,8 @@ class InviteService {
         invitesPerBusiness.acquire(business.businessId().toString());
 
         Instant now = clock.instant();
-        invites.findUnanswered(destination).ifPresent(old -> {
+        Optional<Invite> replaced = invites.findUnanswered(destination);
+        replaced.ifPresent(old -> {
             old.revoke(now);
             // The new invite must not meet the old one in the "one open invite" index.
             invites.saveAndFlush(old);
@@ -128,6 +132,8 @@ class InviteService {
         String token = InviteTokens.newToken();
         Invite invite = invites.save(new Invite(isEmail ? InviteChannel.EMAIL : InviteChannel.PHONE, destination,
                 role, InviteTokens.hash(token), business.userId(), now.plus(ttl), now));
+        audit.record(business.businessId(), business.userId(), "staff.invited", "invite", invite.getId(),
+                "to", destination, "role", role, "replaces", replaced.map(Invite::getId).orElse(null));
         send(invite, token, business);
         return InviteResponse.of(invite);
     }
@@ -142,6 +148,9 @@ class InviteService {
         Invite invite = invites.findById(inviteId).filter(found -> found.isOpen(clock.instant()))
                 .orElseThrow(ApiException::notFound);
         invite.revoke(clock.instant());
+        CurrentBusiness business = CurrentBusiness.require();
+        audit.record(business.businessId(), business.userId(), "staff.invite_revoked", "invite", inviteId,
+                "to", invite.getDestination());
     }
 
     /** What the invite link shows before anyone signs in. Reads only: takes no lock. */
@@ -179,6 +188,8 @@ class InviteService {
                     former -> former.rejoin(invite.getRole(), now),
                     () -> memberships.save(new Membership(userId, invite.getRole(), now)));
             invite.accept(userId, now);
+            audit.record(businessId, userId, "staff.joined", "user", userId,
+                    "role", invite.getRole(), "invite", invite.getId(), "rejoined", existing.isPresent());
             return new Joined(businessId, businessNames.nameOf(businessId), invite.getRole());
         }));
     }

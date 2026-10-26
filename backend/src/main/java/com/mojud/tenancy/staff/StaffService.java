@@ -2,6 +2,7 @@ package com.mojud.tenancy.staff;
 
 import com.mojud.identity.PasswordConfirmation;
 import com.mojud.identity.UserDirectory;
+import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.db.AdvisoryLocks;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
@@ -43,16 +44,18 @@ class StaffService {
     private final InviteRepository invites;
     private final MembershipDirectory directory;
     private final AdvisoryLocks locks;
+    private final AuditTrail audit;
     private final Clock clock;
     private final int maxOwnedBusinesses;
 
     StaffService(MembershipRepository memberships, UserDirectory users, PasswordConfirmation passwordConfirmation,
             TransactionTemplate transactions, InviteRepository invites, MembershipDirectory directory,
-            AdvisoryLocks locks, Clock clock,
+            AdvisoryLocks locks, AuditTrail audit, Clock clock,
             @Value("${mojud.tenancy.max-owned-businesses}") int maxOwnedBusinesses) {
         this.invites = invites;
         this.directory = directory;
         this.locks = locks;
+        this.audit = audit;
         this.maxOwnedBusinesses = maxOwnedBusinesses;
         this.memberships = memberships;
         this.users = users;
@@ -79,17 +82,26 @@ class StaffService {
         if (role == BusinessRole.OWNER) {
             throw ApiException.invalidField("role", "field.invalid_value");
         }
-        otherMember(userId).changeRole(role, clock.instant());
-        if (role == BusinessRole.STAFF) {
-            invites.revokeAllSentBy(userId, clock.instant());
+        Membership member = otherMember(userId);
+        BusinessRole before = member.getRole();
+        member.changeRole(role, clock.instant());
+        int withdrawn = role == BusinessRole.STAFF ? invites.revokeAllSentBy(userId, clock.instant()) : 0;
+        if (before != role) {
+            CurrentBusiness business = CurrentBusiness.require();
+            audit.record(business.businessId(), business.userId(), "staff.role_changed", "user", userId,
+                    "from", before, "to", role, "invitesWithdrawn", withdrawn);
         }
     }
 
     /** Also withdraws the member's unanswered invites, so nobody can rejoin through them. */
     @Transactional
     void remove(UUID userId) {
-        otherMember(userId).remove(clock.instant());
-        invites.revokeAllSentBy(userId, clock.instant());
+        Membership member = otherMember(userId);
+        member.remove(clock.instant());
+        int withdrawn = invites.revokeAllSentBy(userId, clock.instant());
+        CurrentBusiness business = CurrentBusiness.require();
+        audit.record(business.businessId(), business.userId(), "staff.removed", "user", userId,
+                "role", member.getRole(), "invitesWithdrawn", withdrawn);
     }
 
     /**
@@ -116,6 +128,8 @@ class StaffService {
             memberships.saveAndFlush(oldOwner);
             newOwner.changeRole(BusinessRole.OWNER, now);
             memberships.saveAndFlush(newOwner);
+            audit.record(current.businessId(), current.userId(), "business.ownership_transferred", "user", newOwnerId,
+                    "from", current.userId(), "to", newOwnerId);
         });
     }
 
