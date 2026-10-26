@@ -59,7 +59,9 @@ class ProductService {
             // Another business's (or a deleted) category or tag looks like one that does not exist.
             "fk_products_category", ErrorCode.NOT_FOUND,
             "fk_product_tags_tag", ErrorCode.NOT_FOUND,
-            "uq_product_variants_sku", ErrorCode.SKU_TAKEN);
+            "uq_product_variants_sku", ErrorCode.SKU_TAKEN,
+            // Last resort; replaceOptions keeps attributes unique, so this would be a race.
+            "uq_product_variants_attributes", ErrorCode.CONCURRENT_MODIFICATION);
 
     /** An option as given: {@code id} keeps an existing option (so it can be renamed). */
     record OptionInput(UUID id, String name, List<String> values) {
@@ -110,7 +112,7 @@ class ProductService {
         Cursor after = Cursor.decode(cursor);
         // The first page starts after everything: no null parameter, whose type PostgreSQL cannot tell.
         List<Product> page = products.findPage(status, categoryId, tagId,
-                after == null ? END_OF_TIME : Instant.parse(after.sortKey()), after == null ? LAST_ID : after.id(),
+                after == null ? END_OF_TIME : after.sortKeyAsInstant(), after == null ? LAST_ID : after.id(),
                 Limit.of(pageSize + 1));
         CursorPage<Product> paged = CursorPage.of(page, pageSize, p -> new Cursor(p.getCreatedAt().toString(), p.getId()));
         List<UUID> ids = paged.items().stream().map(Product::getId).toList();
@@ -227,36 +229,37 @@ class ProductService {
             requireVersion(product.getVersion(), version);
             Instant now = clock.instant();
             List<ProductOption> existing = options.findByProductIdOrderByPosition(productId);
+            // Decided once: which existing option each input continues (null: a new option).
+            List<ProductOption> continues = matchOptions(existing, inputs, grid);
 
-            // Which existing option each input continues: by id, else by name.
-            Map<UUID, ProductOption> kept = new LinkedHashMap<>();
             Map<String, String> renames = new HashMap<>();
             Map<String, String> added = new LinkedHashMap<>();
-            for (int i = 0; i < inputs.size(); i++) {
-                ProductOption match = continued(existing, inputs.get(i));
-                if (match != null) {
-                    kept.put(match.getId(), match);
-                    renames.put(match.getName(), grid.get(i).name());
+            for (int i = 0; i < grid.size(); i++) {
+                if (continues.get(i) != null) {
+                    renames.put(continues.get(i).getName(), grid.get(i).name());
                 } else {
                     added.put(grid.get(i).name(), grid.get(i).values().get(0));
                 }
             }
             Set<String> removed = new HashSet<>();
-            existing.stream().filter(option -> !kept.containsKey(option.getId()))
-                    .forEach(option -> removed.add(option.getName()));
+            existing.stream().filter(option -> !continues.contains(option)).forEach(option -> removed.add(option.getName()));
 
-            // Each variant's attributes after renames and removed options.
+            // Two views of each variant: "own" is its combination after renames and removed options;
+            // "extended" also takes the first value of each new option.
             List<ProductVariant> all = variants.findByProductIdOrderByPosition(productId);
-            Map<ProductVariant, Map<String, String>> reduced = new LinkedHashMap<>();
+            Map<ProductVariant, Map<String, String>> own = new LinkedHashMap<>();
+            Map<ProductVariant, Map<String, String>> extended = new LinkedHashMap<>();
             for (ProductVariant variant : all) {
-                Map<String, String> attributes = new LinkedHashMap<>();
+                Map<String, String> attributes = new HashMap<>();
                 variant.getAttributes().forEach((key, value) -> {
                     if (!removed.contains(key)) {
                         attributes.put(renames.getOrDefault(key, key), value);
                     }
                 });
-                added.forEach(attributes::putIfAbsent);
-                reduced.put(variant, attributes);
+                own.put(variant, attributes);
+                Map<String, String> withAdded = new HashMap<>(attributes);
+                added.forEach(withAdded::putIfAbsent);
+                extended.put(variant, withAdded);
             }
 
             ProductVariant template = all.stream().filter(ProductVariant::isActive).findFirst()
@@ -264,33 +267,43 @@ class ProductService {
             long newPrice = price != null ? price : template == null ? 0 : template.getPrice();
             Long newCost = costPrice != null ? costPrice : template == null ? null : template.getCostPrice();
 
+            // Each combination keeps the variant that already is it; only then one that becomes it by
+            // taking a new option's first value. Among several, an active one, then the first.
             List<Map<String, String>> combinations = VariantGrid.combinations(grid);
+            Map<Integer, ProductVariant> chosen = new HashMap<>();
             Set<ProductVariant> placed = new HashSet<>();
+            for (Map<Map<String, String>, List<ProductVariant>> index : List.of(byAttributes(own), byAttributes(extended))) {
+                for (int position = 0; position < combinations.size(); position++) {
+                    if (chosen.containsKey(position)) {
+                        continue;
+                    }
+                    for (ProductVariant candidate : index.getOrDefault(new HashMap<>(combinations.get(position)), List.of())) {
+                        if (placed.add(candidate)) {
+                            chosen.put(position, candidate);
+                            break;
+                        }
+                    }
+                }
+            }
             List<Map<String, String>> missing = new ArrayList<>();
             List<Integer> missingPositions = new ArrayList<>();
             for (int position = 0; position < combinations.size(); position++) {
-                Map<String, String> combination = combinations.get(position);
-                Optional<ProductVariant> match = reduced.entrySet().stream()
-                        .filter(entry -> !placed.contains(entry.getKey()) && entry.getValue().equals(combination))
-                        .map(Map.Entry::getKey)
-                        .min(Comparator.comparing((ProductVariant v) -> !v.isActive()).thenComparingInt(ProductVariant::getPosition));
-                if (match.isPresent()) {
-                    match.get().regrid(combination, ProductStatus.ACTIVE, position, now);
-                    placed.add(match.get());
+                if (chosen.containsKey(position)) {
+                    chosen.get(position).regrid(combinations.get(position), ProductStatus.ACTIVE, position, now);
                 } else {
-                    missing.add(combination);
+                    missing.add(combinations.get(position));
                     missingPositions.add(position);
                 }
             }
 
-            // Variants that left the grid: archived, after the grid, keeping attributes that cannot clash.
-            Set<Map<String, String>> taken = new HashSet<>(combinations);
+            // Variants that left the grid: archived after it, with attributes no other variant has.
+            Set<Map<String, String>> taken = new HashSet<>();
+            combinations.forEach(combination -> taken.add(new HashMap<>(combination)));
             int archivedPosition = combinations.size();
             for (ProductVariant variant : all) {
                 if (!placed.contains(variant)) {
-                    Map<String, String> attributes = taken.add(reduced.get(variant)) ? reduced.get(variant) : variant.getAttributes();
-                    taken.add(attributes);
-                    variant.regrid(attributes, ProductStatus.ARCHIVED, archivedPosition++, now);
+                    variant.regrid(freeAttributes(variant, own.get(variant), taken), ProductStatus.ARCHIVED,
+                            archivedPosition++, now);
                 }
             }
 
@@ -300,13 +313,18 @@ class ProductService {
                         missingPositions.get(i), now));
             }
 
-            // The option rows themselves.
-            existing.stream().filter(option -> !kept.containsKey(option.getId())).forEach(options::delete);
+            // The option rows. Kept options first get temporary names, so swapping two names never
+            // meets the unique name index halfway.
+            existing.stream().filter(option -> !continues.contains(option)).forEach(options::delete);
+            // The id's last 12 hex digits are random; its first ones are a timestamp, the same for
+            // options created together.
+            continues.stream().filter(Objects::nonNull)
+                    .forEach(option -> option.change("~" + option.getId().toString().substring(24),
+                            option.getValues(), option.getPosition()));
             options.flush();
-            for (int i = 0; i < inputs.size(); i++) {
-                ProductOption match = continued(existing, inputs.get(i));
-                if (match != null) {
-                    match.change(grid.get(i).name(), grid.get(i).values(), i);
+            for (int i = 0; i < grid.size(); i++) {
+                if (continues.get(i) != null) {
+                    continues.get(i).change(grid.get(i).name(), grid.get(i).values(), i);
                 } else {
                     options.save(new ProductOption(productId, grid.get(i).name(), grid.get(i).values(), i));
                 }
@@ -315,6 +333,66 @@ class ProductService {
             products.saveAndFlush(product);
             return detail(product);
         });
+    }
+
+    /** Variants by attributes (order-free maps), each list with active variants first, then by position. */
+    private static Map<Map<String, String>, List<ProductVariant>> byAttributes(Map<ProductVariant, Map<String, String>> views) {
+        Map<Map<String, String>, List<ProductVariant>> index = new HashMap<>();
+        views.forEach((variant, attributes) -> index.computeIfAbsent(attributes, key -> new ArrayList<>()).add(variant));
+        index.values().forEach(list -> list.sort(
+                Comparator.comparing((ProductVariant v) -> !v.isActive()).thenComparingInt(ProductVariant::getPosition)));
+        return index;
+    }
+
+    /**
+     * Attributes for an archived variant that no other variant of the product has: its own (as
+     * stored), else after renames, else, as a last resort, marked with its id.
+     */
+    private static Map<String, String> freeAttributes(ProductVariant variant, Map<String, String> renamed,
+            Set<Map<String, String>> taken) {
+        for (Map<String, String> candidate : List.of(new HashMap<>(variant.getAttributes()), renamed)) {
+            if (taken.add(candidate)) {
+                return candidate;
+            }
+        }
+        Map<String, String> marked = new HashMap<>(variant.getAttributes());
+        marked.put("archived", variant.getId().toString());
+        taken.add(marked);
+        return marked;
+    }
+
+    /**
+     * Which existing option each input continues, decided once: by {@code id}, else by its tidied
+     * name ignoring case. An existing option is continued at most once.
+     */
+    private static List<ProductOption> matchOptions(List<ProductOption> existing, List<OptionInput> inputs,
+            List<VariantGrid.Option> grid) {
+        List<ProductOption> continues = new ArrayList<>(java.util.Collections.nCopies(inputs.size(), null));
+        Set<UUID> used = new HashSet<>();
+        for (int i = 0; i < inputs.size(); i++) {
+            UUID id = inputs.get(i).id();
+            if (id != null) {
+                ProductOption option = existing.stream().filter(o -> o.getId().equals(id)).findFirst()
+                        .orElseThrow(() -> ApiException.invalidField("options", "field.invalid_value"));
+                if (!used.add(id)) {
+                    throw ApiException.invalidField("options", "field.option_duplicate");
+                }
+                continues.set(i, option);
+            }
+        }
+        for (int i = 0; i < inputs.size(); i++) {
+            if (inputs.get(i).id() == null) {
+                String name = grid.get(i).name().toLowerCase(Locale.ROOT);
+                Optional<ProductOption> option = existing.stream()
+                        .filter(o -> !used.contains(o.getId()) && o.getName().toLowerCase(Locale.ROOT).equals(name))
+                        .findFirst();
+                if (option.isPresent()) {
+                    used.add(option.get().getId());
+                    continues.set(i, option.get());
+                }
+            }
+        }
+        return continues;
     }
 
     // Variants.
@@ -332,9 +410,15 @@ class ProductService {
                 Product product = find(variant.getProductId());
                 List<VariantGrid.Option> grid = options.findByProductIdOrderByPosition(product.getId()).stream()
                         .map(option -> new VariantGrid.Option(option.getName(), option.getValues())).toList();
-                // The variant's own SKU does not block it: regenerating "WATCH" gives "WATCH" again.
-                variant.changeSku(newSkus(product.getName(), grid, List.of(variant.getAttributes()),
-                        variant.getSku()).get(0), now);
+                // In option order (the stored attributes have none), and the variant's own SKU does
+                // not block it: regenerating "WATCH" gives "WATCH" again.
+                Map<String, String> ordered = new LinkedHashMap<>();
+                grid.forEach(option -> {
+                    if (variant.getAttributes().containsKey(option.name())) {
+                        ordered.put(option.name(), variant.getAttributes().get(option.name()));
+                    }
+                });
+                variant.changeSku(newSkus(product.getName(), grid, List.of(ordered), variant.getSku()).get(0), now);
             }
             long price = command.price() != null ? command.price() : variant.getPrice();
             Long cost = command.clearCostPrice() ? null
@@ -358,10 +442,22 @@ class ProductService {
         });
     }
 
-    /** A combination the seller does not make; stays out of orders until restored. */
+    /**
+     * Archives a combination the seller does not make, or restores it. Only a variant that fits the
+     * current options can be restored (others come back by adding their option values again), and
+     * the last active variant cannot be archived: archive the product instead.
+     */
     ProductViews.Variant changeVariantStatus(UUID variantId, ProductStatus status) {
         return writing(false, () -> {
             ProductVariant variant = findVariant(variantId);
+            if (status == ProductStatus.ACTIVE && !fitsOptions(variant)) {
+                throw new ApiException(ErrorCode.VARIANT_NOT_IN_OPTIONS);
+            }
+            if (status == ProductStatus.ARCHIVED && variant.isActive()
+                    && variants.findByProductIdOrderByPosition(variant.getProductId()).stream()
+                            .filter(ProductVariant::isActive).count() == 1) {
+                throw new ApiException(ErrorCode.VARIANT_LAST_ACTIVE);
+            }
             variant.changeStatus(status, clock.instant());
             variants.saveAndFlush(variant);
             return ProductViews.Variant.of(variant, showCost(), optionOrder(variant.getProductId()));
@@ -457,15 +553,6 @@ class ProductService {
         return grid;
     }
 
-    private static ProductOption continued(List<ProductOption> existing, OptionInput input) {
-        if (input.id() != null) {
-            return existing.stream().filter(option -> option.getId().equals(input.id())).findFirst()
-                    .orElseThrow(() -> ApiException.invalidField("options", "field.invalid_value"));
-        }
-        String name = input.name() == null ? "" : input.name().strip();
-        return existing.stream().filter(option -> option.getName().equalsIgnoreCase(name)).findFirst().orElse(null);
-    }
-
     private static Set<UUID> cleanTags(List<UUID> tagIds) {
         Set<UUID> tags = new LinkedHashSet<>(tagIds == null ? List.of() : tagIds);
         tags.remove(null);
@@ -496,6 +583,14 @@ class ProductService {
         if (expected != null && !Objects.equals(actual, expected)) {
             throw new ApiException(ErrorCode.CONCURRENT_MODIFICATION);
         }
+    }
+
+    /** The variant's attributes are exactly one value of each current option. */
+    private boolean fitsOptions(ProductVariant variant) {
+        List<ProductOption> current = options.findByProductIdOrderByPosition(variant.getProductId());
+        Map<String, String> attributes = variant.getAttributes();
+        return attributes.size() == current.size() && current.stream()
+                .allMatch(option -> option.getValues().contains(attributes.get(option.getName())));
     }
 
     private List<String> optionOrder(UUID productId) {

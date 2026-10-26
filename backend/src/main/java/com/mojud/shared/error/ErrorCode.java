@@ -67,6 +67,10 @@ public enum ErrorCode {
     TAG_NAME_TAKEN("tag.name_taken", HttpStatus.CONFLICT),
     /** SKUs are unique in a business, ignoring case. */
     SKU_TAKEN("product.sku_taken", HttpStatus.CONFLICT),
+    /** The variant's option values are no longer in the product's options. */
+    VARIANT_NOT_IN_OPTIONS("variant.not_in_options", HttpStatus.CONFLICT),
+    /** A product keeps at least one active variant; archive the product instead. */
+    VARIANT_LAST_ACTIVE("variant.last_active", HttpStatus.CONFLICT),
 
     // Errors raised by the framework before a controller runs.
     MALFORMED_REQUEST("request.malformed", HttpStatus.BAD_REQUEST),

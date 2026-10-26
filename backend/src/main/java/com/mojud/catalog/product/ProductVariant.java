@@ -1,8 +1,6 @@
 package com.mojud.catalog.product;
 
 import com.mojud.shared.id.Ids;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -13,8 +11,9 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
-import org.hibernate.annotations.ColumnTransformer;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.TenantId;
+import org.hibernate.type.SqlTypes;
 
 /** One sellable combination of a product's option values. Prices are whole poisha. */
 @Entity
@@ -32,9 +31,7 @@ class ProductVariant {
     private String sku;
 
     /** jsonb keeps no key order: views put the values in the product's option order. */
-    @Convert(converter = AttributesConverter.class)
-    @Column(columnDefinition = "jsonb")
-    @ColumnTransformer(write = "?::jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, String> attributes;
 
     private long price;

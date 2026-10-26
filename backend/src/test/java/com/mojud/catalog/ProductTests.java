@@ -286,6 +286,100 @@ class ProductTests {
         owner.patch("/api/v1/products/" + id, Map.of("name", "Stale", "version", 0)).expectError(409, "resource.modified");
     }
 
+    // Fixes from the 3b code review.
+
+    @Test
+    void aCombinationComingBackRestoresTheVariantThatWasIt() {
+        String id = createWithOptions("Tee", option("Size", "S")).json("$.id");
+        ApiResponse colored = replaceOptions(id, option("Size", "S"), option("Color", "Red", "Blue"));
+        String red = colored.<List<String>>json("$.variants[?(@.label == 'S / Red')].id").get(0);
+        String blue = colored.<List<String>>json("$.variants[?(@.label == 'S / Blue')].id").get(0);
+        owner.patch("/api/v1/variants/" + blue, Map.of("price", 77700)).expectStatus(200);
+        replaceOptions(id, option("Size", "S"));
+
+        ApiResponse back = replaceOptions(id, option("Size", "S"), option("Color", "Blue"));
+
+        assertThat(back.<List<String>>json("$.variants[?(@.status == 'ACTIVE')].id")).containsExactly(blue);
+        assertThat(back.<List<Integer>>json("$.variants[?(@.status == 'ACTIVE')].price")).containsExactly(77700);
+        assertThat(back.<List<String>>json("$.variants[?(@.id == '" + red + "')].status")).containsExactly("ARCHIVED");
+    }
+
+    @Test
+    void anOptionIsContinuedOnceAndRepeatedIdsAreRefused() {
+        ApiResponse product = createWithOptions("Pants", option("Size", "S", "M"));
+        String id = product.json("$.id");
+        String sizeId = product.json("$.options[0].id");
+        List<String> before = product.json("$.variants[*].id");
+
+        ApiResponse after = owner.put("/api/v1/products/" + id + "/options", Map.of("options", List.of(
+                Map.of("id", sizeId, "name", "Fit", "values", List.of("S", "M")),
+                Map.of("name", "Size", "values", List.of("32", "34"))))).expectStatus(200);
+
+        assertThat(after.<List<String>>json("$.options[*].name")).containsExactly("Fit", "Size");
+        assertThat(after.<List<String>>json("$.variants[?(@.label == 'S / 32' || @.label == 'M / 32')].id"))
+                .containsExactlyElementsOf(before);
+        owner.put("/api/v1/products/" + id + "/options", Map.of("options", List.of(
+                Map.of("id", sizeId, "name", "A", "values", List.of("1")),
+                Map.of("id", sizeId, "name", "B", "values", List.of("2"))))).expectError(400, "validation.failed");
+    }
+
+    @Test
+    void twoOptionNamesCanBeSwapped() {
+        ApiResponse product = createWithOptions("Mixed", option("Size", "S"), option("Color", "Red"));
+        String sizeId = product.json("$.options[0].id");
+        String colorId = product.json("$.options[1].id");
+        String variant = product.json("$.variants[0].id");
+
+        ApiResponse after = owner.put("/api/v1/products/" + product.json("$.id") + "/options", Map.of("options", List.of(
+                Map.of("id", sizeId, "name", "Color", "values", List.of("S")),
+                Map.of("id", colorId, "name", "Size", "values", List.of("Red"))))).expectStatus(200);
+
+        assertThat(after.<List<String>>json("$.options[*].name")).containsExactly("Color", "Size");
+        assertThat(after.<String>json("$.variants[0].id")).isEqualTo(variant);
+        assertThat(after.<String>json("$.variants[0].attributes.Color")).isEqualTo("S");
+    }
+
+    @Test
+    void aPastedNameWithUnusualSpacesStillMatchesItsOption() {
+        ApiResponse product = createWithOptions("Pasted", option("Size", "S", "M"));
+        List<String> before = product.json("$.variants[*].id");
+
+        ApiResponse after = replaceOptions(product.json("$.id"), option("Size\u00A0", "S", "M"));
+
+        assertThat(after.<List<String>>json("$.variants[*].id")).containsExactlyElementsOf(before);
+    }
+
+    @Test
+    void onlyVariantsThatFitTheOptionsCanBeRestoredAndOneMustStayActive() {
+        ApiResponse product = createWithOptions("Strict", option("Size", "S"), option("Color", "Red", "Blue"));
+        String id = product.json("$.id");
+        String blue = product.<List<String>>json("$.variants[?(@.label == 'S / Blue')].id").get(0);
+        ApiResponse reduced = replaceOptions(id, option("Size", "S"));
+        String remaining = reduced.<List<String>>json("$.variants[?(@.status == 'ACTIVE')].id").get(0);
+
+        owner.post("/api/v1/variants/" + blue + "/restore", null).expectError(409, "variant.not_in_options");
+        owner.post("/api/v1/variants/" + remaining + "/archive", null).expectError(409, "variant.last_active");
+    }
+
+    @Test
+    void aRegeneratedSkuKeepsTheOptionOrder() {
+        ApiResponse product = createWithOptions("Tee", option("Color", "Black"), option("Size", "L"));
+        String sku = product.json("$.variants[0].sku");
+        assertThat(sku).isEqualTo("TEE-BLA-L");
+
+        assertThat(owner.patch("/api/v1/variants/" + product.json("$.variants[0].id"), Map.of("sku", ""))
+                .expectStatus(200).<String>json("$.sku")).isEqualTo(sku);
+    }
+
+    @Test
+    void aTamperedCursorIsAFieldErrorNotAServerError() {
+        String tampered = java.util.Base64.getUrlEncoder().withoutPadding()
+                .encodeToString((java.util.UUID.randomUUID() + "|not-a-time").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        owner.get("/api/v1/products?cursor=" + tampered).expectError(400, "validation.failed");
+        owner.get("/api/v1/business/audit-log?cursor=" + tampered).expectError(400, "validation.failed");
+    }
+
     // Helpers.
 
     @SafeVarargs

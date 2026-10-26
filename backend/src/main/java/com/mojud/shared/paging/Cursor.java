@@ -2,6 +2,8 @@ package com.mojud.shared.paging;
 
 import com.mojud.shared.error.ApiException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.UUID;
@@ -26,6 +28,19 @@ public record Cursor(String sortKey, UUID id) {
 
     public String encode() {
         return ENCODER.encodeToString((id + "|" + sortKey).getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * The sort key of a list sorted by time, such as newest first.
+     *
+     * @throws ApiException a validation error on {@code cursor} when the key is not a time (tampered)
+     */
+    public Instant sortKeyAsInstant() {
+        try {
+            return Instant.parse(sortKey);
+        } catch (DateTimeParseException e) {
+            throw ApiException.invalidField("cursor", "field.invalid_value");
+        }
     }
 
     /** @return the decoded cursor, or {@code null} for a missing or blank one (the first page) */

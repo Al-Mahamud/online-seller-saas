@@ -61,7 +61,7 @@ class AuditLogController {
                         limit :fetch
                         """)
                 .param("business", CurrentBusiness.require().businessId())
-                .param("afterAt", after == null ? null : Timestamp.from(Instant.parse(after.sortKey())))
+                .param("afterAt", after == null ? null : Timestamp.from(after.sortKeyAsInstant()))
                 .param("afterId", after == null ? null : after.id())
                 .param("fetch", pageSize + 1)
                 .query((rs, n) -> new Row(rs.getObject(1, UUID.class), rs.getTimestamp(2).toInstant(),
