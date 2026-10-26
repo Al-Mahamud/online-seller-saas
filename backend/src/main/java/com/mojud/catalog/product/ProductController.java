@@ -79,14 +79,17 @@ class ProductController {
             @Valid List<OptionRequest> options,
             @NotNull @PositiveOrZero @Max(MAX_POISHA) Long price,
             @PositiveOrZero @Max(MAX_POISHA) Long costPrice,
-            String sku) {
+            String sku,
+            /** On hand for every variant to start with; 0 when left out. */
+            @PositiveOrZero @Max(1_000_000) Integer openingStock) {
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     ProductViews.Detail create(@Valid @RequestBody CreateRequest body) {
         return products.create(new ProductService.CreateCommand(body.name(), body.description(), body.categoryId(),
-                body.tagIds(), inputs(body.options()), body.price(), body.costPrice(), body.sku()));
+                body.tagIds(), inputs(body.options()), body.price(), body.costPrice(), body.sku(),
+                body.openingStock() == null ? 0 : body.openingStock()));
     }
 
     /**

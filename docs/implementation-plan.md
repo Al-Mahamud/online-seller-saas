@@ -19,8 +19,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | Done |
 | 1 Identity | 1a sign-up and login · 1b account management | 4 | Done |
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Done |
-| 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | 3a, 3b done · 3c in review |
-| 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Not started |
+| 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Done |
+| 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | 4a in review |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Not started |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Not started |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Not started |
@@ -198,6 +198,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Audit events for adjustments.
 
 **Checked by:** a randomised test of 1,000 mixed movements: the cache equals the ledger sum and never goes negative; a release larger than the reservation is rejected.
+
+**As built:** `stock_levels` (from 3b) arrives here; rows are created on a variant's first movement. Movements store the level after them, so history needs no summing. Adjustment kinds are RECEIVE, DAMAGE and COUNT (set on hand to the counted total); damage and counts cannot touch reserved stock. The `Idempotency-Key` mechanism (`shared.idempotency.Idempotency`) is built here, for later reuse by orders and payments. The variant history is served by the catalog (`GET /variants/{id}/movements`) using `StockQueries`, so inventory never reads catalog tables. Old idempotency keys are cleaned up with 4b's nightly job. Open point for 4b: the low-stock threshold lives on the catalog's variant, which inventory may not read; 4b decides how alerts get it.
 
 ### 4b: Low-stock alerts and reconciliation (1 day)
 

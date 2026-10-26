@@ -81,6 +81,15 @@ public enum ErrorCode {
     /** A product has at most 8 images. */
     PRODUCT_IMAGE_LIMIT("product.image_limit", HttpStatus.CONFLICT),
 
+    /** An Idempotency-Key header was sent again with a different request. */
+    IDEMPOTENCY_KEY_REUSED("idempotency.key_reused", HttpStatus.CONFLICT),
+
+    // Stock.
+    /** Not enough available stock; {@code shortages} lists each variant, requested and available. */
+    STOCK_INSUFFICIENT("stock.insufficient", HttpStatus.CONFLICT),
+    /** A change the stock cannot take, such as releasing more than is reserved. */
+    STOCK_INVALID_CHANGE("stock.invalid_change", HttpStatus.CONFLICT),
+
     // Errors raised by the framework before a controller runs.
     MALFORMED_REQUEST("request.malformed", HttpStatus.BAD_REQUEST),
     ROUTE_NOT_FOUND("route.not_found", HttpStatus.NOT_FOUND),

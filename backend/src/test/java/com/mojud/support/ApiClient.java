@@ -47,6 +47,18 @@ public final class ApiClient {
         return send("POST", path, body, true);
     }
 
+    /** A POST with extra headers for this request only, such as an Idempotency-Key. */
+    public ApiResponse post(String path, Object body, Map<String, String> extraHeaders) {
+        Map<String, String> saved = new LinkedHashMap<>(headers);
+        headers.putAll(extraHeaders);
+        try {
+            return send("POST", path, body, true);
+        } finally {
+            headers.clear();
+            headers.putAll(saved);
+        }
+    }
+
     public ApiResponse put(String path, Object body) {
         return send("PUT", path, body, true);
     }

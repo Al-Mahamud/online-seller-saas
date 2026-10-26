@@ -1,6 +1,8 @@
 package com.mojud.catalog.product;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.mojud.inventory.MovementType;
+import com.mojud.inventory.StockLevel;
 import com.mojud.shared.files.FileLinks;
 import com.mojud.shared.money.Money;
 import java.time.Instant;
@@ -34,11 +36,15 @@ final class ProductViews {
             @JsonInclude(JsonInclude.Include.NON_NULL) Money margin,
             /** Null: the business's default applies. */
             Integer lowStockThreshold,
+            /** On the shelf; held for confirmed orders; the difference, which can be sold. */
+            int onHand,
+            int reserved,
+            int available,
             ProductStatus status,
             long version) {
 
         /** {@code optionOrder}: the product's option names, which order the attributes and label. */
-        static Variant of(ProductVariant variant, boolean showCost, List<String> optionOrder) {
+        static Variant of(ProductVariant variant, boolean showCost, List<String> optionOrder, StockLevel stock) {
             Long cost = showCost ? variant.getCostPrice() : null;
             Map<String, String> attributes = new LinkedHashMap<>();
             optionOrder.forEach(option -> {
@@ -51,8 +57,18 @@ final class ProductViews {
                     attributes, Money.ofPoisha(variant.getPrice()),
                     cost == null ? null : Money.ofPoisha(cost),
                     cost == null ? null : Money.ofPoisha(variant.getPrice() - cost),
-                    variant.getLowStockThreshold(), variant.getStatus(), variant.getVersion());
+                    variant.getLowStockThreshold(), stock.onHand(), stock.reserved(), stock.available(),
+                    variant.getStatus(), variant.getVersion());
         }
+    }
+
+    /** Who made a stock change; null for the system. */
+    record Actor(UUID id, String name) {
+    }
+
+    /** One entry of a variant's stock history (Phase 4a). */
+    record Movement(UUID id, Instant at, MovementType type, int onHandChange, int reservedChange, int onHandAfter,
+            int reservedAfter, int availableAfter, String referenceType, UUID referenceId, String note, Actor by) {
     }
 
     /** {@code variantId} null: shown for the whole product. */
@@ -70,6 +86,6 @@ final class ProductViews {
 
     /** One row of the product list: prices of the active variants only; the first image's small copy. */
     record Summary(UUID id, String name, UUID categoryId, ProductStatus status, List<Tag> tags, int activeVariants,
-            Money minPrice, Money maxPrice, String thumbnail, Instant createdAt) {
+            Money minPrice, Money maxPrice, int available, String thumbnail, Instant createdAt) {
     }
 }

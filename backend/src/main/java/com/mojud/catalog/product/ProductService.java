@@ -1,5 +1,10 @@
 package com.mojud.catalog.product;
 
+import com.mojud.identity.UserDirectory;
+import com.mojud.inventory.StockHistory;
+import com.mojud.inventory.StockLevel;
+import com.mojud.inventory.StockQueries;
+import com.mojud.inventory.StockService;
 import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.audit.Changes;
 import com.mojud.shared.db.AdvisoryLocks;
@@ -69,8 +74,9 @@ class ProductService {
     record OptionInput(UUID id, String name, List<String> values) {
     }
 
+    /** {@code openingStock}: on hand for every new variant, recorded as an OPENING movement. */
     record CreateCommand(String name, String description, UUID categoryId, List<UUID> tagIds,
-            List<OptionInput> options, long price, Long costPrice, String sku) {
+            List<OptionInput> options, long price, Long costPrice, String sku, int openingStock) {
     }
 
     /** Null fields stay as they are. */
@@ -88,19 +94,26 @@ class ProductService {
     private final ProductVariantRepository variants;
     private final ProductTagRepository productTags;
     private final ProductImageRepository images;
+    private final StockService stock;
+    private final StockQueries stockLevels;
+    private final UserDirectory users;
     private final TransactionTemplate transactions;
     private final AdvisoryLocks locks;
     private final AuditTrail audit;
     private final Clock clock;
 
     ProductService(ProductRepository products, ProductOptionRepository options, ProductVariantRepository variants,
-            ProductTagRepository productTags, ProductImageRepository images, TransactionTemplate transactions,
+            ProductTagRepository productTags, ProductImageRepository images, StockService stock,
+            StockQueries stockLevels, UserDirectory users, TransactionTemplate transactions,
             AdvisoryLocks locks, AuditTrail audit, Clock clock) {
         this.products = products;
         this.options = options;
         this.variants = variants;
         this.productTags = productTags;
         this.images = images;
+        this.stock = stock;
+        this.stockLevels = stockLevels;
+        this.users = users;
         this.transactions = transactions;
         this.locks = locks;
         this.audit = audit;
@@ -137,18 +150,21 @@ class ProductService {
         List<UUID> ids = page.stream().map(Product::getId).toList();
         Map<UUID, ProductImage> firstImage = new HashMap<>();
         images.findByProductIdInOrderByPosition(ids).forEach(image -> firstImage.putIfAbsent(image.getProductId(), image));
-        Map<UUID, List<ProductVariant>> variantsByProduct = variants.findByProductIdInOrderByPosition(ids).stream()
+        List<ProductVariant> pageVariants = variants.findByProductIdInOrderByPosition(ids);
+        Map<UUID, List<ProductVariant>> variantsByProduct = pageVariants.stream()
                 .collect(Collectors.groupingBy(ProductVariant::getProductId));
+        Map<UUID, StockLevel> levels = stockLevels.levels(pageVariants.stream().map(ProductVariant::getId).toList());
         Map<UUID, List<ProductViews.Tag>> tags = tagsOf(ids);
         return page.stream().map(product -> {
             List<ProductVariant> active = variantsByProduct.getOrDefault(product.getId(), List.of()).stream()
                     .filter(ProductVariant::isActive).toList();
             Money min = active.stream().map(v -> Money.ofPoisha(v.getPrice())).min(Comparator.naturalOrder()).orElse(null);
             Money max = active.stream().map(v -> Money.ofPoisha(v.getPrice())).max(Comparator.naturalOrder()).orElse(null);
+            int available = active.stream().mapToInt(v -> levels.get(v.getId()).available()).sum();
             ProductImage image = firstImage.get(product.getId());
             return new ProductViews.Summary(product.getId(), product.getName(), product.getCategoryId(),
                     product.getStatus(), tags.getOrDefault(product.getId(), List.of()), active.size(), min, max,
-                    image == null ? null : FileLinks.of(image.getFileId()).small(), product.getCreatedAt());
+                    available, image == null ? null : FileLinks.of(image.getFileId()).small(), product.getCreatedAt());
         }).toList();
     }
 
@@ -176,12 +192,18 @@ class ProductService {
             }
             List<Map<String, String>> combinations = VariantGrid.combinations(grid);
             List<String> skus = requestedSku != null ? List.of(requestedSku) : newSkus(product.getName(), grid, combinations);
+            List<StockService.Line> opening = new ArrayList<>();
             for (int i = 0; i < combinations.size(); i++) {
-                variants.save(new ProductVariant(product.getId(), skus.get(i), combinations.get(i), command.price(),
-                        command.costPrice(), i, now));
+                ProductVariant variant = variants.save(new ProductVariant(product.getId(), skus.get(i),
+                        combinations.get(i), command.price(), command.costPrice(), i, now));
+                if (command.openingStock() > 0) {
+                    opening.add(new StockService.Line(variant.getId(), command.openingStock()));
+                }
             }
             tagIds.forEach(tagId -> productTags.save(new ProductTag(product.getId(), tagId)));
+            // The variants must exist before stock can point at them.
             products.flush();
+            stock.opening(opening, StockService.Reference.none());
             return detail(product);
         });
     }
@@ -459,7 +481,8 @@ class ProductService {
                 variant.changeLowStockThreshold(command.lowStockThreshold(), now);
             }
             variants.saveAndFlush(variant);
-            return ProductViews.Variant.of(variant, showCost(), optionOrder(variant.getProductId()));
+            return ProductViews.Variant.of(variant, showCost(), optionOrder(variant.getProductId()),
+                    stockLevels.levels(List.of(variant.getId())).get(variant.getId()));
         });
     }
 
@@ -481,8 +504,24 @@ class ProductService {
             }
             variant.changeStatus(status, clock.instant());
             variants.saveAndFlush(variant);
-            return ProductViews.Variant.of(variant, showCost(), optionOrder(variant.getProductId()));
+            return ProductViews.Variant.of(variant, showCost(), optionOrder(variant.getProductId()),
+                    stockLevels.levels(List.of(variant.getId())).get(variant.getId()));
         });
+    }
+
+    /** A variant's stock history, newest first, with who made each change. */
+    @Transactional(readOnly = true)
+    CursorPage<ProductViews.Movement> history(UUID variantId, String cursor, Integer limit) {
+        findVariant(variantId);
+        CursorPage<StockHistory> page = stockLevels.history(variantId, cursor, limit);
+        Map<UUID, UserDirectory.UserSummary> people = users.summaries(
+                page.items().stream().map(StockHistory::userId).filter(Objects::nonNull).distinct().toList());
+        return new CursorPage<>(page.items().stream().map(entry -> new ProductViews.Movement(entry.id(), entry.at(),
+                entry.type(), entry.onHandChange(), entry.reservedChange(), entry.onHandAfter(), entry.reservedAfter(),
+                entry.availableAfter(), entry.referenceType(), entry.referenceId(), entry.note(),
+                entry.userId() == null ? null : new ProductViews.Actor(entry.userId(),
+                        people.containsKey(entry.userId()) ? people.get(entry.userId()).name() : null))).toList(),
+                page.nextCursor());
     }
 
     // Helpers.
@@ -502,8 +541,10 @@ class ProductService {
                 .map(option -> new ProductViews.Option(option.getId(), option.getName(), option.getValues())).toList();
         boolean showCost = showCost();
         List<String> optionOrder = optionViews.stream().map(ProductViews.Option::name).toList();
-        List<ProductViews.Variant> variantViews = variants.findByProductIdOrderByPosition(product.getId()).stream()
-                .map(variant -> ProductViews.Variant.of(variant, showCost, optionOrder)).toList();
+        List<ProductVariant> productVariants = variants.findByProductIdOrderByPosition(product.getId());
+        Map<UUID, StockLevel> levels = stockLevels.levels(productVariants.stream().map(ProductVariant::getId).toList());
+        List<ProductViews.Variant> variantViews = productVariants.stream()
+                .map(variant -> ProductViews.Variant.of(variant, showCost, optionOrder, levels.get(variant.getId()))).toList();
         List<ProductViews.Image> imageViews = images.findByProductIdOrderByPosition(product.getId()).stream()
                 .map(ProductViews.Image::of).toList();
         return new ProductViews.Detail(product.getId(), product.getName(), product.getDescription(),

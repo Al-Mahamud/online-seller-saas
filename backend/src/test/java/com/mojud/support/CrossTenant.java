@@ -73,7 +73,10 @@ public final class CrossTenant {
         String productName = "Product " + marker;
         String sku = "SKU-" + marker;
         ApiResponse product = owner.post("/api/v1/products", Map.of("name", productName, "price", 120000,
-                "costPrice", 80000, "sku", sku, "categoryId", subcategoryId.toString(), "tagIds", List.of(tagId.toString())))
+                "costPrice", 80000, "sku", sku, "categoryId", subcategoryId.toString(), "tagIds", List.of(tagId.toString()),
+                "openingStock", 10)).expectStatus(201);
+        owner.post("/api/v1/stock/adjustments", Map.of("lines", List.of(Map.of("variantId", product.json("$.variants[0].id"),
+                "kind", "RECEIVE", "quantity", 5)), "note", "Delivery " + marker), Map.of("Idempotency-Key", "fixture-" + marker))
                 .expectStatus(201);
         // A second product with options, so option rows exist too.
         owner.post("/api/v1/products", Map.of("name", "Gridded " + marker, "price", 50000,
