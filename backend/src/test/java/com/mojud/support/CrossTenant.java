@@ -91,6 +91,7 @@ public final class CrossTenant {
         owner.post("/api/v1/stock/adjustments", Map.of("lines", List.of(Map.of("variantId", product.json("$.variants[0].id"),
                 "kind", "DAMAGE", "quantity", 12)))).expectStatus(201);
         UUID notificationId = UUID.fromString(owner.get("/api/v1/notifications").expectStatus(200).json("$.items[0].id"));
+        owner.post("/api/v1/notifications/read", Map.of("ids", List.of(notificationId.toString()))).expectStatus(204);
         return new Tenant(owner, ownerAccount, TestBusinesses.userId(owner), businessId, name, phone, prefix, staff,
                 staffAccount, staffId, membershipIds.of(businessId, staffId), inviteId, invitedEmail,
                 lastInviteToken(messages, invitedEmail), categoryId, categoryName, subcategoryId, subcategoryName,

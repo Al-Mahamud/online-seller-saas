@@ -285,7 +285,8 @@ class CrossTenantTests {
                 .containsExactly("DAMAGE", "RECEIVE", "OPENING");
         ApiResponse notifications = a.owner().get("/api/v1/notifications").expectStatus(200);
         assertThat(notifications.<List<String>>json("$.items[*].id")).containsExactly(a.notificationId().toString());
-        assertThat(notifications.<Integer>json("$.unread")).isEqualTo(1);
+        assertThat(notifications.<Boolean>json("$.items[0].read")).isTrue();
+        assertThat(notifications.<Integer>json("$.unread")).isZero();
         assertThat(product.<String>json("$.variants[0].status")).isEqualTo("ACTIVE");
         assertThat(product.<List<String>>json("$.images[*].id")).containsExactly(a.productImageId().toString());
         assertThat(a.owner().get("/api/v1/business").<String>json("$.logo.small")).contains(a.fileId().toString());
