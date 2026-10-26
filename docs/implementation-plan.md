@@ -19,7 +19,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | Done |
 | 1 Identity | 1a sign-up and login · 1b account management | 4 | Done |
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Done |
-| 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | 3a in review |
+| 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | 3a done · 3b in review |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Not started |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Not started |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Not started |
@@ -168,6 +168,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Optimistic locking (`version`) on products and variants.
 
 **Checked by:** 3 × 2 grid gives 6 variants with unique SKUs; duplicate SKU in the same business returns 409 but is allowed in another business; staff response has no `costPrice` field.
+
+**As built:** `stock_levels` moves to 4a (it belongs to the inventory module). Variants are never deleted: combinations that leave the grid are archived and restored with SKU and prices when they return; a new option gives existing variants its first value, so they keep SKU, prices (and later stock); an option renamed by `id` keeps its variants; a renamed *value* is treated as remove + add. Up to 3 options × 30 values, 100 variants. Money in the API is whole poisha. Responses carry `version`; edits that send a stale one get 409. Category and tag references are checked by composite foreign keys (another business's id → 404); a category with products cannot be deleted; deleting a tag removes it from products. Price and cost changes are audited (`variant.prices_changed`). Single variants can be archived and restored. Search (`q`) comes with 3c.
 
 ### 3c: Files, images and search (1.5 days)
 

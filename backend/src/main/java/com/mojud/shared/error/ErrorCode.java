@@ -65,6 +65,8 @@ public enum ErrorCode {
     /** Only an empty category (no subcategories, and from 3b no products) can be deleted. */
     CATEGORY_NOT_EMPTY("category.not_empty", HttpStatus.CONFLICT),
     TAG_NAME_TAKEN("tag.name_taken", HttpStatus.CONFLICT),
+    /** SKUs are unique in a business, ignoring case. */
+    SKU_TAKEN("product.sku_taken", HttpStatus.CONFLICT),
 
     // Errors raised by the framework before a controller runs.
     MALFORMED_REQUEST("request.malformed", HttpStatus.BAD_REQUEST),

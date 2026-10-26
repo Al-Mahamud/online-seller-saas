@@ -36,7 +36,9 @@ class CategoryService {
     private static final Map<String, ErrorCode> CONSTRAINT_ERRORS = Map.of(
             "uq_categories_sibling_name", ErrorCode.CATEGORY_NAME_TAKEN,
             // A subcategory added despite the lock (or by future code that forgets it).
-            "fk_categories_parent", ErrorCode.CATEGORY_NOT_EMPTY);
+            "fk_categories_parent", ErrorCode.CATEGORY_NOT_EMPTY,
+            // Products still in the category.
+            "fk_products_category", ErrorCode.CATEGORY_NOT_EMPTY);
 
     record CategoryNode(UUID id, String name, int position, List<CategoryNode> children) {
     }
@@ -141,7 +143,7 @@ class CategoryService {
         });
     }
 
-    /** Only an empty category; Phase 3b adds "no products in it". */
+    /** Only an empty category: no subcategories (checked) and no products (the foreign key refuses). */
     void delete(UUID id) {
         changingTree(() -> {
             Category category = find(id);

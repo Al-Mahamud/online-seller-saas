@@ -2,6 +2,7 @@ package com.mojud.support;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -26,14 +27,15 @@ public final class CrossTenant {
     public record Tenant(ApiClient owner, TestAccounts.Account ownerAccount, UUID ownerId, UUID businessId,
             String name, String phone, String orderPrefix, ApiClient staff, TestAccounts.Account staffAccount,
             UUID staffId, UUID membershipIdOfStaff, UUID inviteId, String invitedEmail, String inviteToken,
-            UUID categoryId, String categoryName, UUID subcategoryId, String subcategoryName, UUID tagId, String tagName) {
+            UUID categoryId, String categoryName, UUID subcategoryId, String subcategoryName, UUID tagId, String tagName,
+            UUID productId, String productName, UUID variantId, String sku) {
 
         /** Values that must never appear in another business's answers. */
         public Set<String> markers() {
             return Set.of(businessId.toString(), name, phone, orderPrefix, ownerId.toString(), staffId.toString(),
                     ownerAccount.email(), staffAccount.email(), inviteId.toString(), invitedEmail,
                     categoryId.toString(), categoryName, subcategoryId.toString(), subcategoryName,
-                    tagId.toString(), tagName);
+                    tagId.toString(), tagName, productId.toString(), productName, variantId.toString(), sku);
         }
     }
 
@@ -67,10 +69,19 @@ public final class CrossTenant {
                 Map.of("name", subcategoryName, "parentId", categoryId.toString())).expectStatus(201).json("$.id"));
         String tagName = "tag-" + marker;
         UUID tagId = UUID.fromString(owner.post("/api/v1/tags", Map.of("name", tagName)).expectStatus(201).json("$.id"));
+        String productName = "Product " + marker;
+        String sku = "SKU-" + marker;
+        ApiResponse product = owner.post("/api/v1/products", Map.of("name", productName, "price", 120000,
+                "costPrice", 80000, "sku", sku, "categoryId", subcategoryId.toString(), "tagIds", List.of(tagId.toString())))
+                .expectStatus(201);
+        // A second product with options, so option rows exist too.
+        owner.post("/api/v1/products", Map.of("name", "Gridded " + marker, "price", 50000,
+                "options", List.of(Map.of("name", "Size", "values", List.of("S", "M"))))).expectStatus(201);
         return new Tenant(owner, ownerAccount, TestBusinesses.userId(owner), businessId, name, phone, prefix, staff,
                 staffAccount, staffId, membershipIds.of(businessId, staffId), inviteId, invitedEmail,
                 lastInviteToken(messages, invitedEmail), categoryId, categoryName, subcategoryId, subcategoryName,
-                tagId, tagName);
+                tagId, tagName, UUID.fromString(product.json("$.id")), productName,
+                UUID.fromString(product.json("$.variants[0].id")), sku);
     }
 
     /** Looks up a membership id; tests pass a query through the system role. */

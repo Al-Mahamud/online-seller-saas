@@ -127,6 +127,39 @@ class CrossTenantTests {
                 b.owner().patch("/api/v1/tags/" + a.tagId(), Map.of("name", "renamed"))));
         CASES.put("DELETE /api/v1/tags/{id}", (a, b) -> expectNotFound(b.owner().delete("/api/v1/tags/" + a.tagId())));
 
+        // Products and variants.
+        CASES.put("GET /api/v1/products", (a, b) -> {
+            expectNoLeak(b.owner().get("/api/v1/products"), a);
+            expectNoLeak(b.owner().get("/api/v1/products?categoryId=" + a.subcategoryId()), a);
+            expectNoLeak(b.owner().get("/api/v1/products?tagId=" + a.tagId()), a);
+        });
+        CASES.put("GET /api/v1/products/{id}", (a, b) -> expectNotFound(b.owner().get("/api/v1/products/" + a.productId())));
+        CASES.put("POST /api/v1/products", (a, b) -> {
+            expectNotFound(b.owner().post("/api/v1/products",
+                    Map.of("name", "Sneaky", "price", 100, "categoryId", a.categoryId().toString())));
+            expectNotFound(b.owner().post("/api/v1/products",
+                    Map.of("name", "Sneaky", "price", 100, "tagIds", List.of(a.tagId().toString()))));
+            // A's SKU is free in B: SKUs are unique per business, and A's existence must not show.
+            b.owner().post("/api/v1/products", Map.of("name", "Same SKU", "price", 100, "sku", a.sku())).expectStatus(201);
+        });
+        CASES.put("PATCH /api/v1/products/{id}", (a, b) -> {
+            expectNotFound(b.owner().patch("/api/v1/products/" + a.productId(), Map.of("name", "Renamed")));
+            expectNotFound(b.owner().patch("/api/v1/products/" + b.productId(), Map.of("categoryId", a.categoryId().toString())));
+            expectNotFound(b.owner().patch("/api/v1/products/" + b.productId(), Map.of("tagIds", List.of(a.tagId().toString()))));
+        });
+        CASES.put("POST /api/v1/products/{id}/archive", (a, b) -> expectNotFound(
+                b.owner().post("/api/v1/products/" + a.productId() + "/archive", null)));
+        CASES.put("POST /api/v1/products/{id}/restore", (a, b) -> expectNotFound(
+                b.owner().post("/api/v1/products/" + a.productId() + "/restore", null)));
+        CASES.put("PUT /api/v1/products/{id}/options", (a, b) -> expectNotFound(
+                b.owner().put("/api/v1/products/" + a.productId() + "/options", Map.of("options", List.of()))));
+        CASES.put("PATCH /api/v1/variants/{id}", (a, b) -> expectNotFound(
+                b.owner().patch("/api/v1/variants/" + a.variantId(), Map.of("price", 1))));
+        CASES.put("POST /api/v1/variants/{id}/archive", (a, b) -> expectNotFound(
+                b.owner().post("/api/v1/variants/" + a.variantId() + "/archive", null)));
+        CASES.put("POST /api/v1/variants/{id}/restore", (a, b) -> expectNotFound(
+                b.owner().post("/api/v1/variants/" + a.variantId() + "/restore", null)));
+
         // Test sources only.
         CASES.put("GET /dev/otp", notBusinessData("exists only in test sources and local runs"));
     }
@@ -184,6 +217,12 @@ class CrossTenantTests {
         assertThat(tree.<List<String>>json("$[*].name")).containsExactly(a.categoryName());
         assertThat(tree.<List<String>>json("$[0].children[*].name")).containsExactly(a.subcategoryName());
         assertThat(a.owner().get("/api/v1/tags").<List<String>>json("$[*].name")).containsExactly(a.tagName());
+        ApiResponse product = a.owner().get("/api/v1/products/" + a.productId()).expectStatus(200);
+        assertThat(product.<String>json("$.name")).isEqualTo(a.productName());
+        assertThat(product.<String>json("$.status")).isEqualTo("ACTIVE");
+        assertThat(product.<String>json("$.categoryId")).isEqualTo(a.subcategoryId().toString());
+        assertThat(product.<Integer>json("$.variants[0].price")).isEqualTo(120000);
+        assertThat(product.<String>json("$.variants[0].status")).isEqualTo("ACTIVE");
     }
 
     private UUID membershipId(UUID businessId, UUID userId) {

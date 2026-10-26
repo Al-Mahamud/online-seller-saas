@@ -1,0 +1,320 @@
+package com.mojud.catalog;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.mojud.support.ApiClient;
+import com.mojud.support.ApiResponse;
+import com.mojud.support.CapturedMessages;
+import com.mojud.support.IntegrationTest;
+import com.mojud.support.TestAccounts;
+import com.mojud.support.TestBusinesses;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.web.server.LocalServerPort;
+
+/** Products, options and variants (implementation-plan.md 3b). */
+@IntegrationTest
+class ProductTests {
+
+    @LocalServerPort
+    int port;
+
+    @Autowired
+    CapturedMessages messages;
+
+    ApiClient owner;
+
+    @BeforeEach
+    void business() {
+        owner = new ApiClient(port);
+        TestAccounts.signUp(owner, messages);
+        TestBusinesses.create(owner, "Product Shop");
+    }
+
+    // The grid.
+
+    @Test
+    void optionsMakeOneVariantPerCombinationWithUniqueSkus() {
+        ApiResponse product = createWithOptions("Cotton Kurti",
+                option("Size", "S", "M", "L"), option("Color", "Black", "White"));
+
+        assertThat(product.<List<String>>json("$.variants[*].label")).containsExactly(
+                "S / Black", "S / White", "M / Black", "M / White", "L / Black", "L / White");
+        List<String> skus = product.json("$.variants[*].sku");
+        assertThat(new HashSet<>(skus)).hasSize(6);
+        assertThat(skus.get(0)).isEqualTo("COTTONKU-S-BLA");
+        assertThat(product.<List<Integer>>json("$.variants[*].price")).containsOnly(150000);
+        assertThat(product.<List<String>>json("$.options[*].name")).containsExactly("Size", "Color");
+    }
+
+    @Test
+    void aProductWithoutOptionsHasOnePlainVariant() {
+        ApiResponse product = owner.post("/api/v1/products", Map.of("name", "Gift Box", "price", 50000, "sku", "GIFT-1"))
+                .expectStatus(201);
+
+        assertThat(product.<List<String>>json("$.variants[*].sku")).containsExactly("GIFT-1");
+        assertThat(product.<String>json("$.variants[0].label")).isEmpty();
+        assertThat(owner.post("/api/v1/products", Map.of("name", "Gift Box", "price", 50000)).expectStatus(201)
+                .<String>json("$.variants[0].sku")).isEqualTo("GIFTBOX");
+    }
+
+    @Test
+    void skusAreUniqueInABusinessIgnoringCaseButFreeInAnother() {
+        owner.post("/api/v1/products", Map.of("name", "One", "price", 1, "sku", "ABC-1")).expectStatus(201);
+
+        owner.post("/api/v1/products", Map.of("name", "Two", "price", 1, "sku", "abc-1"))
+                .expectError(409, "product.sku_taken");
+
+        ApiClient other = new ApiClient(port);
+        TestAccounts.signUp(other, messages);
+        TestBusinesses.create(other, "Other Shop");
+        other.post("/api/v1/products", Map.of("name", "Two", "price", 1, "sku", "ABC-1")).expectStatus(201);
+    }
+
+    @Test
+    void optionsAreValidated() {
+        owner.post("/api/v1/products", Map.of("name", "Too many", "price", 1, "options",
+                List.of(option("A", "1"), option("B", "1"), option("C", "1"), option("D", "1"))))
+                .expectError(400, "validation.failed");
+        owner.post("/api/v1/products", Map.of("name", "Duplicates", "price", 1, "options",
+                List.of(option("Size", "S", "s")))).expectError(400, "validation.failed");
+        owner.post("/api/v1/products", Map.of("name", "Same option", "price", 1, "options",
+                List.of(option("Size", "S"), option("SIZE", "M")))).expectError(400, "validation.failed");
+        String[] eleven = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"};
+        owner.post("/api/v1/products", Map.of("name", "Huge", "price", 1, "options",
+                List.of(option("A", eleven), option("B", eleven)))).expectError(400, "validation.failed");
+        owner.post("/api/v1/products", Map.of("name", "Sku with options", "price", 1, "sku", "X",
+                "options", List.of(option("A", "1")))).expectError(400, "validation.failed");
+    }
+
+    // Changing the grid.
+
+    @Test
+    void aRemovedValueArchivesItsVariantsAndComingBackRestoresThem() {
+        ApiResponse product = createWithOptions("Saree", option("Size", "S", "M", "L"));
+        String id = product.json("$.id");
+        String mVariant = product.json("$.variants[1].id");
+        owner.patch("/api/v1/variants/" + mVariant, Map.of("price", 99900)).expectStatus(200);
+
+        ApiResponse without = replaceOptions(id, option("Size", "S", "L"));
+        assertThat(statusOf(without, "M")).isEqualTo("ARCHIVED");
+        assertThat(without.<List<String>>json("$.variants[?(@.status == 'ACTIVE')].label")).containsExactly("S", "L");
+
+        ApiResponse back = replaceOptions(id, option("Size", "S", "M", "L"));
+        assertThat(back.<List<String>>json("$.variants[?(@.status == 'ACTIVE')].id")).contains(mVariant);
+        assertThat(back.<List<Integer>>json("$.variants[?(@.id == '" + mVariant + "')].price")).containsExactly(99900);
+        assertThat(back.<List<String>>json("$.variants[*].label")).containsExactly("S", "M", "L");
+    }
+
+    @Test
+    void addingAnOptionKeepsTheVariantsAsItsFirstValue() {
+        ApiResponse product = createWithOptions("Panjabi", option("Size", "M", "L"));
+        String id = product.json("$.id");
+        List<String> before = product.json("$.variants[*].id");
+
+        ApiResponse after = replaceOptions(id, option("Size", "M", "L"), option("Color", "Red", "Blue"));
+
+        assertThat(after.<List<String>>json("$.variants[?(@.status == 'ACTIVE')].label"))
+                .containsExactly("M / Red", "M / Blue", "L / Red", "L / Blue");
+        assertThat(after.<List<String>>json("$.variants[?(@.label == 'M / Red' || @.label == 'L / Red')].id"))
+                .containsExactlyElementsOf(before);
+    }
+
+    @Test
+    void aPlainProductGettingOptionsKeepsItsVariant() {
+        ApiResponse product = owner.post("/api/v1/products", Map.of("name", "Scarf", "price", 30000, "sku", "SCARF"))
+                .expectStatus(201);
+        String plain = product.json("$.variants[0].id");
+
+        ApiResponse after = replaceOptions(product.json("$.id"), option("Color", "Red", "Green"));
+
+        assertThat(after.<List<String>>json("$.variants[?(@.label == 'Red')].id")).containsExactly(plain);
+        assertThat(after.<List<String>>json("$.variants[?(@.label == 'Red')].sku")).containsExactly("SCARF");
+    }
+
+    @Test
+    void renamingAnOptionByIdKeepsItsVariants() {
+        ApiResponse product = createWithOptions("Shirt", option("Colour", "Red", "Blue"));
+        String optionId = product.json("$.options[0].id");
+        List<String> before = product.json("$.variants[*].id");
+
+        ApiResponse after = owner.put("/api/v1/products/" + product.json("$.id") + "/options", Map.of("options",
+                List.of(Map.of("id", optionId, "name", "Color", "values", List.of("Red", "Blue"))))).expectStatus(200);
+
+        assertThat(after.<List<String>>json("$.variants[*].id")).containsExactlyElementsOf(before);
+        assertThat(after.<String>json("$.variants[0].attributes.Color")).isEqualTo("Red");
+        assertThat(after.<String>json("$.options[0].name")).isEqualTo("Color");
+    }
+
+    @Test
+    void removingAnOptionKeepsOneVariantPerRemainingCombination() {
+        ApiResponse product = createWithOptions("Tops", option("Size", "S", "M"), option("Color", "Red", "Blue"));
+
+        ApiResponse after = replaceOptions(product.json("$.id"), option("Size", "S", "M"));
+
+        assertThat(after.<List<String>>json("$.variants[?(@.status == 'ACTIVE')].label")).containsExactly("S", "M");
+        assertThat(after.<List<Object>>json("$.variants[?(@.status == 'ARCHIVED')]")).hasSize(2);
+    }
+
+    // Prices, costs and roles.
+
+    @Test
+    void staffNeverReceiveCostPricesOrMargins() {
+        ApiResponse product = owner.post("/api/v1/products",
+                Map.of("name", "Costly", "price", 100000, "costPrice", 60000)).expectStatus(201);
+        assertThat(product.<Integer>json("$.variants[0].costPrice")).isEqualTo(60000);
+        assertThat(product.<Integer>json("$.variants[0].margin")).isEqualTo(40000);
+
+        ApiClient staff = staffMember();
+        String detail = staff.get("/api/v1/products/" + product.json("$.id")).expectStatus(200).body();
+        String list = staff.get("/api/v1/products").expectStatus(200).body();
+
+        assertThat(detail).doesNotContain("costPrice").doesNotContain("margin").doesNotContain("60000");
+        assertThat(list).doesNotContain("costPrice").doesNotContain("60000");
+        staff.patch("/api/v1/variants/" + product.json("$.variants[0].id"), Map.of("price", 1))
+                .expectError(403, "access.denied");
+        staff.post("/api/v1/products", Map.of("name", "x", "price", 1)).expectError(403, "access.denied");
+    }
+
+    @Test
+    void variantEditsAreAuditedAndStaleOnesRefused() {
+        ApiResponse product = owner.post("/api/v1/products", Map.of("name", "Watch", "price", 500000, "costPrice", 300000))
+                .expectStatus(201);
+        String variant = product.json("$.variants[0].id");
+        int version = product.json("$.variants[0].version");
+
+        ApiResponse changed = owner.patch("/api/v1/variants/" + variant,
+                Map.of("price", 550000, "clearCostPrice", true, "lowStockThreshold", 3, "version", version)).expectStatus(200);
+        assertThat(changed.<Integer>json("$.price")).isEqualTo(550000);
+        assertThat(changed.body()).doesNotContain("costPrice");
+        assertThat(changed.<Integer>json("$.lowStockThreshold")).isEqualTo(3);
+
+        owner.patch("/api/v1/variants/" + variant, Map.of("price", 1, "version", version))
+                .expectError(409, "resource.modified");
+        assertThat(owner.patch("/api/v1/variants/" + variant, Map.of("useDefaultThreshold", true, "sku", ""))
+                .expectStatus(200).<String>json("$.sku")).isEqualTo("WATCH");
+
+        ApiResponse log = owner.get("/api/v1/business/audit-log").expectStatus(200);
+        assertThat(log.<String>json("$.items[0].action")).isEqualTo("variant.prices_changed");
+        assertThat(log.<Integer>json("$.items[0].details.changes.price.to")).isEqualTo(550000);
+        assertThat(log.<Integer>json("$.items[0].details.changes.costPrice.from")).isEqualTo(300000);
+    }
+
+    // Listing, archiving, categories and tags.
+
+    @Test
+    void archivedProductsLeaveTheDefaultList() {
+        String kept = owner.post("/api/v1/products", Map.of("name", "Kept", "price", 1)).expectStatus(201).json("$.id");
+        String gone = owner.post("/api/v1/products", Map.of("name", "Gone", "price", 1)).expectStatus(201).json("$.id");
+
+        owner.post("/api/v1/products/" + gone + "/archive", null).expectStatus(200);
+
+        assertThat(owner.get("/api/v1/products").<List<String>>json("$.items[*].id")).containsExactly(kept);
+        assertThat(owner.get("/api/v1/products?status=ARCHIVED").<List<String>>json("$.items[*].id")).containsExactly(gone);
+        owner.post("/api/v1/products/" + gone + "/restore", null).expectStatus(200);
+        assertThat(owner.get("/api/v1/products").<List<String>>json("$.items[*].id")).containsExactly(gone, kept);
+    }
+
+    @Test
+    void theListFiltersByCategoryIncludingSubcategoriesAndByTag() {
+        String women = owner.post("/api/v1/categories", Map.of("name", "Women")).expectStatus(201).json("$.id");
+        String kurti = owner.post("/api/v1/categories", Map.of("name", "Kurti", "parentId", women)).expectStatus(201).json("$.id");
+        String eid = owner.post("/api/v1/tags", Map.of("name", "eid")).expectStatus(201).json("$.id");
+        String inKurti = owner.post("/api/v1/products", Map.of("name", "In Kurti", "price", 1, "categoryId", kurti,
+                "tagIds", List.of(eid))).expectStatus(201).json("$.id");
+        String inWomen = owner.post("/api/v1/products", Map.of("name", "In Women", "price", 1, "categoryId", women))
+                .expectStatus(201).json("$.id");
+        owner.post("/api/v1/products", Map.of("name", "Elsewhere", "price", 1)).expectStatus(201);
+
+        assertThat(owner.get("/api/v1/products?categoryId=" + women).<List<String>>json("$.items[*].id"))
+                .containsExactlyInAnyOrder(inKurti, inWomen);
+        assertThat(owner.get("/api/v1/products?categoryId=" + kurti).<List<String>>json("$.items[*].id"))
+                .containsExactly(inKurti);
+        assertThat(owner.get("/api/v1/products?tagId=" + eid).<List<String>>json("$.items[*].id")).containsExactly(inKurti);
+    }
+
+    @Test
+    void theListIsPagedWithPricesOfActiveVariants() {
+        for (int i = 1; i <= 3; i++) {
+            owner.post("/api/v1/products", Map.of("name", "Item " + i, "price", i * 100)).expectStatus(201);
+        }
+        String gridded = createWithOptions("Gridded", option("Size", "S", "M")).json("$.id");
+        owner.patch("/api/v1/variants/" + owner.get("/api/v1/products/" + gridded).json("$.variants[1].id"),
+                Map.of("price", 200000)).expectStatus(200);
+
+        ApiResponse first = owner.get("/api/v1/products?limit=2").expectStatus(200);
+        ApiResponse second = owner.get("/api/v1/products?limit=2&cursor=" + first.<String>json("$.nextCursor"));
+
+        assertThat(first.<List<String>>json("$.items[*].name")).containsExactly("Gridded", "Item 3");
+        assertThat(first.<Integer>json("$.items[0].minPrice")).isEqualTo(150000);
+        assertThat(first.<Integer>json("$.items[0].maxPrice")).isEqualTo(200000);
+        assertThat(first.<Integer>json("$.items[0].activeVariants")).isEqualTo(2);
+        assertThat(second.<List<String>>json("$.items[*].name")).containsExactly("Item 2", "Item 1");
+        assertThat(second.<String>json("$.nextCursor")).isNull();
+    }
+
+    @Test
+    void aCategoryWithProductsCannotBeDeletedAndDeletedTagsLeaveProducts() {
+        String category = owner.post("/api/v1/categories", Map.of("name", "Full")).expectStatus(201).json("$.id");
+        String tag = owner.post("/api/v1/tags", Map.of("name", "sale")).expectStatus(201).json("$.id");
+        String product = owner.post("/api/v1/products", Map.of("name", "Inside", "price", 1, "categoryId", category,
+                "tagIds", List.of(tag))).expectStatus(201).json("$.id");
+
+        owner.delete("/api/v1/categories/" + category).expectError(409, "category.not_empty");
+        owner.delete("/api/v1/tags/" + tag).expectStatus(204);
+
+        assertThat(owner.get("/api/v1/products/" + product).<List<Object>>json("$.tags")).isEmpty();
+    }
+
+    @Test
+    void productDetailsCanBeChangedAndTheCategoryCleared() {
+        String category = owner.post("/api/v1/categories", Map.of("name", "Home")).expectStatus(201).json("$.id");
+        ApiResponse product = owner.post("/api/v1/products", Map.of("name", "Lamp", "price", 1, "categoryId", category))
+                .expectStatus(201);
+        String id = product.json("$.id");
+
+        ApiResponse changed = owner.patch("/api/v1/products/" + id, Map.of("name", " Desk  Lamp ",
+                "description", "Warm light", "clearCategory", true)).expectStatus(200);
+
+        assertThat(changed.<String>json("$.name")).isEqualTo("Desk Lamp");
+        assertThat(changed.<String>json("$.description")).isEqualTo("Warm light");
+        assertThat(changed.<String>json("$.categoryId")).isNull();
+        owner.patch("/api/v1/products/" + id, Map.of("name", "Stale", "version", 0)).expectError(409, "resource.modified");
+    }
+
+    // Helpers.
+
+    @SafeVarargs
+    private ApiResponse createWithOptions(String name, Map<String, Object>... options) {
+        return owner.post("/api/v1/products", Map.of("name", name, "price", 150000, "options", List.of(options)))
+                .expectStatus(201);
+    }
+
+    @SafeVarargs
+    private ApiResponse replaceOptions(String productId, Map<String, Object>... options) {
+        return owner.put("/api/v1/products/" + productId + "/options", Map.of("options", List.of(options))).expectStatus(200);
+    }
+
+    private static Map<String, Object> option(String name, String... values) {
+        return Map.of("name", name, "values", List.of(values));
+    }
+
+    private static String statusOf(ApiResponse product, String label) {
+        List<String> statuses = product.json("$.variants[?(@.label == '" + label + "')].status");
+        return statuses.get(0);
+    }
+
+    private ApiClient staffMember() {
+        ApiClient staff = new ApiClient(port);
+        TestAccounts.Account account = TestAccounts.signUp(staff, messages);
+        owner.post("/api/v1/staff/invites", Map.of("to", account.email(), "role", "STAFF")).expectStatus(201);
+        String body = messages.to(account.email()).get(messages.to(account.email()).size() - 1).body();
+        String token = body.substring(body.indexOf("/invites#") + 9).split("\\s")[0];
+        staff.post("/api/v1/invites/accept", Map.of("token", token)).expectStatus(200);
+        return staff;
+    }
+}
