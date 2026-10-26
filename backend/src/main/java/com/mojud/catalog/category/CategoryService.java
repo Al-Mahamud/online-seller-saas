@@ -1,5 +1,6 @@
 package com.mojud.catalog.category;
 
+import com.mojud.catalog.CatalogLimits;
 import com.mojud.shared.db.AdvisoryLocks;
 import com.mojud.shared.db.Constraints;
 import com.mojud.shared.error.ApiException;
@@ -31,7 +32,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 class CategoryService {
 
-    static final int MAX_NAME = 80;
+    static final int MAX_NAME = CatalogLimits.CATEGORY_NAME;
 
     private static final Map<String, ErrorCode> CONSTRAINT_ERRORS = Map.of(
             "uq_categories_sibling_name", ErrorCode.CATEGORY_NAME_TAKEN,

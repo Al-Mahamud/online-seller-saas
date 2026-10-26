@@ -90,6 +90,15 @@ public enum ErrorCode {
     /** A change the stock cannot take, such as releasing more than is reserved. */
     STOCK_INVALID_CHANGE("stock.invalid_change", HttpStatus.CONFLICT),
 
+    // Imports.
+    /** Not an .xlsx or a UTF-8 .csv (an old .xls, a CSV in another encoding, a damaged file). */
+    IMPORT_UNREADABLE("import.unreadable", HttpStatus.BAD_REQUEST),
+    IMPORT_EMPTY("import.empty", HttpStatus.BAD_REQUEST),
+    /** {0} rows, {1} columns: the most a sheet may have. */
+    IMPORT_TOO_BIG("import.too_big", HttpStatus.CONTENT_TOO_LARGE),
+    /** The import was committed; its mapping can no longer change. */
+    IMPORT_NOT_EDITABLE("import.not_editable", HttpStatus.CONFLICT),
+
     // Errors raised by the framework before a controller runs.
     MALFORMED_REQUEST("request.malformed", HttpStatus.BAD_REQUEST),
     ROUTE_NOT_FOUND("route.not_found", HttpStatus.NOT_FOUND),

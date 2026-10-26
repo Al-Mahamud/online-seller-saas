@@ -1,5 +1,6 @@
 package com.mojud.catalog.product;
 
+import com.mojud.catalog.CatalogLimits;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,9 +13,9 @@ import java.util.Map;
 final class VariantGrid {
 
     /** Up to three options of up to 30 values; the grid itself is capped at 100 variants. */
-    static final int MAX_OPTIONS = 3;
-    static final int MAX_VALUES = 30;
-    static final int MAX_VARIANTS = 100;
+    static final int MAX_OPTIONS = CatalogLimits.MAX_OPTIONS;
+    static final int MAX_VALUES = CatalogLimits.MAX_VALUES;
+    static final int MAX_VARIANTS = CatalogLimits.MAX_VARIANTS;
 
     record Option(String name, List<String> values) {
     }

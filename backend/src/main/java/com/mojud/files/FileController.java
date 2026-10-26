@@ -2,6 +2,9 @@ package com.mojud.files;
 
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.shared.error.ApiException;
+import com.mojud.shared.error.ErrorCode;
+import org.springframework.util.unit.DataSize;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Duration;
@@ -25,6 +28,8 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 class FileController {
 
+    static final DataSize MAX_IMAGE = DataSize.ofMegabytes(8);
+
     private final FileService files;
 
     FileController(FileService files) {
@@ -36,6 +41,9 @@ class FileController {
     @RequiresRole(BusinessRole.MANAGER)
     @ResponseStatus(HttpStatus.CREATED)
     FileService.Uploaded upload(@RequestParam("file") MultipartFile file) {
+        if (file.getSize() > MAX_IMAGE.toBytes()) {
+            throw new ApiException(ErrorCode.FILE_TOO_LARGE);
+        }
         try {
             return files.upload(file.getBytes());
         } catch (IOException e) {

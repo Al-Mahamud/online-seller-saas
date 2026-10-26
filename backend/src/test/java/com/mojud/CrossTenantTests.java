@@ -218,6 +218,18 @@ class CrossTenantTests {
             b.owner().post("/api/v1/notifications/read", Map.of("all", true)).expectStatus(204);
         });
 
+        // Imports.
+        CASES.put("POST /api/v1/imports", (a, b) -> expectNoLeak(b.owner().upload("/api/v1/imports", "b.csv",
+                "Name,Price\nB item,5\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)).expectStatus(201), a));
+        CASES.put("GET /api/v1/imports/{id}", (a, b) -> expectNotFound(b.owner().get("/api/v1/imports/" + a.importId())));
+        CASES.put("PUT /api/v1/imports/{id}/mapping", (a, b) -> expectNotFound(b.owner().put(
+                "/api/v1/imports/" + a.importId() + "/mapping", Map.of("columns", List.of(
+                        Map.of("index", 0, "field", "NAME"), Map.of("index", 1, "field", "PRICE"))))));
+        CASES.put("GET /api/v1/imports/{id}/preview", (a, b) -> expectNotFound(
+                b.owner().get("/api/v1/imports/" + a.importId() + "/preview")));
+        CASES.put("GET /api/v1/imports/template.xlsx", (a, b) -> assertThat(
+                b.owner().download("/api/v1/imports/template.xlsx").statusCode()).isEqualTo(200));
+
         // Test sources only.
         CASES.put("GET /dev/otp", notBusinessData("exists only in test sources and local runs"));
     }
@@ -287,6 +299,8 @@ class CrossTenantTests {
         assertThat(notifications.<List<String>>json("$.items[*].id")).containsExactly(a.notificationId().toString());
         assertThat(notifications.<Boolean>json("$.items[0].read")).isTrue();
         assertThat(notifications.<Integer>json("$.unread")).isZero();
+        assertThat(a.owner().get("/api/v1/imports/" + a.importId() + "/preview").<String>json("$.rows[0].name"))
+                .startsWith("Imported ");
         assertThat(product.<String>json("$.variants[0].status")).isEqualTo("ACTIVE");
         assertThat(product.<List<String>>json("$.images[*].id")).containsExactly(a.productImageId().toString());
         assertThat(a.owner().get("/api/v1/business").<String>json("$.logo.small")).contains(a.fileId().toString());

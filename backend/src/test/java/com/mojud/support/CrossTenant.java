@@ -2,6 +2,7 @@ package com.mojud.support;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,7 +30,7 @@ public final class CrossTenant {
             UUID staffId, UUID membershipIdOfStaff, UUID inviteId, String invitedEmail, String inviteToken,
             UUID categoryId, String categoryName, UUID subcategoryId, String subcategoryName, UUID tagId, String tagName,
             UUID productId, String productName, UUID variantId, String sku, UUID fileId, UUID productImageId,
-            UUID notificationId) {
+            UUID notificationId, UUID importId) {
 
         /** Values that must never appear in another business's answers. */
         public Set<String> markers() {
@@ -37,7 +38,7 @@ public final class CrossTenant {
                     ownerAccount.email(), staffAccount.email(), inviteId.toString(), invitedEmail,
                     categoryId.toString(), categoryName, subcategoryId.toString(), subcategoryName,
                     tagId.toString(), tagName, productId.toString(), productName, variantId.toString(), sku,
-                    fileId.toString(), productImageId.toString(), notificationId.toString());
+                    fileId.toString(), productImageId.toString(), notificationId.toString(), importId.toString());
         }
     }
 
@@ -92,11 +93,14 @@ public final class CrossTenant {
                 "kind", "DAMAGE", "quantity", 12)))).expectStatus(201);
         UUID notificationId = UUID.fromString(owner.get("/api/v1/notifications").expectStatus(200).json("$.items[0].id"));
         owner.post("/api/v1/notifications/read", Map.of("ids", List.of(notificationId.toString()))).expectStatus(204);
+        UUID importId = UUID.fromString(owner.upload("/api/v1/imports", "stock-" + marker + ".csv",
+                ("Name,Price,SKU\nImported " + marker + ",100,IMP-" + marker + "\n").getBytes(StandardCharsets.UTF_8))
+                .expectStatus(201).json("$.id"));
         return new Tenant(owner, ownerAccount, TestBusinesses.userId(owner), businessId, name, phone, prefix, staff,
                 staffAccount, staffId, membershipIds.of(businessId, staffId), inviteId, invitedEmail,
                 lastInviteToken(messages, invitedEmail), categoryId, categoryName, subcategoryId, subcategoryName,
                 tagId, tagName, UUID.fromString(product.json("$.id")), productName,
-                UUID.fromString(product.json("$.variants[0].id")), sku, fileId, productImageId, notificationId);
+                UUID.fromString(product.json("$.variants[0].id")), sku, fileId, productImageId, notificationId, importId);
     }
 
     /** Looks up a membership id; tests pass a query through the system role. */

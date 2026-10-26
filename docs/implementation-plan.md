@@ -20,8 +20,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 1 Identity | 1a sign-up and login · 1b account management | 4 | Done |
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Done |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Done |
-| 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | 4a done · 4b in review |
-| 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Not started |
+| 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Done |
+| 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | 5a in review |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Not started |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Not started |
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Not started |
@@ -227,6 +227,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `GET /imports/template.xlsx`.
 
 **Checked by:** fixtures with a messy real-world sheet (merged headers, blank rows, "৳1,200" prices, Bangla digits).
+
+**As built:** `POST /imports` takes the file itself (multipart, up to 10 MB), not an upload id: `/uploads` is for images, and the file is read at once and only its non-blank rows kept (as text, by sheet row number), so the file is not stored. Limits: 10,000 rows, 100 columns, and a .xlsx may unpack to at most 200 MB. The header row is the first of the top 10 rows naming two known fields (so a title or merged heading above is skipped) and can be changed with the mapping. Rows with the same product name are variants of one product, told apart by the option columns (up to 3). Unknown categories are not errors: they are listed as `newCategories` ("Name" or "Parent > Name") and made on commit. Rows whose SKU exists show as UPDATE. The catalog's limits moved to the public `catalog.CatalogLimits`, and `catalog.CatalogLookup` gives the importer categories and taken SKUs, so a sheet is checked exactly like the forms. Every mapping change re-checks all rows (10,000 rows: about 0.3 s); upload and check about 1 s. Old `.xls` files and non-UTF-8 CSVs are refused with a message saying how to save them.
 
 ### 5b: Commit and error report (2 days)
 

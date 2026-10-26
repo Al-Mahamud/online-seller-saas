@@ -1,5 +1,6 @@
 package com.mojud.catalog.product;
 
+import com.mojud.catalog.CatalogLimits;
 import com.mojud.shared.paging.CursorPage;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
@@ -34,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 class ProductController {
 
     /** Up to ৳10,000,000,000 in poisha: far beyond any product, well inside a long. */
-    static final long MAX_POISHA = 1_000_000_000_000L;
+    static final long MAX_POISHA = CatalogLimits.MAX_POISHA;
 
     private final ProductService products;
     private final ProductImageService images;

@@ -29,9 +29,9 @@ spring:
     time-zone: UTC
   servlet:
     multipart:
-      # Images up to 8 MB (phone photos); ImageProcessor reads them subsampled.
-      max-file-size: 8MB
-      max-request-size: 9MB
+      # Import sheets up to 10 MB; images are held to 8 MB by FileController.
+      max-file-size: 10MB
+      max-request-size: 11MB
   session:
     # Idle timeout: a signed-in user stays signed in for a week of inactivity.
     timeout: 7d
@@ -88,6 +88,9 @@ mojud:
   files:
     # Each upload is stored twice; this keeps one business from filling the disk.
     uploads-per-business: { max: 300, window: 1d }
+  imports:
+    # Each upload is read and checked in full; this bounds the work one business can cause.
+    per-business: { max: 50, window: 1d }
   web:
     # Where the web app lives; invite links point here.
     base-url: ${WEB_BASE_URL:http://localhost:5173}

@@ -1,5 +1,6 @@
 package com.mojud.catalog.product;
 
+import com.mojud.catalog.CatalogLimits;
 import com.mojud.shared.paging.CursorPage;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
@@ -38,7 +39,7 @@ class VariantController {
             @PositiveOrZero @Max(ProductController.MAX_POISHA) Long price,
             @PositiveOrZero @Max(ProductController.MAX_POISHA) Long costPrice,
             Boolean clearCostPrice,
-            @PositiveOrZero @Max(100000) Integer lowStockThreshold,
+            @PositiveOrZero @Max(CatalogLimits.MAX_LOW_STOCK_THRESHOLD) Integer lowStockThreshold,
             Boolean useDefaultThreshold,
             Long version) {
     }

@@ -2,6 +2,7 @@ package com.mojud.catalog.product;
 
 import com.mojud.identity.UserDirectory;
 import com.mojud.inventory.StockHistory;
+import com.mojud.catalog.CatalogLimits;
 import com.mojud.inventory.StockLevel;
 import com.mojud.inventory.StockQueries;
 import com.mojud.inventory.StockService;
@@ -54,8 +55,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 class ProductService {
 
-    static final int MAX_NAME = 200;
-    static final int MAX_OPTION_TEXT = 30;
+    static final int MAX_NAME = CatalogLimits.PRODUCT_NAME;
+    static final int MAX_OPTION_TEXT = CatalogLimits.OPTION_TEXT;
     static final int MAX_TAGS = 20;
     static final int SEARCH_RESULTS = 50;
 
@@ -628,7 +629,7 @@ class ProductService {
 
     private static String cleanSku(String sku) {
         String cleaned = sku.strip();
-        if (cleaned.length() > 64 || cleaned.chars().anyMatch(Character::isWhitespace)) {
+        if (cleaned.length() > CatalogLimits.SKU || cleaned.chars().anyMatch(Character::isWhitespace)) {
             throw ApiException.invalidField("sku", "field.sku_invalid");
         }
         return cleaned;
@@ -636,7 +637,7 @@ class ProductService {
 
     private static String description(String text) {
         String cleaned = text == null ? "" : text.strip();
-        if (cleaned.length() > 5000) {
+        if (cleaned.length() > CatalogLimits.DESCRIPTION) {
             throw ApiException.invalidField("description", "field.too_long");
         }
         return cleaned;
