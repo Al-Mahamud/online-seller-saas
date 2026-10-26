@@ -58,6 +58,14 @@ public enum ErrorCode {
     /** No sender for this channel (no SMS gateway yet, or no email provider configured). */
     INVITE_CHANNEL_UNAVAILABLE("invite.channel_unavailable", HttpStatus.BAD_REQUEST),
 
+    // Catalog.
+    CATEGORY_NAME_TAKEN("category.name_taken", HttpStatus.CONFLICT),
+    /** Categories are two levels deep: a category and its subcategories. */
+    CATEGORY_TOO_DEEP("category.too_deep", HttpStatus.CONFLICT),
+    /** Only an empty category (no subcategories, and from 3b no products) can be deleted. */
+    CATEGORY_NOT_EMPTY("category.not_empty", HttpStatus.CONFLICT),
+    TAG_NAME_TAKEN("tag.name_taken", HttpStatus.CONFLICT),
+
     // Errors raised by the framework before a controller runs.
     MALFORMED_REQUEST("request.malformed", HttpStatus.BAD_REQUEST),
     ROUTE_NOT_FOUND("route.not_found", HttpStatus.NOT_FOUND),

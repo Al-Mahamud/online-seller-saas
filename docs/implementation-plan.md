@@ -18,8 +18,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | --- | --- | --- | --- |
 | 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | Done |
 | 1 Identity | 1a sign-up and login · 1b account management | 4 | Done |
-| 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | 2a, 2b done · 2c in review |
-| 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Not started |
+| 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Done |
+| 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | 3a in review |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Not started |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Not started |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Not started |
@@ -154,6 +154,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `categories` (two levels), `tags`, `product_tags`; create, rename, reorder, delete (only when empty).
 
 **Checked by:** a third level is rejected; deleting a non-empty category returns 409.
+
+**As built:** `product_tags` moves to 3b with products, and "empty" means "no subcategories" until 3b adds "no products". Categories can also be moved between groups (`POST /categories/{id}/move`); a group is reordered by listing all of it (`PUT /categories/order`). Names are trimmed, spaces collapsed and Unicode-normalised (NFC), so the same Bangla word typed two ways is one name. A subcategory's parent must be in the same business: a composite foreign key `(business_id, parent_id)`, the first of the composite keys from backend-plan.md §4. Catalog changes are not audited (not in the §11 list).
 
 ### 3b: Products and variants (2.5 days)
 

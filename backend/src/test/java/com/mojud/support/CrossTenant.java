@@ -25,12 +25,15 @@ public final class CrossTenant {
     /** One business with an owner, a staff member, changed settings and an open invite. */
     public record Tenant(ApiClient owner, TestAccounts.Account ownerAccount, UUID ownerId, UUID businessId,
             String name, String phone, String orderPrefix, ApiClient staff, TestAccounts.Account staffAccount,
-            UUID staffId, UUID membershipIdOfStaff, UUID inviteId, String invitedEmail, String inviteToken) {
+            UUID staffId, UUID membershipIdOfStaff, UUID inviteId, String invitedEmail, String inviteToken,
+            UUID categoryId, String categoryName, UUID subcategoryId, String subcategoryName, UUID tagId, String tagName) {
 
         /** Values that must never appear in another business's answers. */
         public Set<String> markers() {
             return Set.of(businessId.toString(), name, phone, orderPrefix, ownerId.toString(), staffId.toString(),
-                    ownerAccount.email(), staffAccount.email(), inviteId.toString(), invitedEmail);
+                    ownerAccount.email(), staffAccount.email(), inviteId.toString(), invitedEmail,
+                    categoryId.toString(), categoryName, subcategoryId.toString(), subcategoryName,
+                    tagId.toString(), tagName);
         }
     }
 
@@ -56,9 +59,18 @@ public final class CrossTenant {
         String invitedEmail = TestAccounts.newEmail();
         UUID inviteId = UUID.fromString(owner.post("/api/v1/staff/invites", Map.of("to", invitedEmail, "role", "MANAGER"))
                 .expectStatus(201).json("$.id"));
+        String categoryName = "Category " + marker;
+        UUID categoryId = UUID.fromString(owner.post("/api/v1/categories", Map.of("name", categoryName))
+                .expectStatus(201).json("$.id"));
+        String subcategoryName = "Subcategory " + marker;
+        UUID subcategoryId = UUID.fromString(owner.post("/api/v1/categories",
+                Map.of("name", subcategoryName, "parentId", categoryId.toString())).expectStatus(201).json("$.id"));
+        String tagName = "tag-" + marker;
+        UUID tagId = UUID.fromString(owner.post("/api/v1/tags", Map.of("name", tagName)).expectStatus(201).json("$.id"));
         return new Tenant(owner, ownerAccount, TestBusinesses.userId(owner), businessId, name, phone, prefix, staff,
                 staffAccount, staffId, membershipIds.of(businessId, staffId), inviteId, invitedEmail,
-                lastInviteToken(messages, invitedEmail));
+                lastInviteToken(messages, invitedEmail), categoryId, categoryName, subcategoryId, subcategoryName,
+                tagId, tagName);
     }
 
     /** Looks up a membership id; tests pass a query through the system role. */

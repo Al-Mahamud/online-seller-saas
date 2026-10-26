@@ -1,8 +1,8 @@
 package com.mojud.identity.account;
 
+import com.mojud.shared.db.Constraints;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
-import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 
 /**
@@ -19,11 +19,10 @@ public final class ContactConflicts {
      *         another constraint failed
      */
     public static RuntimeException translate(DataIntegrityViolationException e) {
-        String reason = String.valueOf(NestedExceptionUtils.getMostSpecificCause(e).getMessage());
-        if (reason.contains("uq_users_verified_phone")) {
+        if (Constraints.violated(e, "uq_users_verified_phone")) {
             return new ApiException(ErrorCode.PHONE_TAKEN);
         }
-        if (reason.contains("uq_users_verified_email")) {
+        if (Constraints.violated(e, "uq_users_verified_email")) {
             return new ApiException(ErrorCode.EMAIL_TAKEN);
         }
         return e;

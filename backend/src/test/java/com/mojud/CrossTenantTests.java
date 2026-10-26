@@ -6,6 +6,7 @@ import static com.mojud.support.CrossTenant.expectRefused;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.mojud.shared.db.system.SystemDatabase;
+import com.mojud.support.ApiResponse;
 import com.mojud.support.CapturedMessages;
 import com.mojud.support.CrossTenant;
 import com.mojud.support.CrossTenant.Tenant;
@@ -100,6 +101,32 @@ class CrossTenantTests {
         CASES.put("POST /api/v1/invites/accept", (a, b) -> expectRefused(
                 b.owner().post("/api/v1/invites/accept", Map.of("token", a.inviteToken())), a));
 
+        // Categories and tags.
+        CASES.put("GET /api/v1/categories", (a, b) -> expectNoLeak(b.owner().get("/api/v1/categories"), a));
+        CASES.put("POST /api/v1/categories", (a, b) -> expectNotFound(b.owner().post("/api/v1/categories",
+                Map.of("name", "Sneaky", "parentId", a.categoryId().toString()))));
+        CASES.put("PATCH /api/v1/categories/{id}", (a, b) -> expectNotFound(
+                b.owner().patch("/api/v1/categories/" + a.subcategoryId(), Map.of("name", "Renamed"))));
+        CASES.put("POST /api/v1/categories/{id}/move", (a, b) -> {
+            expectNotFound(b.owner().post("/api/v1/categories/" + a.subcategoryId() + "/move", Map.of()));
+            expectNotFound(b.owner().post("/api/v1/categories/" + b.subcategoryId() + "/move",
+                    Map.of("parentId", a.categoryId().toString())));
+        });
+        CASES.put("PUT /api/v1/categories/order", (a, b) -> {
+            expectNotFound(b.owner().put("/api/v1/categories/order",
+                    Map.of("parentId", a.categoryId().toString(), "ids", List.of(a.subcategoryId().toString()))));
+            expectRefused(b.owner().put("/api/v1/categories/order",
+                    Map.of("ids", List.of(a.categoryId().toString(), b.categoryId().toString()))), a);
+        });
+        CASES.put("DELETE /api/v1/categories/{id}", (a, b) -> expectNotFound(
+                b.owner().delete("/api/v1/categories/" + a.subcategoryId())));
+        CASES.put("GET /api/v1/tags", (a, b) -> expectNoLeak(b.owner().get("/api/v1/tags"), a));
+        CASES.put("POST /api/v1/tags", (a, b) -> expectNoLeak(
+                b.owner().post("/api/v1/tags", Map.of("name", "fresh-" + UUID.randomUUID())), a));
+        CASES.put("PATCH /api/v1/tags/{id}", (a, b) -> expectNotFound(
+                b.owner().patch("/api/v1/tags/" + a.tagId(), Map.of("name", "renamed"))));
+        CASES.put("DELETE /api/v1/tags/{id}", (a, b) -> expectNotFound(b.owner().delete("/api/v1/tags/" + a.tagId())));
+
         // Test sources only.
         CASES.put("GET /dev/otp", notBusinessData("exists only in test sources and local runs"));
     }
@@ -153,6 +180,10 @@ class CrossTenantTests {
         assertThat(a.owner().get("/api/v1/staff").<List<String>>json("$[*].role")).containsExactly("OWNER", "STAFF");
         assertThat(a.owner().get("/api/v1/staff/invites").<List<String>>json("$[*].id")).containsExactly(a.inviteId().toString());
         a.staff().get("/api/v1/business").expectStatus(200);
+        ApiResponse tree = a.owner().get("/api/v1/categories").expectStatus(200);
+        assertThat(tree.<List<String>>json("$[*].name")).containsExactly(a.categoryName());
+        assertThat(tree.<List<String>>json("$[0].children[*].name")).containsExactly(a.subcategoryName());
+        assertThat(a.owner().get("/api/v1/tags").<List<String>>json("$[*].name")).containsExactly(a.tagName());
     }
 
     private UUID membershipId(UUID businessId, UUID userId) {
