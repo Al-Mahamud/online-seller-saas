@@ -209,6 +209,15 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/variants/{id}/movements", (a, b) -> expectNotFound(
                 b.owner().get("/api/v1/variants/" + a.variantId() + "/movements")));
 
+        // Low stock and notifications.
+        CASES.put("GET /api/v1/stock/low", (a, b) -> expectNoLeak(b.owner().get("/api/v1/stock/low"), a));
+        CASES.put("GET /api/v1/notifications", (a, b) -> expectNoLeak(b.owner().get("/api/v1/notifications"), a));
+        CASES.put("POST /api/v1/notifications/read", (a, b) -> {
+            b.owner().post("/api/v1/notifications/read", Map.of("ids", List.of(a.notificationId().toString())))
+                    .expectStatus(204);
+            b.owner().post("/api/v1/notifications/read", Map.of("all", true)).expectStatus(204);
+        });
+
         // Test sources only.
         CASES.put("GET /dev/otp", notBusinessData("exists only in test sources and local runs"));
     }
@@ -271,9 +280,12 @@ class CrossTenantTests {
         assertThat(product.<String>json("$.status")).isEqualTo("ACTIVE");
         assertThat(product.<String>json("$.categoryId")).isEqualTo(a.subcategoryId().toString());
         assertThat(product.<Integer>json("$.variants[0].price")).isEqualTo(120000);
-        assertThat(product.<Integer>json("$.variants[0].onHand")).isEqualTo(15);
+        assertThat(product.<Integer>json("$.variants[0].onHand")).isEqualTo(3);
         assertThat(a.owner().get("/api/v1/variants/" + a.variantId() + "/movements").<List<String>>json("$.items[*].type"))
-                .containsExactly("RECEIVE", "OPENING");
+                .containsExactly("DAMAGE", "RECEIVE", "OPENING");
+        ApiResponse notifications = a.owner().get("/api/v1/notifications").expectStatus(200);
+        assertThat(notifications.<List<String>>json("$.items[*].id")).containsExactly(a.notificationId().toString());
+        assertThat(notifications.<Integer>json("$.unread")).isEqualTo(1);
         assertThat(product.<String>json("$.variants[0].status")).isEqualTo("ACTIVE");
         assertThat(product.<List<String>>json("$.images[*].id")).containsExactly(a.productImageId().toString());
         assertThat(a.owner().get("/api/v1/business").<String>json("$.logo.small")).contains(a.fileId().toString());

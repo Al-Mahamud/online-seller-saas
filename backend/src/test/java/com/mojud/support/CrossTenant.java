@@ -28,7 +28,8 @@ public final class CrossTenant {
             String name, String phone, String orderPrefix, ApiClient staff, TestAccounts.Account staffAccount,
             UUID staffId, UUID membershipIdOfStaff, UUID inviteId, String invitedEmail, String inviteToken,
             UUID categoryId, String categoryName, UUID subcategoryId, String subcategoryName, UUID tagId, String tagName,
-            UUID productId, String productName, UUID variantId, String sku, UUID fileId, UUID productImageId) {
+            UUID productId, String productName, UUID variantId, String sku, UUID fileId, UUID productImageId,
+            UUID notificationId) {
 
         /** Values that must never appear in another business's answers. */
         public Set<String> markers() {
@@ -36,7 +37,7 @@ public final class CrossTenant {
                     ownerAccount.email(), staffAccount.email(), inviteId.toString(), invitedEmail,
                     categoryId.toString(), categoryName, subcategoryId.toString(), subcategoryName,
                     tagId.toString(), tagName, productId.toString(), productName, variantId.toString(), sku,
-                    fileId.toString(), productImageId.toString());
+                    fileId.toString(), productImageId.toString(), notificationId.toString());
         }
     }
 
@@ -86,11 +87,15 @@ public final class CrossTenant {
         UUID productImageId = UUID.fromString(owner.post("/api/v1/products/" + product.json("$.id") + "/images",
                 Map.of("fileId", fileId.toString())).expectStatus(200).json("$.images[0].id"));
         owner.put("/api/v1/business/logo", Map.of("fileId", fileId.toString())).expectStatus(200);
+        // Down to 3 of 15, below the default alert level of 5: a low-stock notification.
+        owner.post("/api/v1/stock/adjustments", Map.of("lines", List.of(Map.of("variantId", product.json("$.variants[0].id"),
+                "kind", "DAMAGE", "quantity", 12)))).expectStatus(201);
+        UUID notificationId = UUID.fromString(owner.get("/api/v1/notifications").expectStatus(200).json("$.items[0].id"));
         return new Tenant(owner, ownerAccount, TestBusinesses.userId(owner), businessId, name, phone, prefix, staff,
                 staffAccount, staffId, membershipIds.of(businessId, staffId), inviteId, invitedEmail,
                 lastInviteToken(messages, invitedEmail), categoryId, categoryName, subcategoryId, subcategoryName,
                 tagId, tagName, UUID.fromString(product.json("$.id")), productName,
-                UUID.fromString(product.json("$.variants[0].id")), sku, fileId, productImageId);
+                UUID.fromString(product.json("$.variants[0].id")), sku, fileId, productImageId, notificationId);
     }
 
     /** Looks up a membership id; tests pass a query through the system role. */

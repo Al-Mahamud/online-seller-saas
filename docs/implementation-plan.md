@@ -20,7 +20,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 1 Identity | 1a sign-up and login · 1b account management | 4 | Done |
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Done |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Done |
-| 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | 4a in review |
+| 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | 4a done · 4b in review |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Not started |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Not started |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Not started |
@@ -209,6 +209,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Nightly reconciliation job (as `mojud_system`): compares ledger sums with `stock_levels` and reports mismatches.
 
 **Checked by:** an alert appears when available reaches the threshold and does not repeat that day; a deliberately broken cache row is reported.
+
+**As built:** the alert level stays on the catalog's variant (or the business default), so the catalog raises the alert: inventory publishes `StockChanged` (available before and after, per variant) inside the change's transaction and knows nothing of products. Alerts go to managers and owners, at most one per variant per Dhaka day (a unique dedupe key). Notifications are per business with an audience role; "read" is kept per member; titles are written at read time in the reader's language. `GET /stock/low` is served by the catalog. Nightly jobs (db-scheduler, Dhaka time, system role): stock reconciliation at 02:30 (logs mismatches as errors, fixes nothing) and idempotency-key clean-up at 03:00 (older than a day).
 
 ---
 

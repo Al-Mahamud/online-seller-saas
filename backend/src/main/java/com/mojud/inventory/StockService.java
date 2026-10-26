@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
  * same variants take turns and never deadlock;</li>
  * <li>checks the change is possible (no negative stock, no reserving or damaging more than is
  * available, no releasing more than is reserved);</li>
- * <li>updates the cached level and appends one ledger entry per variant with the level after it.</li>
+ * <li>updates the cached level and appends one ledger entry per variant with the level after it;</li>
+ * <li>publishes {@link StockChanged}, handled in the same transaction (low-stock alerts).</li>
  * </ol>
  * A variant of another business (or none) is "not found": the foreign keys refuse it.
  */
@@ -66,10 +68,12 @@ public class StockService {
     }
 
     private final JdbcClient jdbc;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    StockService(DataSource dataSource, Clock clock) {
+    StockService(DataSource dataSource, ApplicationEventPublisher events, Clock clock) {
         this.jdbc = JdbcClient.create(dataSource);
+        this.events = events;
         this.clock = clock;
     }
 
@@ -216,6 +220,7 @@ public class StockService {
         Instant now = clock.instant();
         UUID user = CurrentBusiness.get().map(CurrentBusiness::userId).orElse(null);
         List<StockLevel> after = new ArrayList<>();
+        List<StockChanged.Change> changes = new ArrayList<>();
         deltas.forEach((variantId, delta) -> {
             StockLevel level = levels.get(variantId);
             StockLevel next = new StockLevel(variantId, level.onHand() + delta.onHand(), level.reserved() + delta.reserved());
@@ -232,7 +237,9 @@ public class StockService {
                             Timestamp.from(now))
                     .update();
             after.add(next);
+            changes.add(new StockChanged.Change(variantId, level.available(), next.available()));
         });
+        events.publishEvent(new StockChanged(type, changes));
         return after;
     }
 
