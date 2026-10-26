@@ -33,6 +33,9 @@ public class Membership {
 
     private Instant lastUsedAt;
 
+    /** When the member joined, or rejoined after being removed. */
+    private Instant joinedAt;
+
     private Instant createdAt;
 
     private Instant updatedAt;
@@ -50,6 +53,7 @@ public class Membership {
         this.role = role;
         this.status = MembershipStatus.ACTIVE;
         this.lastUsedAt = now;
+        this.joinedAt = now;
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -70,6 +74,7 @@ public class Membership {
         status = MembershipStatus.ACTIVE;
         role = newRole;
         lastUsedAt = now;
+        joinedAt = now;
         updatedAt = now;
     }
 
@@ -85,8 +90,8 @@ public class Membership {
         return businessId;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
+    public Instant getJoinedAt() {
+        return joinedAt;
     }
 
     public UUID getUserId() {

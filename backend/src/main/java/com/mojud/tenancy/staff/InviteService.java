@@ -2,6 +2,7 @@ package com.mojud.tenancy.staff;
 
 import com.mojud.identity.UserDirectory;
 import com.mojud.shared.async.AfterCommitTasks;
+import com.mojud.shared.db.AdvisoryLocks;
 import com.mojud.shared.email.EmailAddress;
 import com.mojud.shared.email.EmailSender;
 import com.mojud.shared.error.ApiException;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -57,6 +59,8 @@ class InviteService {
     private final AfterCommitTasks afterCommit;
     private final MessageSource messages;
     private final TransactionTemplate transactions;
+    private final TransactionTemplate readOnly;
+    private final AdvisoryLocks locks;
     private final Clock clock;
     private final Duration ttl;
     private final String webBaseUrl;
@@ -65,7 +69,7 @@ class InviteService {
     InviteService(InviteRepository invites, MembershipRepository memberships, InviteDirectory directory,
             BusinessNames businessNames, UserDirectory users, ObjectProvider<SmsSender> sms,
             ObjectProvider<EmailSender> email, AfterCommitTasks afterCommit, MessageSource messages,
-            TransactionTemplate transactions, Clock clock,
+            PlatformTransactionManager transactionManager, AdvisoryLocks locks, Clock clock,
             @Value("${mojud.tenancy.invites.ttl}") Duration ttl,
             @Value("${mojud.tenancy.invites.per-business.max}") int perBusinessMax,
             @Value("${mojud.tenancy.invites.per-business.window}") Duration perBusinessWindow,
@@ -79,7 +83,10 @@ class InviteService {
         this.email = email;
         this.afterCommit = afterCommit;
         this.messages = messages;
-        this.transactions = transactions;
+        this.transactions = new TransactionTemplate(transactionManager);
+        this.readOnly = new TransactionTemplate(transactionManager);
+        this.readOnly.setReadOnly(true);
+        this.locks = locks;
         this.clock = clock;
         this.ttl = ttl;
         this.webBaseUrl = webBaseUrl;
@@ -103,10 +110,13 @@ class InviteService {
         if (isEmail ? email.getIfAvailable() == null : sms.getIfAvailable() == null) {
             throw new ApiException(ErrorCode.INVITE_CHANNEL_UNAVAILABLE);
         }
+        // Invites to one address take turns, so two at once cannot both find no open invite.
+        locks.lockForTransaction("invite:" + business.businessId() + ":" + destination);
         Optional<UUID> existingUser = users.findByVerifiedContact(destination);
         if (existingUser.flatMap(memberships::findByUserId).filter(Membership::isActive).isPresent()) {
             throw new ApiException(ErrorCode.STAFF_ALREADY_MEMBER);
         }
+        // Counted only for an invite that will really be sent.
         invitesPerBusiness.acquire(business.businessId().toString());
 
         Instant now = clock.instant();
@@ -134,14 +144,12 @@ class InviteService {
         invite.revoke(clock.instant());
     }
 
-    /** What the invite link shows before anyone signs in. */
+    /** What the invite link shows before anyone signs in. Reads only: takes no lock. */
     Preview preview(String token) {
         String hash = InviteTokens.hash(token);
-        UUID businessId = directory.businessOfToken(hash).orElseThrow(() -> new ApiException(ErrorCode.INVITE_INVALID));
-        return TenantScope.call(businessId, () -> transactions.execute(status -> {
-            Invite invite = invites.findByTokenHash(hash).filter(found -> found.isOpen(clock.instant()))
-                    .filter(found -> businessNames.isActive(businessId))
-                    .orElseThrow(() -> new ApiException(ErrorCode.INVITE_INVALID));
+        UUID businessId = businessOf(hash);
+        return TenantScope.call(businessId, () -> readOnly.execute(status -> {
+            Invite invite = usable(invites.findByTokenHash(hash), businessId, clock.instant());
             return new Preview(businessNames.nameOf(businessId), invite.getRole(),
                     users.name(invite.getInvitedBy()).orElse(""), InviteTokens.mask(invite.getDestination()),
                     invite.getExpiresAt());
@@ -154,15 +162,15 @@ class InviteService {
      */
     Joined accept(UUID userId, String token) {
         String hash = InviteTokens.hash(token);
-        UUID businessId = directory.businessOfToken(hash).orElseThrow(() -> new ApiException(ErrorCode.INVITE_INVALID));
+        UUID businessId = businessOf(hash);
         return TenantScope.call(businessId, () -> transactions.execute(status -> {
             Instant now = clock.instant();
-            Invite invite = invites.findByTokenHash(hash).filter(found -> found.isOpen(now))
-                    .filter(found -> businessNames.isActive(businessId))
-                    .orElseThrow(() -> new ApiException(ErrorCode.INVITE_INVALID));
+            Invite invite = usable(invites.findByTokenHashForUpdate(hash), businessId, now);
             if (!users.hasVerified(userId, invite.getDestination())) {
                 throw new ApiException(ErrorCode.INVITE_WRONG_ACCOUNT, InviteTokens.mask(invite.getDestination()));
             }
+            // One person's joins take turns (two invites, by phone and by email, accepted at once).
+            locks.lockForTransaction("membership:" + businessId + ":" + userId);
             Optional<Membership> existing = memberships.findByUserId(userId);
             if (existing.filter(Membership::isActive).isPresent()) {
                 throw new ApiException(ErrorCode.STAFF_ALREADY_MEMBER);
@@ -173,6 +181,24 @@ class InviteService {
             invite.accept(userId, now);
             return new Joined(businessId, businessNames.nameOf(businessId), invite.getRole());
         }));
+    }
+
+    private UUID businessOf(String tokenHash) {
+        return directory.businessOfToken(tokenHash).orElseThrow(() -> new ApiException(ErrorCode.INVITE_INVALID));
+    }
+
+    /**
+     * The one definition of a usable invite, for preview and accept alike: open, in an active
+     * business, and sent by someone who is still a manager or owner there (an invite does not
+     * outlive its sender's right to invite).
+     */
+    private Invite usable(Optional<Invite> found, UUID businessId, Instant now) {
+        return found
+                .filter(invite -> invite.isOpen(now))
+                .filter(invite -> businessNames.isActive(businessId))
+                .filter(invite -> memberships.findActive(invite.getInvitedBy())
+                        .filter(sender -> sender.getRole().atLeast(BusinessRole.MANAGER)).isPresent())
+                .orElseThrow(() -> new ApiException(ErrorCode.INVITE_INVALID));
     }
 
     private void send(Invite invite, String token, CurrentBusiness business) {

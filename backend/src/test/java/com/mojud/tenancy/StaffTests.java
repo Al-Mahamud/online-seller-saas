@@ -2,6 +2,7 @@ package com.mojud.tenancy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.mojud.shared.db.system.SystemDatabase;
 import com.mojud.support.ApiClient;
 import com.mojud.support.ApiResponse;
 import com.mojud.support.CapturedMessages;
@@ -35,6 +36,9 @@ class StaffTests {
 
     @Autowired
     TestClock clock;
+
+    @Autowired
+    SystemDatabase systemDatabase;
 
     @AfterEach
     void resetClock() {
@@ -264,6 +268,158 @@ class StaffTests {
                 Map.of("currentPassword", manager.account.password())).expectError(403, "access.denied");
         owner.client.post("/api/v1/staff/" + UUID.randomUUID() + "/make-owner",
                 Map.of("currentPassword", owner.account.password())).expectError(404, "resource.not_found");
+    }
+
+    // Fixes from the 2b code review.
+
+    @Test
+    void aRemovedManagersInvitesStopWorking() {
+        Owner owner = newBusiness("Locked Out Shop");
+        Member manager = join(owner, "MANAGER");
+        String secondAddress = TestAccounts.newEmail();
+        manager.client.post("/api/v1/staff/invites", Map.of("to", secondAddress, "role", "MANAGER")).expectStatus(201);
+        String token = tokenSentTo(secondAddress);
+
+        owner.client.delete("/api/v1/staff/" + manager.userId).expectStatus(204);
+
+        new ApiClient(port).post("/api/v1/public/invites/lookup", Map.of("token", token)).expectError(404, "invite.invalid");
+        assertThat(owner.client.get("/api/v1/staff/invites").<List<Object>>json("$")).isEmpty();
+    }
+
+    @Test
+    void aManagerDemotedToStaffLosesTheirInvites() {
+        Owner owner = newBusiness("Demoting Shop");
+        Member manager = join(owner, "MANAGER");
+        String invited = TestAccounts.newEmail();
+        manager.client.post("/api/v1/staff/invites", Map.of("to", invited, "role", "STAFF")).expectStatus(201);
+        String token = tokenSentTo(invited);
+
+        owner.client.patch("/api/v1/staff/" + manager.userId, Map.of("role", "STAFF")).expectStatus(204);
+
+        new ApiClient(port).post("/api/v1/public/invites/lookup", Map.of("token", token)).expectError(404, "invite.invalid");
+    }
+
+    @Test
+    void anInviteDiesWithItsSendersRightToInviteEvenIfNotWithdrawn() {
+        Owner owner = newBusiness("Belt And Braces");
+        Member manager = join(owner, "MANAGER");
+        ApiClient invitee = new ApiClient(port);
+        Account account = TestAccounts.signUp(invitee, messages);
+        manager.client.post("/api/v1/staff/invites", Map.of("to", account.email(), "role", "STAFF")).expectStatus(201);
+        // Change the sender's role behind the service's back: accepting must still check it.
+        systemDatabase.jdbc().sql("update memberships set role = 'STAFF' where business_id = ? and user_id = ?")
+                .params(owner.businessId, manager.userId).update();
+
+        invitee.post("/api/v1/invites/accept", Map.of("token", tokenSentTo(account.email())))
+                .expectError(404, "invite.invalid");
+    }
+
+    @Test
+    void ownershipCannotBeHandedToSomeoneAtTheOwnerLimit() {
+        Owner owner = newBusiness("Too Many Shop");
+        Member manager = join(owner, "MANAGER");
+        for (int i = 1; i <= 5; i++) {
+            TestBusinesses.create(manager.client, "Manager's Shop " + i);
+        }
+
+        owner.client.post("/api/v1/staff/" + manager.userId + "/make-owner",
+                Map.of("currentPassword", owner.account.password())).expectError(409, "staff.owner_limit");
+    }
+
+    @Test
+    void aDoubleHandoverMakesOnlyOneNewOwner() throws Exception {
+        Owner owner = newBusiness("Double Click Shop");
+        Member first = join(owner, "MANAGER");
+        Member second = join(owner, "MANAGER");
+
+        List<ApiResponse> answers = inParallel(
+                () -> owner.client.post("/api/v1/staff/" + first.userId + "/make-owner",
+                        Map.of("currentPassword", owner.account.password())),
+                () -> owner.client.post("/api/v1/staff/" + second.userId + "/make-owner",
+                        Map.of("currentPassword", owner.account.password())));
+
+        assertThat(answers).extracting(ApiResponse::status).containsExactlyInAnyOrder(204, 403);
+        assertThat(systemDatabase.jdbc().sql("select count(*) from memberships where business_id = ? and role = 'OWNER'")
+                .param(owner.businessId).query(Integer.class).single()).isEqualTo(1);
+    }
+
+    @Test
+    void parallelInvitesToOneAddressLeaveOneOpenInvite() throws Exception {
+        Owner owner = newBusiness("Busy Inviter");
+        String email = TestAccounts.newEmail();
+
+        List<ApiResponse> answers = inParallel(
+                () -> owner.client.post("/api/v1/staff/invites", Map.of("to", email, "role", "STAFF")),
+                () -> owner.client.post("/api/v1/staff/invites", Map.of("to", email, "role", "STAFF")),
+                () -> owner.client.post("/api/v1/staff/invites", Map.of("to", email, "role", "MANAGER")));
+
+        assertThat(answers).extracting(ApiResponse::status).containsOnly(201);
+        assertThat(owner.client.get("/api/v1/staff/invites").<List<Object>>json("$")).hasSize(1);
+    }
+
+    @Test
+    void acceptingTwoInvitesAtOnceJoinsOnce() throws Exception {
+        Owner owner = newBusiness("Two Links Shop");
+        ApiClient person = new ApiClient(port);
+        Account account = TestAccounts.signUpWithPhone(person, messages);
+        String email = TestAccounts.newEmail();
+        person.post("/api/v1/me/contact/code", Map.of("to", email)).expectStatus(202);
+        person.post("/api/v1/me/contact", Map.of("to", email, "code", messages.lastCode(email).orElseThrow(),
+                "currentPassword", account.password())).expectStatus(200);
+        owner.client.post("/api/v1/staff/invites", Map.of("to", account.phone(), "role", "STAFF")).expectStatus(201);
+        owner.client.post("/api/v1/staff/invites", Map.of("to", email, "role", "STAFF")).expectStatus(201);
+        String byPhone = tokenSentTo(account.e164());
+        String byEmail = tokenSentTo(email);
+
+        List<ApiResponse> answers = inParallel(
+                () -> person.post("/api/v1/invites/accept", Map.of("token", byPhone)),
+                () -> person.post("/api/v1/invites/accept", Map.of("token", byEmail)));
+
+        assertThat(answers).extracting(ApiResponse::status).containsExactlyInAnyOrder(200, 409);
+        assertThat(owner.client.get("/api/v1/staff").<List<Object>>json("$")).hasSize(2);
+    }
+
+    @Test
+    void aMemberWhoRejoinsShowsTheirNewJoinDate() {
+        Owner owner = newBusiness("Rejoin Shop");
+        Member staff = join(owner, "STAFF");
+        String firstJoined = joinedAt(owner, staff);
+        owner.client.delete("/api/v1/staff/" + staff.userId).expectStatus(204);
+        clock.advance(Duration.ofDays(30));
+
+        owner.client.post("/api/v1/staff/invites", Map.of("to", staff.account.email(), "role", "STAFF")).expectStatus(201);
+        staff.client.post("/api/v1/invites/accept", Map.of("token", tokenSentTo(staff.account.email()))).expectStatus(200);
+
+        assertThat(java.time.Instant.parse(joinedAt(owner, staff)))
+                .isAfter(java.time.Instant.parse(firstJoined).plus(Duration.ofDays(29)));
+    }
+
+    private String joinedAt(Owner owner, Member member) {
+        List<String> dates = owner.client.get("/api/v1/staff").json("$[?(@.userId == '" + member.userId + "')].joinedAt");
+        return dates.get(0);
+    }
+
+    @SafeVarargs
+    private List<ApiResponse> inParallel(java.util.concurrent.Callable<ApiResponse>... calls) throws Exception {
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(calls.length);
+        try {
+            java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+            List<java.util.concurrent.Future<ApiResponse>> futures = new java.util.ArrayList<>();
+            for (java.util.concurrent.Callable<ApiResponse> call : calls) {
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    return call.call();
+                }));
+            }
+            start.countDown();
+            List<ApiResponse> answers = new java.util.ArrayList<>();
+            for (java.util.concurrent.Future<ApiResponse> future : futures) {
+                answers.add(future.get(60, java.util.concurrent.TimeUnit.SECONDS));
+            }
+            return answers;
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     // Helpers.

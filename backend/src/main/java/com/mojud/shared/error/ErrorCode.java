@@ -47,13 +47,15 @@ public enum ErrorCode {
     STAFF_ALREADY_MEMBER("staff.already_member", HttpStatus.CONFLICT),
     /** The owner is changed only by transferring ownership, never by role changes or removal. */
     STAFF_OWNER_PROTECTED("staff.owner_protected", HttpStatus.CONFLICT),
+    /** The member a business is handed to already owns the most businesses allowed; {0} is the limit. */
+    STAFF_OWNER_LIMIT("staff.owner_limit", HttpStatus.CONFLICT),
     /** Members cannot change their own role or remove themselves. */
     STAFF_SELF_CHANGE("staff.self_change", HttpStatus.CONFLICT),
     /** Unknown, expired, used or revoked; deliberately not distinguished. */
     INVITE_INVALID("invite.invalid", HttpStatus.NOT_FOUND),
     /** {0} is the invited phone or email, partly hidden. */
     INVITE_WRONG_ACCOUNT("invite.wrong_account", HttpStatus.FORBIDDEN),
-    /** No sender for this channel yet (no SMS gateway). */
+    /** No sender for this channel (no SMS gateway yet, or no email provider configured). */
     INVITE_CHANNEL_UNAVAILABLE("invite.channel_unavailable", HttpStatus.BAD_REQUEST),
 
     // Errors raised by the framework before a controller runs.

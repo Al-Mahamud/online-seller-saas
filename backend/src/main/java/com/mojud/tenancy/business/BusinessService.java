@@ -1,5 +1,6 @@
 package com.mojud.tenancy.business;
 
+import com.mojud.shared.db.AdvisoryLocks;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.id.Ids;
@@ -10,7 +11,6 @@ import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.membership.Membership;
 import com.mojud.tenancy.membership.MembershipRepository;
 import com.mojud.tenancy.system.MembershipDirectory;
-import jakarta.persistence.EntityManager;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -33,20 +33,20 @@ class BusinessService {
     private final MembershipRepository memberships;
     private final MembershipDirectory directory;
     private final TransactionTemplate transactions;
-    private final EntityManager entityManager;
+    private final AdvisoryLocks locks;
     private final Clock clock;
     private final int maxOwnedBusinesses;
 
     BusinessService(BusinessRepository businesses, BusinessSettingsRepository settings,
             MembershipRepository memberships, MembershipDirectory directory, TransactionTemplate transactions,
-            EntityManager entityManager, Clock clock,
+            AdvisoryLocks locks, Clock clock,
             @Value("${mojud.tenancy.max-owned-businesses}") int maxOwnedBusinesses) {
         this.businesses = businesses;
         this.settings = settings;
         this.memberships = memberships;
         this.directory = directory;
         this.transactions = transactions;
-        this.entityManager = entityManager;
+        this.locks = locks;
         this.clock = clock;
         this.maxOwnedBusinesses = maxOwnedBusinesses;
     }
@@ -60,9 +60,7 @@ class BusinessService {
         PhoneNumber businessPhone = PhoneNumber.fromOptionalInput(phone, "phone");
         UUID businessId = Ids.newId();
         return TenantScope.call(businessId, () -> transactions.execute(status -> {
-            entityManager.createNativeQuery("select count(*) from (select pg_advisory_xact_lock(hashtextextended(?1, 0))) l")
-                    .setParameter(1, "create-business:" + userId)
-                    .getSingleResult();
+            locks.lockForTransaction(OwnedBusinesses.lockKey(userId));
             if (directory.ownedBusinessCount(userId) >= maxOwnedBusinesses) {
                 throw new ApiException(ErrorCode.BUSINESS_LIMIT_REACHED, maxOwnedBusinesses);
             }

@@ -2,6 +2,7 @@ package com.mojud.identity;
 
 import com.mojud.identity.account.User;
 import com.mojud.identity.account.UserRepository;
+import com.mojud.identity.otp.OtpDestination;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -28,8 +29,7 @@ public class UserDirectory {
     /** The user who has verified this E.164 phone or lower-case email, if any. */
     @Transactional(readOnly = true)
     public Optional<UUID> findByVerifiedContact(String destination) {
-        return (destination.startsWith("+") ? users.findByVerifiedPhone(destination) : users.findByVerifiedEmail(destination))
-                .map(User::getId);
+        return users.findVerified(OtpDestination.ofStored(destination)).map(User::getId);
     }
 
     /** True when this user has verified this E.164 phone or lower-case email. */

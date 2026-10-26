@@ -2,6 +2,7 @@ package com.mojud.identity.auth;
 
 import com.mojud.identity.account.User;
 import com.mojud.identity.account.UserRepository;
+import com.mojud.identity.otp.OtpDestination;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -30,7 +31,7 @@ class AccountUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String login) {
-        Optional<User> user = login.startsWith("+") ? users.findByVerifiedPhone(login) : users.findByVerifiedEmail(login);
+        Optional<User> user = users.findVerified(OtpDestination.ofStored(login));
         return user.map(found -> new Account(found.getId(), found.getPasswordHash()))
                 .orElseThrow(() -> new UsernameNotFoundException("No account"));
     }

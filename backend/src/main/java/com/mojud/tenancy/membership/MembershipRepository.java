@@ -1,10 +1,12 @@
 package com.mojud.tenancy.membership;
 
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
@@ -13,7 +15,12 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
 
     Optional<Membership> findByUserId(UUID userId);
 
-    List<Membership> findAllByStatusOrderByCreatedAt(MembershipStatus status);
+    List<Membership> findAllByStatusOrderByJoinedAt(MembershipStatus status);
+
+    /** Locked until the transaction ends, so two changes to one member happen one after the other. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from Membership m where m.userId = :userId")
+    Optional<Membership> findByUserIdForUpdate(UUID userId);
 
     /** The user's membership, if it is active and the business is active (not suspended). */
     @Query("""

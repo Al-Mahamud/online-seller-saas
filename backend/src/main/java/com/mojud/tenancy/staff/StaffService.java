@@ -2,18 +2,22 @@ package com.mojud.tenancy.staff;
 
 import com.mojud.identity.PasswordConfirmation;
 import com.mojud.identity.UserDirectory;
+import com.mojud.shared.db.AdvisoryLocks;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
+import com.mojud.tenancy.business.OwnedBusinesses;
 import com.mojud.tenancy.membership.Membership;
 import com.mojud.tenancy.membership.MembershipRepository;
 import com.mojud.tenancy.membership.MembershipStatus;
+import com.mojud.tenancy.system.MembershipDirectory;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -36,10 +40,20 @@ class StaffService {
     private final UserDirectory users;
     private final PasswordConfirmation passwordConfirmation;
     private final TransactionTemplate transactions;
+    private final InviteRepository invites;
+    private final MembershipDirectory directory;
+    private final AdvisoryLocks locks;
     private final Clock clock;
+    private final int maxOwnedBusinesses;
 
     StaffService(MembershipRepository memberships, UserDirectory users, PasswordConfirmation passwordConfirmation,
-            TransactionTemplate transactions, Clock clock) {
+            TransactionTemplate transactions, InviteRepository invites, MembershipDirectory directory,
+            AdvisoryLocks locks, Clock clock,
+            @Value("${mojud.tenancy.max-owned-businesses}") int maxOwnedBusinesses) {
+        this.invites = invites;
+        this.directory = directory;
+        this.locks = locks;
+        this.maxOwnedBusinesses = maxOwnedBusinesses;
         this.memberships = memberships;
         this.users = users;
         this.passwordConfirmation = passwordConfirmation;
@@ -50,38 +64,52 @@ class StaffService {
     @Transactional(readOnly = true)
     List<StaffMember> list() {
         UUID me = CurrentBusiness.require().userId();
-        List<Membership> active = memberships.findAllByStatusOrderByCreatedAt(MembershipStatus.ACTIVE);
+        List<Membership> active = memberships.findAllByStatusOrderByJoinedAt(MembershipStatus.ACTIVE);
         Map<UUID, UserDirectory.UserSummary> people = users.summaries(active.stream().map(Membership::getUserId).toList());
         return active.stream().map(member -> {
             UserDirectory.UserSummary person = people.get(member.getUserId());
             return new StaffMember(member.getUserId(), person.name(), person.phone(), person.email(), member.getRole(),
-                    member.getCreatedAt(), member.getUserId().equals(me));
+                    member.getJoinedAt(), member.getUserId().equals(me));
         }).toList();
     }
 
+    /** Demoting to STAFF also withdraws the member's unanswered invites: staff cannot invite. */
     @Transactional
     void changeRole(UUID userId, BusinessRole role) {
         if (role == BusinessRole.OWNER) {
             throw ApiException.invalidField("role", "field.invalid_value");
         }
         otherMember(userId).changeRole(role, clock.instant());
+        if (role == BusinessRole.STAFF) {
+            invites.revokeAllSentBy(userId, clock.instant());
+        }
     }
 
+    /** Also withdraws the member's unanswered invites, so nobody can rejoin through them. */
     @Transactional
     void remove(UUID userId) {
         otherMember(userId).remove(clock.instant());
+        invites.revokeAllSentBy(userId, clock.instant());
     }
 
     /**
      * Hands the business to another member, who becomes OWNER; the current owner becomes MANAGER.
-     * Needs the owner's password.
+     * Needs the owner's password. The caller's membership is locked and checked again inside the
+     * transaction, so a repeated or parallel transfer finds they are no longer the owner. The new
+     * owner's businesses are counted under the same lock as creating one, so the owner limit holds.
      */
     void transferOwnership(UUID newOwnerId, String password, String clientIp) {
         CurrentBusiness current = CurrentBusiness.require();
         passwordConfirmation.confirm(current.userId(), password, clientIp);
         transactions.executeWithoutResult(status -> {
+            Membership oldOwner = memberships.findByUserIdForUpdate(current.userId())
+                    .filter(member -> member.isActive() && member.getRole() == BusinessRole.OWNER)
+                    .orElseThrow(() -> new ApiException(ErrorCode.FORBIDDEN));
             Membership newOwner = otherMember(newOwnerId);
-            Membership oldOwner = memberships.findByUserId(current.userId()).orElseThrow(ApiException::notFound);
+            locks.lockForTransaction(OwnedBusinesses.lockKey(newOwnerId));
+            if (directory.ownedBusinessCount(newOwnerId) >= maxOwnedBusinesses) {
+                throw new ApiException(ErrorCode.STAFF_OWNER_LIMIT, maxOwnedBusinesses);
+            }
             Instant now = clock.instant();
             // Demote first: the database allows one active owner per business at any moment.
             oldOwner.changeRole(BusinessRole.MANAGER, now);

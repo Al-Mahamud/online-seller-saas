@@ -10,6 +10,11 @@ public record OtpDestination(OtpChannel channel, String value) {
         return new OtpDestination(OtpChannel.PHONE, phone.e164());
     }
 
+    /** From the stored form: an E.164 phone starts with {@code +}, anything else is an email. */
+    public static OtpDestination ofStored(String value) {
+        return new OtpDestination(value.startsWith("+") ? OtpChannel.PHONE : OtpChannel.EMAIL, value);
+    }
+
     public static OtpDestination email(EmailAddress email) {
         return new OtpDestination(OtpChannel.EMAIL, email.value());
     }
