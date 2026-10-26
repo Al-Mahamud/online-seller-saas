@@ -27,6 +27,11 @@ spring:
     fallback-to-system-locale: false
   jackson:
     time-zone: UTC
+  servlet:
+    multipart:
+      # Images up to 8 MB (phone photos); ImageProcessor reads them subsampled.
+      max-file-size: 8MB
+      max-request-size: 9MB
   session:
     # Idle timeout: a signed-in user stays signed in for a week of inactivity.
     timeout: 7d
@@ -77,6 +82,12 @@ mojud:
       ttl: 7d
       # Each invite is a message we pay for (SMS) or that could be spam.
       per-business: { max: 30, window: 1d }
+  storage:
+    # Local disk until the S3/R2 adapter (Phase 13b).
+    local-root: ${STORAGE_ROOT:storage}
+  files:
+    # Each upload is stored twice; this keeps one business from filling the disk.
+    uploads-per-business: { max: 300, window: 1d }
   web:
     # Where the web app lives; invite links point here.
     base-url: ${WEB_BASE_URL:http://localhost:5173}
@@ -90,6 +101,10 @@ server:
   error:
     include-stacktrace: never
     include-message: never
+  tomcat:
+    # Read (and discard) a too-large upload up to this size, so the client receives the 413
+    # file.too_large answer instead of a dropped connection.
+    max-swallow-size: 20MB
   servlet:
     session:
       cookie:

@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,18 +37,25 @@ class ProductController {
     static final long MAX_POISHA = 1_000_000_000_000L;
 
     private final ProductService products;
+    private final ProductImageService images;
 
-    ProductController(ProductService products) {
+    ProductController(ProductService products, ProductImageService images) {
         this.products = products;
+        this.images = images;
     }
 
-    /** Newest first. A top-level {@code categoryId} also finds products in its subcategories. */
+    /**
+     * Newest first, page by page. With {@code q}: the best 50 matches by name (also with small
+     * typos) or SKU, on one page. A top-level {@code categoryId} also finds products in its
+     * subcategories.
+     */
     @GetMapping
     @RequiresRole(BusinessRole.STAFF)
     CursorPage<ProductViews.Summary> list(@RequestParam(defaultValue = "ACTIVE") ProductStatus status,
             @RequestParam(required = false) UUID categoryId, @RequestParam(required = false) UUID tagId,
+            @RequestParam(required = false) @Size(max = 100) String q,
             @RequestParam(required = false) String cursor, @RequestParam(required = false) Integer limit) {
-        return products.list(status, categoryId, tagId, cursor, limit);
+        return products.list(status, categoryId, tagId, q, cursor, limit);
     }
 
     @GetMapping("/{id}")
@@ -123,6 +131,39 @@ class ProductController {
     @PutMapping("/{id}/options")
     ProductViews.Detail replaceOptions(@PathVariable UUID id, @Valid @RequestBody OptionsRequest body) {
         return products.replaceOptions(id, inputs(body.options()), body.price(), body.costPrice(), body.version());
+    }
+
+    /** An uploaded file ({@code POST /uploads}), for the whole product or one variant. Up to 8. */
+    record ImageRequest(@NotNull UUID fileId, UUID variantId) {
+    }
+
+    @PostMapping("/{id}/images")
+    ProductViews.Detail addImage(@PathVariable UUID id, @Valid @RequestBody ImageRequest body) {
+        return images.add(id, body.fileId(), body.variantId());
+    }
+
+    /** {@code variantId} null shows the image for the whole product. */
+    record ImageVariantRequest(UUID variantId) {
+    }
+
+    @PatchMapping("/{id}/images/{imageId}")
+    ProductViews.Detail showImageFor(@PathVariable UUID id, @PathVariable UUID imageId,
+            @RequestBody ImageVariantRequest body) {
+        return images.showFor(id, imageId, body.variantId());
+    }
+
+    record ImageOrderRequest(@NotNull @Size(max = 8) List<@NotNull UUID> ids) {
+    }
+
+    @PutMapping("/{id}/images/order")
+    ProductViews.Detail reorderImages(@PathVariable UUID id, @Valid @RequestBody ImageOrderRequest body) {
+        return images.reorder(id, body.ids());
+    }
+
+    /** The uploaded file itself is kept. */
+    @DeleteMapping("/{id}/images/{imageId}")
+    ProductViews.Detail removeImage(@PathVariable UUID id, @PathVariable UUID imageId) {
+        return images.remove(id, imageId);
     }
 
     private static List<ProductService.OptionInput> inputs(List<OptionRequest> options) {

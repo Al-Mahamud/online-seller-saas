@@ -18,9 +18,11 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -90,6 +92,23 @@ class BusinessController {
     @RequiresRole(BusinessRole.MANAGER)
     BusinessResponse update(@Valid @RequestBody UpdateRequest body) {
         return businesses.update(body.name(), body.phone(), body.address());
+    }
+
+    record LogoRequest(@NotNull UUID fileId) {
+    }
+
+    /** An uploaded file ({@code POST /uploads}) becomes the logo. */
+    @PutMapping("/api/v1/business/logo")
+    @RequiresRole(BusinessRole.MANAGER)
+    BusinessResponse changeLogo(@Valid @RequestBody LogoRequest body) {
+        return businesses.changeLogo(body.fileId());
+    }
+
+    /** The uploaded file itself is kept. */
+    @DeleteMapping("/api/v1/business/logo")
+    @RequiresRole(BusinessRole.MANAGER)
+    BusinessResponse removeLogo() {
+        return businesses.changeLogo(null);
     }
 
     @GetMapping("/api/v1/business/settings")

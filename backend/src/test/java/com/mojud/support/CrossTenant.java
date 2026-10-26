@@ -28,14 +28,15 @@ public final class CrossTenant {
             String name, String phone, String orderPrefix, ApiClient staff, TestAccounts.Account staffAccount,
             UUID staffId, UUID membershipIdOfStaff, UUID inviteId, String invitedEmail, String inviteToken,
             UUID categoryId, String categoryName, UUID subcategoryId, String subcategoryName, UUID tagId, String tagName,
-            UUID productId, String productName, UUID variantId, String sku) {
+            UUID productId, String productName, UUID variantId, String sku, UUID fileId, UUID productImageId) {
 
         /** Values that must never appear in another business's answers. */
         public Set<String> markers() {
             return Set.of(businessId.toString(), name, phone, orderPrefix, ownerId.toString(), staffId.toString(),
                     ownerAccount.email(), staffAccount.email(), inviteId.toString(), invitedEmail,
                     categoryId.toString(), categoryName, subcategoryId.toString(), subcategoryName,
-                    tagId.toString(), tagName, productId.toString(), productName, variantId.toString(), sku);
+                    tagId.toString(), tagName, productId.toString(), productName, variantId.toString(), sku,
+                    fileId.toString(), productImageId.toString());
         }
     }
 
@@ -77,11 +78,16 @@ public final class CrossTenant {
         // A second product with options, so option rows exist too.
         owner.post("/api/v1/products", Map.of("name", "Gridded " + marker, "price", 50000,
                 "options", List.of(Map.of("name", "Size", "values", List.of("S", "M"))))).expectStatus(201);
+        UUID fileId = UUID.fromString(owner.upload("/api/v1/uploads", "photo.jpg", TestImages.jpeg(400, 400))
+                .expectStatus(201).json("$.id"));
+        UUID productImageId = UUID.fromString(owner.post("/api/v1/products/" + product.json("$.id") + "/images",
+                Map.of("fileId", fileId.toString())).expectStatus(200).json("$.images[0].id"));
+        owner.put("/api/v1/business/logo", Map.of("fileId", fileId.toString())).expectStatus(200);
         return new Tenant(owner, ownerAccount, TestBusinesses.userId(owner), businessId, name, phone, prefix, staff,
                 staffAccount, staffId, membershipIds.of(businessId, staffId), inviteId, invitedEmail,
                 lastInviteToken(messages, invitedEmail), categoryId, categoryName, subcategoryId, subcategoryName,
                 tagId, tagName, UUID.fromString(product.json("$.id")), productName,
-                UUID.fromString(product.json("$.variants[0].id")), sku);
+                UUID.fromString(product.json("$.variants[0].id")), sku, fileId, productImageId);
     }
 
     /** Looks up a membership id; tests pass a query through the system role. */

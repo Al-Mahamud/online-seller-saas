@@ -1,6 +1,7 @@
 package com.mojud.catalog.product;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.mojud.shared.files.FileLinks;
 import com.mojud.shared.money.Money;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -54,12 +55,21 @@ final class ProductViews {
         }
     }
 
-    record Detail(UUID id, String name, String description, UUID categoryId, ProductStatus status, List<Tag> tags,
-            List<Option> options, List<Variant> variants, Instant createdAt, long version) {
+    /** {@code variantId} null: shown for the whole product. */
+    record Image(UUID id, UUID fileId, UUID variantId, String large, String small) {
+
+        static Image of(ProductImage image) {
+            FileLinks.Links links = FileLinks.of(image.getFileId());
+            return new Image(image.getId(), image.getFileId(), image.getVariantId(), links.large(), links.small());
+        }
     }
 
-    /** One row of the product list: prices of the active variants only. */
+    record Detail(UUID id, String name, String description, UUID categoryId, ProductStatus status, List<Tag> tags,
+            List<Image> images, List<Option> options, List<Variant> variants, Instant createdAt, long version) {
+    }
+
+    /** One row of the product list: prices of the active variants only; the first image's small copy. */
     record Summary(UUID id, String name, UUID categoryId, ProductStatus status, List<Tag> tags, int activeVariants,
-            Money minPrice, Money maxPrice, Instant createdAt) {
+            Money minPrice, Money maxPrice, String thumbnail, Instant createdAt) {
     }
 }

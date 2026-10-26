@@ -12,6 +12,7 @@ import com.mojud.support.CrossTenant;
 import com.mojud.support.CrossTenant.Tenant;
 import com.mojud.support.IntegrationTest;
 import com.mojud.support.TestAccounts;
+import com.mojud.support.TestImages;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -132,6 +133,8 @@ class CrossTenantTests {
             expectNoLeak(b.owner().get("/api/v1/products"), a);
             expectNoLeak(b.owner().get("/api/v1/products?categoryId=" + a.subcategoryId()), a);
             expectNoLeak(b.owner().get("/api/v1/products?tagId=" + a.tagId()), a);
+            expectNoLeak(b.owner().get("/api/v1/products?q=" + a.productName().replace(' ', '+')), a);
+            expectNoLeak(b.owner().get("/api/v1/products?q=" + a.sku()), a);
         });
         CASES.put("GET /api/v1/products/{id}", (a, b) -> expectNotFound(b.owner().get("/api/v1/products/" + a.productId())));
         CASES.put("POST /api/v1/products", (a, b) -> {
@@ -159,6 +162,38 @@ class CrossTenantTests {
                 b.owner().post("/api/v1/variants/" + a.variantId() + "/archive", null)));
         CASES.put("POST /api/v1/variants/{id}/restore", (a, b) -> expectNotFound(
                 b.owner().post("/api/v1/variants/" + a.variantId() + "/restore", null)));
+
+        // Files, product images and the logo.
+        CASES.put("POST /api/v1/uploads", (a, b) -> expectNoLeak(
+                b.owner().upload("/api/v1/uploads", "x.png", TestImages.png(300, 300)), a));
+        CASES.put("GET /api/v1/files/{id}/{size}", (a, b) -> {
+            org.assertj.core.api.Assertions.assertThat(
+                    b.owner().download("/api/v1/files/" + a.fileId() + "/large").statusCode()).isEqualTo(404);
+            org.assertj.core.api.Assertions.assertThat(
+                    b.owner().download("/api/v1/files/" + a.fileId() + "/small").statusCode()).isEqualTo(404);
+        });
+        CASES.put("POST /api/v1/products/{id}/images", (a, b) -> {
+            expectNotFound(b.owner().post("/api/v1/products/" + a.productId() + "/images", Map.of("fileId", b.fileId().toString())));
+            expectNotFound(b.owner().post("/api/v1/products/" + b.productId() + "/images", Map.of("fileId", a.fileId().toString())));
+            expectNotFound(b.owner().post("/api/v1/products/" + b.productId() + "/images",
+                    Map.of("fileId", b.fileId().toString(), "variantId", a.variantId().toString())));
+        });
+        CASES.put("PATCH /api/v1/products/{id}/images/{imageId}", (a, b) -> {
+            expectNotFound(b.owner().patch("/api/v1/products/" + a.productId() + "/images/" + a.productImageId(), Map.of()));
+            expectNotFound(b.owner().patch("/api/v1/products/" + b.productId() + "/images/" + a.productImageId(), Map.of()));
+        });
+        CASES.put("PUT /api/v1/products/{id}/images/order", (a, b) -> expectNotFound(
+                b.owner().put("/api/v1/products/" + a.productId() + "/images/order", Map.of("ids", List.of(a.productImageId().toString())))));
+        CASES.put("DELETE /api/v1/products/{id}/images/{imageId}", (a, b) -> {
+            expectNotFound(b.owner().delete("/api/v1/products/" + a.productId() + "/images/" + a.productImageId()));
+            expectNotFound(b.owner().delete("/api/v1/products/" + b.productId() + "/images/" + a.productImageId()));
+        });
+        CASES.put("PUT /api/v1/business/logo", (a, b) -> expectNotFound(
+                b.owner().put("/api/v1/business/logo", Map.of("fileId", a.fileId().toString()))));
+        CASES.put("DELETE /api/v1/business/logo", (a, b) -> {
+            expectNoLeak(b.owner().delete("/api/v1/business/logo"), a);
+            b.owner().put("/api/v1/business/logo", Map.of("fileId", b.fileId().toString())).expectStatus(200);
+        });
 
         // Test sources only.
         CASES.put("GET /dev/otp", notBusinessData("exists only in test sources and local runs"));
@@ -223,6 +258,9 @@ class CrossTenantTests {
         assertThat(product.<String>json("$.categoryId")).isEqualTo(a.subcategoryId().toString());
         assertThat(product.<Integer>json("$.variants[0].price")).isEqualTo(120000);
         assertThat(product.<String>json("$.variants[0].status")).isEqualTo("ACTIVE");
+        assertThat(product.<List<String>>json("$.images[*].id")).containsExactly(a.productImageId().toString());
+        assertThat(a.owner().get("/api/v1/business").<String>json("$.logo.small")).contains(a.fileId().toString());
+        assertThat(a.owner().download("/api/v1/files/" + a.fileId() + "/large").statusCode()).isEqualTo(200);
     }
 
     private UUID membershipId(UUID businessId, UUID userId) {

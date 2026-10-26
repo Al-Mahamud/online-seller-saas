@@ -6,6 +6,7 @@ import com.mojud.shared.db.AdvisoryLocks;
 import com.mojud.shared.db.Constraints;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
+import com.mojud.shared.files.FileLinks;
 import com.mojud.shared.money.Money;
 import com.mojud.shared.paging.Cursor;
 import com.mojud.shared.paging.CursorPage;
@@ -51,6 +52,7 @@ class ProductService {
     static final int MAX_NAME = 200;
     static final int MAX_OPTION_TEXT = 30;
     static final int MAX_TAGS = 20;
+    static final int SEARCH_RESULTS = 50;
 
     private static final Instant END_OF_TIME = Instant.parse("9999-12-31T00:00:00Z");
     private static final UUID LAST_ID = new UUID(-1L, -1L);
@@ -85,18 +87,20 @@ class ProductService {
     private final ProductOptionRepository options;
     private final ProductVariantRepository variants;
     private final ProductTagRepository productTags;
+    private final ProductImageRepository images;
     private final TransactionTemplate transactions;
     private final AdvisoryLocks locks;
     private final AuditTrail audit;
     private final Clock clock;
 
     ProductService(ProductRepository products, ProductOptionRepository options, ProductVariantRepository variants,
-            ProductTagRepository productTags, TransactionTemplate transactions, AdvisoryLocks locks, AuditTrail audit,
-            Clock clock) {
+            ProductTagRepository productTags, ProductImageRepository images, TransactionTemplate transactions,
+            AdvisoryLocks locks, AuditTrail audit, Clock clock) {
         this.products = products;
         this.options = options;
         this.variants = variants;
         this.productTags = productTags;
+        this.images = images;
         this.transactions = transactions;
         this.locks = locks;
         this.audit = audit;
@@ -105,9 +109,20 @@ class ProductService {
 
     // Reading.
 
+    /**
+     * Newest first, page by page; or, with {@code q}, the best {@value #SEARCH_RESULTS} matches by
+     * name or SKU (no further pages).
+     */
     @Transactional(readOnly = true)
-    CursorPage<ProductViews.Summary> list(ProductStatus status, UUID categoryId, UUID tagId, String cursor,
+    CursorPage<ProductViews.Summary> list(ProductStatus status, UUID categoryId, UUID tagId, String q, String cursor,
             Integer limit) {
+        if (q != null && !q.isBlank()) {
+            String query = Text.cleanName(q, "q", 100);
+            // A LIKE pattern for "contains", with LIKE's own characters (backslash, %, _) escaped.
+            String pattern = "%" + query.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+            return new CursorPage<>(summaries(products.search(CurrentBusiness.require().businessId(), status.name(),
+                    categoryId, tagId, query, pattern, SEARCH_RESULTS)), null);
+        }
         int pageSize = CursorPage.limit(limit);
         Cursor after = Cursor.decode(cursor);
         // The first page starts after everything: no null parameter, whose type PostgreSQL cannot tell.
@@ -115,20 +130,26 @@ class ProductService {
                 after == null ? END_OF_TIME : after.sortKeyAsInstant(), after == null ? LAST_ID : after.id(),
                 Limit.of(pageSize + 1));
         CursorPage<Product> paged = CursorPage.of(page, pageSize, p -> new Cursor(p.getCreatedAt().toString(), p.getId()));
-        List<UUID> ids = paged.items().stream().map(Product::getId).toList();
+        return new CursorPage<>(summaries(paged.items()), paged.nextCursor());
+    }
+
+    private List<ProductViews.Summary> summaries(List<Product> page) {
+        List<UUID> ids = page.stream().map(Product::getId).toList();
+        Map<UUID, ProductImage> firstImage = new HashMap<>();
+        images.findByProductIdInOrderByPosition(ids).forEach(image -> firstImage.putIfAbsent(image.getProductId(), image));
         Map<UUID, List<ProductVariant>> variantsByProduct = variants.findByProductIdInOrderByPosition(ids).stream()
                 .collect(Collectors.groupingBy(ProductVariant::getProductId));
         Map<UUID, List<ProductViews.Tag>> tags = tagsOf(ids);
-        List<ProductViews.Summary> items = paged.items().stream().map(product -> {
+        return page.stream().map(product -> {
             List<ProductVariant> active = variantsByProduct.getOrDefault(product.getId(), List.of()).stream()
                     .filter(ProductVariant::isActive).toList();
             Money min = active.stream().map(v -> Money.ofPoisha(v.getPrice())).min(Comparator.naturalOrder()).orElse(null);
             Money max = active.stream().map(v -> Money.ofPoisha(v.getPrice())).max(Comparator.naturalOrder()).orElse(null);
+            ProductImage image = firstImage.get(product.getId());
             return new ProductViews.Summary(product.getId(), product.getName(), product.getCategoryId(),
                     product.getStatus(), tags.getOrDefault(product.getId(), List.of()), active.size(), min, max,
-                    product.getCreatedAt());
+                    image == null ? null : FileLinks.of(image.getFileId()).small(), product.getCreatedAt());
         }).toList();
-        return new CursorPage<>(items, paged.nextCursor());
     }
 
     @Transactional(readOnly = true)
@@ -483,9 +504,11 @@ class ProductService {
         List<String> optionOrder = optionViews.stream().map(ProductViews.Option::name).toList();
         List<ProductViews.Variant> variantViews = variants.findByProductIdOrderByPosition(product.getId()).stream()
                 .map(variant -> ProductViews.Variant.of(variant, showCost, optionOrder)).toList();
+        List<ProductViews.Image> imageViews = images.findByProductIdOrderByPosition(product.getId()).stream()
+                .map(ProductViews.Image::of).toList();
         return new ProductViews.Detail(product.getId(), product.getName(), product.getDescription(),
                 product.getCategoryId(), product.getStatus(), tagsOf(List.of(product.getId())).getOrDefault(product.getId(), List.of()),
-                optionViews, variantViews, product.getCreatedAt(), product.getVersion() == null ? 0 : product.getVersion());
+                imageViews, optionViews, variantViews, product.getCreatedAt(), product.getVersion() == null ? 0 : product.getVersion());
     }
 
     private Map<UUID, List<ProductViews.Tag>> tagsOf(List<UUID> productIds) {

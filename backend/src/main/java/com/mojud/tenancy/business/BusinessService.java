@@ -3,6 +3,7 @@ package com.mojud.tenancy.business;
 import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.audit.Changes;
 import com.mojud.shared.db.AdvisoryLocks;
+import com.mojud.shared.db.Constraints;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.id.Ids;
@@ -16,6 +17,7 @@ import com.mojud.tenancy.system.MembershipDirectory;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -130,6 +132,25 @@ class BusinessService {
                     "changes", changes.asMap());
         }
         return after;
+    }
+
+    /**
+     * Shows an uploaded file ({@code POST /uploads}) as the business's logo, or none when
+     * {@code fileId} is null. Another business's file looks like one that does not exist.
+     */
+    BusinessResponse changeLogo(UUID fileId) {
+        CurrentBusiness current = CurrentBusiness.require();
+        return Constraints.translating(transactions, Map.of("fk_businesses_logo", ErrorCode.NOT_FOUND), () -> {
+            Business business = load(current.businessId());
+            UUID before = business.getLogoFileId();
+            business.changeLogo(fileId, clock.instant());
+            businesses.saveAndFlush(business);
+            if (!java.util.Objects.equals(before, fileId)) {
+                audit.record(current.businessId(), current.userId(), "business.updated", "business",
+                        current.businessId(), "changes", new Changes().field("logo", before, fileId).asMap());
+            }
+            return BusinessResponse.of(business, current.role());
+        });
     }
 
     @Transactional(readOnly = true)

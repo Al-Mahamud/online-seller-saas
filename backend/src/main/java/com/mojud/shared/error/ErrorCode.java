@@ -72,6 +72,15 @@ public enum ErrorCode {
     /** A product keeps at least one active variant; archive the product instead. */
     VARIANT_LAST_ACTIVE("variant.last_active", HttpStatus.CONFLICT),
 
+    // Files.
+    /** Recognised by content, not by name: anything that is not a readable JPEG, PNG or WebP. */
+    UNSUPPORTED_FILE("file.unsupported", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
+    FILE_TOO_LARGE("file.too_large", HttpStatus.CONTENT_TOO_LARGE),
+    /** {0} is the minimum side in pixels. */
+    IMAGE_TOO_SMALL("file.image_too_small", HttpStatus.BAD_REQUEST),
+    /** A product has at most 8 images. */
+    PRODUCT_IMAGE_LIMIT("product.image_limit", HttpStatus.CONFLICT),
+
     // Errors raised by the framework before a controller runs.
     MALFORMED_REQUEST("request.malformed", HttpStatus.BAD_REQUEST),
     ROUTE_NOT_FOUND("route.not_found", HttpStatus.NOT_FOUND),

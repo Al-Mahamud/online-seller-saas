@@ -19,7 +19,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 0 Foundation | 0a skeleton · 0b database and tenant plumbing | 3 | Done |
 | 1 Identity | 1a sign-up and login · 1b account management | 4 | Done |
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Done |
-| 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | 3a done · 3b in review |
+| 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | 3a, 3b done · 3c in review |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Not started |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Not started |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Not started |
@@ -181,6 +181,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Search: `pg_trgm` index on product name and SKU; `GET /products?q=&category=&tag=&status=`.
 
 **Checked by:** a PNG renamed `.jpg` is accepted as PNG and an `.exe` renamed `.jpg` is rejected; search finds "kurti" from "kurt" and finds Bangla names.
+
+**As built:** uploads are plain multipart posts to `POST /uploads` (up to 8 MB), processed in the request (no job needed for one image), rather than presigned uploads: simpler, and the server sees the bytes to check them. Images are stored as JPEG (PNG when transparent) at 800 px and 200 px: the JDK cannot write WebP, but WebP uploads are read (TwelveMonkeys). Storage is local disk; the S3/R2 adapter moves to 13b, when there is a bucket to test against. Files are served by the API to members of the owning business only (`GET /files/{id}/large|small`). Search with `q` returns the best 50 matches (substring of name or SKU, or name trigram word similarity ≥ 0.4 for typos); typo tolerance works for Latin text, Bangla matches by substring. Uploads that are never used are kept for now; a clean-up job can come later.
 
 ---
 

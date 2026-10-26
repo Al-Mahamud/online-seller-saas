@@ -12,6 +12,9 @@ springdoc:
     enabled: true
 
 mojud:
+  storage:
+    # A fresh folder per test run.
+    local-root: ${java.io.tmpdir}/mojud-test-storage/${random.uuid}
   async:
     # Messages are sent inline (still after commit), so a test can read a code right away.
     background: false

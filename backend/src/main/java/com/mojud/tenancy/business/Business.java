@@ -29,6 +29,8 @@ class Business {
 
     private String address;
 
+    private UUID logoFileId;
+
     @Enumerated(EnumType.STRING)
     private BusinessStatus status;
 
@@ -64,6 +66,15 @@ class Business {
 
     boolean isActive() {
         return status == BusinessStatus.ACTIVE;
+    }
+
+    void changeLogo(UUID fileId, Instant now) {
+        logoFileId = fileId;
+        updatedAt = now;
+    }
+
+    UUID getLogoFileId() {
+        return logoFileId;
     }
 
     UUID getId() {
