@@ -1,9 +1,11 @@
 package com.mojud.catalog.category;
 
+import com.mojud.shared.db.AdvisoryLocks;
 import com.mojud.shared.db.Constraints;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.text.Text;
+import com.mojud.tenancy.CurrentBusiness;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -14,7 +16,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -22,22 +23,33 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Categories of the selected business (implementation-plan.md 3a): two levels, names unique among
  * siblings (the unique index decides), ordered by position within each group.
+ *
+ * <p>Every change to the tree's shape (create, move, reorder, delete) takes the business's category
+ * lock first, so the depth checks and positions always see the previous change: two moves at once
+ * cannot build a loop or a third level. Category edits are rare, so the waiting is never felt.
  */
 @Service
 class CategoryService {
 
     static final int MAX_NAME = 80;
 
+    private static final Map<String, ErrorCode> CONSTRAINT_ERRORS = Map.of(
+            "uq_categories_sibling_name", ErrorCode.CATEGORY_NAME_TAKEN,
+            // A subcategory added despite the lock (or by future code that forgets it).
+            "fk_categories_parent", ErrorCode.CATEGORY_NOT_EMPTY);
+
     record CategoryNode(UUID id, String name, int position, List<CategoryNode> children) {
     }
 
     private final CategoryRepository categories;
     private final TransactionTemplate transactions;
+    private final AdvisoryLocks locks;
     private final Clock clock;
 
-    CategoryService(CategoryRepository categories, TransactionTemplate transactions, Clock clock) {
+    CategoryService(CategoryRepository categories, TransactionTemplate transactions, AdvisoryLocks locks, Clock clock) {
         this.categories = categories;
         this.transactions = transactions;
+        this.locks = locks;
         this.clock = clock;
     }
 
@@ -48,8 +60,7 @@ class CategoryService {
         Map<UUID, List<CategoryNode>> children = new LinkedHashMap<>();
         for (Category category : all) {
             if (!category.isTopLevel()) {
-                children.computeIfAbsent(category.getParentId(), parent -> new ArrayList<>())
-                        .add(new CategoryNode(category.getId(), category.getName(), category.getPosition(), List.of()));
+                children.computeIfAbsent(category.getParentId(), parent -> new ArrayList<>()).add(node(category));
             }
         }
         return all.stream().filter(Category::isTopLevel)
@@ -61,19 +72,19 @@ class CategoryService {
     /** Added at the end of its group. */
     CategoryNode create(String name, UUID parentId) {
         String cleaned = Text.cleanName(name, "name", MAX_NAME);
-        return saving(() -> {
+        return changingTree(() -> {
             if (parentId != null) {
                 requireTopLevel(find(parentId));
             }
-            Category category = categories.saveAndFlush(
-                    new Category(parentId, cleaned, nextPosition(parentId), clock.instant()));
-            return node(category);
+            return node(categories.saveAndFlush(
+                    new Category(parentId, cleaned, categories.nextPosition(parentId), clock.instant())));
         });
     }
 
+    /** Renaming leaves the tree's shape alone, so it takes no lock; the unique index decides clashes. */
     CategoryNode rename(UUID id, String name) {
         String cleaned = Text.cleanName(name, "name", MAX_NAME);
-        return saving(() -> {
+        return Constraints.translating(transactions, CONSTRAINT_ERRORS, () -> {
             Category category = find(id);
             category.rename(cleaned, clock.instant());
             return node(categories.saveAndFlush(category));
@@ -81,12 +92,16 @@ class CategoryService {
     }
 
     /**
-     * Moves a category to another group, at its end: under a top-level category, or to the top
-     * level when {@code parentId} is null. A category with subcategories stays top-level.
+     * Moves a category to the end of another group: under a top-level category, or to the top
+     * level when {@code parentId} is null. Moving into the group it is already in changes nothing.
+     * A category with subcategories stays top-level.
      */
     CategoryNode move(UUID id, UUID parentId) {
-        return saving(() -> {
+        return changingTree(() -> {
             Category category = find(id);
+            if (java.util.Objects.equals(category.getParentId(), parentId)) {
+                return node(category);
+            }
             if (parentId != null) {
                 if (parentId.equals(id)) {
                     throw new ApiException(ErrorCode.CATEGORY_TOO_DEEP);
@@ -96,39 +111,54 @@ class CategoryService {
                     throw new ApiException(ErrorCode.CATEGORY_TOO_DEEP);
                 }
             }
-            category.moveTo(parentId, nextPosition(parentId), clock.instant());
+            category.moveTo(parentId, categories.nextPosition(parentId), clock.instant());
             return node(categories.saveAndFlush(category));
         });
     }
 
-    /** Puts one group in the given order; {@code ids} must list each of its categories once. */
-    @Transactional
+    /**
+     * Puts one group in the given order: the top level, or the subcategories of a top-level
+     * category. {@code ids} must list each category of the group once.
+     */
     void reorder(UUID parentId, List<UUID> ids) {
-        if (parentId != null) {
-            find(parentId);
-        }
-        List<Category> group = categories.findSiblings(parentId);
-        Set<UUID> given = new HashSet<>(ids);
-        Set<UUID> actual = new HashSet<>(group.stream().map(Category::getId).toList());
-        if (given.size() != ids.size() || !given.equals(actual)) {
-            throw ApiException.invalidField("ids", "field.order_ids");
-        }
-        Instant now = clock.instant();
-        Map<UUID, Category> byId = new LinkedHashMap<>();
-        group.forEach(category -> byId.put(category.getId(), category));
-        for (int position = 0; position < ids.size(); position++) {
-            byId.get(ids.get(position)).placeAt(position, now);
-        }
+        changingTree(() -> {
+            if (parentId != null) {
+                requireTopLevel(find(parentId));
+            }
+            List<Category> group = categories.findSiblings(parentId);
+            Set<UUID> given = new HashSet<>(ids);
+            Set<UUID> actual = new HashSet<>(group.stream().map(Category::getId).toList());
+            if (given.size() != ids.size() || !given.equals(actual)) {
+                throw ApiException.invalidField("ids", "field.order_ids");
+            }
+            Instant now = clock.instant();
+            Map<UUID, Category> byId = new LinkedHashMap<>();
+            group.forEach(category -> byId.put(category.getId(), category));
+            for (int position = 0; position < ids.size(); position++) {
+                byId.get(ids.get(position)).placeAt(position, now);
+            }
+            return null;
+        });
     }
 
     /** Only an empty category; Phase 3b adds "no products in it". */
-    @Transactional
     void delete(UUID id) {
-        Category category = find(id);
-        if (categories.existsByParentId(id)) {
-            throw new ApiException(ErrorCode.CATEGORY_NOT_EMPTY);
-        }
-        categories.delete(category);
+        changingTree(() -> {
+            Category category = find(id);
+            if (categories.existsByParentId(id)) {
+                throw new ApiException(ErrorCode.CATEGORY_NOT_EMPTY);
+            }
+            categories.delete(category);
+            categories.flush();
+            return null;
+        });
+    }
+
+    private <T> T changingTree(Supplier<T> work) {
+        return Constraints.translating(transactions, CONSTRAINT_ERRORS, () -> {
+            locks.lockForTransaction("categories:" + CurrentBusiness.require().businessId());
+            return work.get();
+        });
     }
 
     private Category find(UUID id) {
@@ -138,22 +168,6 @@ class CategoryService {
     private static void requireTopLevel(Category parent) {
         if (!parent.isTopLevel()) {
             throw new ApiException(ErrorCode.CATEGORY_TOO_DEEP);
-        }
-    }
-
-    private int nextPosition(UUID parentId) {
-        return categories.findSiblings(parentId).stream().mapToInt(Category::getPosition).max().orElse(-1) + 1;
-    }
-
-    /** Runs a write in its own transaction and turns a sibling-name clash into category.name_taken. */
-    private CategoryNode saving(Supplier<CategoryNode> work) {
-        try {
-            return transactions.execute(status -> work.get());
-        } catch (DataIntegrityViolationException e) {
-            if (Constraints.violated(e, "uq_categories_sibling_name")) {
-                throw new ApiException(ErrorCode.CATEGORY_NAME_TAKEN);
-            }
-            throw e;
         }
     }
 

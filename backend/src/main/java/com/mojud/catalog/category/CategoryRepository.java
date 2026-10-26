@@ -16,4 +16,8 @@ interface CategoryRepository extends JpaRepository<Category, UUID> {
     List<Category> findSiblings(UUID parentId);
 
     boolean existsByParentId(UUID parentId);
+
+    /** The position after the last category in one group. */
+    @Query("select coalesce(max(c.position), -1) + 1 from Category c where (:parentId is null and c.parentId is null) or c.parentId = :parentId")
+    int nextPosition(UUID parentId);
 }

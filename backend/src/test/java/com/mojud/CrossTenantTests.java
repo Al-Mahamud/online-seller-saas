@@ -108,7 +108,7 @@ class CrossTenantTests {
         CASES.put("PATCH /api/v1/categories/{id}", (a, b) -> expectNotFound(
                 b.owner().patch("/api/v1/categories/" + a.subcategoryId(), Map.of("name", "Renamed"))));
         CASES.put("POST /api/v1/categories/{id}/move", (a, b) -> {
-            expectNotFound(b.owner().post("/api/v1/categories/" + a.subcategoryId() + "/move", Map.of()));
+            expectNotFound(b.owner().post("/api/v1/categories/" + a.subcategoryId() + "/move", Map.of("topLevel", true)));
             expectNotFound(b.owner().post("/api/v1/categories/" + b.subcategoryId() + "/move",
                     Map.of("parentId", a.categoryId().toString())));
         });

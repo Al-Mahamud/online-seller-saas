@@ -2,22 +2,31 @@ package com.mojud.shared.text;
 
 import com.mojud.shared.error.ApiException;
 import java.text.Normalizer;
+import java.util.regex.Pattern;
 
 /** Checks on text people type. */
 public final class Text {
+
+    /**
+     * Any white space: ASCII, plus every Unicode space separator, including the no-break space
+     * (U+00A0) and em space (U+2003) that text pasted from phones and web pages often carries.
+     */
+    private static final Pattern SPACES = Pattern.compile("[\\s\\p{Z}]+");
+    private static final Pattern EDGE_SPACES = Pattern.compile("^[\\s\\p{Z}]+|[\\s\\p{Z}]+$");
 
     private Text() {
     }
 
     /**
-     * A short name people type, such as a category or tag: trimmed, runs of white space made one
-     * space, and Unicode-normalised (NFC), so the same Bangla word typed two ways is one name.
+     * A short name people type, such as a category or tag: Unicode-normalised (NFC), so the same
+     * Bangla word typed two ways is one name; every run of white space made one ASCII space; and
+     * trimmed.
      *
      * @throws ApiException a validation error on {@code field} when blank or longer than {@code maxLength}
      */
     public static String cleanName(String value, String field, int maxLength) {
-        String cleaned = Normalizer.normalize(requireNonBlank(value, field), Normalizer.Form.NFC)
-                .replaceAll("\\s+", " ");
+        String normalised = value == null ? "" : Normalizer.normalize(value, Normalizer.Form.NFC);
+        String cleaned = requireNonBlank(SPACES.matcher(normalised).replaceAll(" "), field);
         if (cleaned.length() > maxLength) {
             throw ApiException.invalidField(field, "field.too_long");
         }
@@ -25,13 +34,13 @@ public final class Text {
     }
 
     /**
-     * Trims {@code value} with Java's full notion of white space, which also covers spaces such as
-     * U+2003 that Bean Validation's {@code @NotBlank} lets through.
+     * Trims every kind of white space from both ends, including Unicode spaces such as U+2003 and
+     * U+00A0 that Bean Validation's {@code @NotBlank} lets through.
      *
      * @throws ApiException a "must not be blank" validation error on {@code field} when nothing is left
      */
     public static String requireNonBlank(String value, String field) {
-        String cleaned = value == null ? "" : value.strip();
+        String cleaned = value == null ? "" : EDGE_SPACES.matcher(value).replaceAll("");
         if (cleaned.isEmpty()) {
             throw ApiException.invalidField(field, "jakarta.validation.constraints.NotBlank.message");
         }

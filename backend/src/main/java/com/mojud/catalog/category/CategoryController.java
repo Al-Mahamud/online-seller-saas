@@ -1,5 +1,6 @@
 package com.mojud.catalog.category;
 
+import com.mojud.shared.error.ApiException;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
 import jakarta.validation.Valid;
@@ -56,12 +57,16 @@ class CategoryController {
         return categories.rename(id, body.name());
     }
 
-    /** {@code parentId} null moves it to the top level. */
-    record MoveRequest(UUID parentId) {
+    /** Exactly one of: {@code parentId} (under that top-level category) or {@code topLevel: true}. */
+    record MoveRequest(UUID parentId, Boolean topLevel) {
     }
 
     @PostMapping("/{id}/move")
     CategoryService.CategoryNode move(@PathVariable UUID id, @RequestBody MoveRequest body) {
+        boolean toTopLevel = Boolean.TRUE.equals(body.topLevel());
+        if (toTopLevel == (body.parentId() != null)) {
+            throw ApiException.invalidField("parentId", "field.move_target");
+        }
         return categories.move(id, body.parentId());
     }
 

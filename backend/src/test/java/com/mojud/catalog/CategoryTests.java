@@ -81,7 +81,7 @@ class CategoryTests {
 
         owner.post("/api/v1/categories/" + kurti + "/move", Map.of("parentId", men)).expectStatus(200);
         String sale = create("Sale", women);
-        owner.post("/api/v1/categories/" + sale + "/move", Map.of()).expectStatus(200);
+        owner.post("/api/v1/categories/" + sale + "/move", Map.of("topLevel", true)).expectStatus(200);
 
         ApiResponse tree = owner.get("/api/v1/categories");
         assertThat(tree.<List<String>>json("$[*].name")).containsExactly("Women", "Men", "Sale");
@@ -174,6 +174,112 @@ class CategoryTests {
 
         owner.delete("/api/v1/tags/" + eid).expectStatus(204);
         assertThat(owner.get("/api/v1/tags").<List<String>>json("$[*].name")).containsExactly("new arrival");
+    }
+
+    // Fixes from the 3a code review.
+
+    @Test
+    void twoOppositeMovesAtOnceCannotMakeALoop() throws Exception {
+        String a = create("A", null);
+        String b = create("B", null);
+
+        List<ApiResponse> answers = inParallel(
+                () -> owner.post("/api/v1/categories/" + a + "/move", Map.of("parentId", b)),
+                () -> owner.post("/api/v1/categories/" + b + "/move", Map.of("parentId", a)));
+
+        assertThat(answers).extracting(ApiResponse::status).containsExactlyInAnyOrder(200, 409);
+        assertThat(visibleCount()).isEqualTo(2);
+    }
+
+    @Test
+    void addingASubcategoryWhileItsParentMovesCannotMakeAThirdLevel() throws Exception {
+        String x = create("X", null);
+        String y = create("Y", null);
+
+        List<ApiResponse> answers = inParallel(
+                () -> owner.post("/api/v1/categories", Map.of("name", "Child", "parentId", x)),
+                () -> owner.post("/api/v1/categories/" + x + "/move", Map.of("parentId", y)));
+
+        long created = answers.stream().filter(answer -> answer.status() / 100 == 2).count();
+        assertThat(created).isEqualTo(1);
+        assertThat(visibleCount()).isEqualTo(answers.get(0).status() == 201 ? 3 : 2);
+    }
+
+    @Test
+    void categoriesCreatedTogetherGetTheirOwnPositions() throws Exception {
+        List<ApiResponse> answers = inParallel(
+                () -> owner.post("/api/v1/categories", Map.of("name", "One")),
+                () -> owner.post("/api/v1/categories", Map.of("name", "Two")),
+                () -> owner.post("/api/v1/categories", Map.of("name", "Three")),
+                () -> owner.post("/api/v1/categories", Map.of("name", "Four")));
+
+        assertThat(answers).extracting(ApiResponse::status).containsOnly(201);
+        assertThat(owner.get("/api/v1/categories").<List<Integer>>json("$[*].position"))
+                .containsExactlyInAnyOrder(0, 1, 2, 3);
+    }
+
+    @Test
+    void movingIntoItsOwnGroupChangesNothingAndTheTargetMustBeExplicit() {
+        String women = create("Women", null);
+        String kurti = create("Kurti", women);
+        create("Saree", women);
+
+        owner.post("/api/v1/categories/" + kurti + "/move", Map.of("parentId", women)).expectStatus(200);
+        assertThat(owner.get("/api/v1/categories").<List<String>>json("$[0].children[*].name"))
+                .containsExactly("Kurti", "Saree");
+
+        owner.post("/api/v1/categories/" + kurti + "/move", Map.of()).expectError(400, "validation.failed");
+        owner.post("/api/v1/categories/" + kurti + "/move", Map.of("parentId", women, "topLevel", true))
+                .expectError(400, "validation.failed");
+        assertThat(owner.get("/api/v1/categories").<List<String>>json("$[*].name")).containsExactly("Women");
+    }
+
+    @Test
+    void aSubcategoryHasNoGroupToReorder() {
+        String women = create("Women", null);
+        String kurti = create("Kurti", women);
+
+        owner.put("/api/v1/categories/order", Map.of("parentId", kurti, "ids", List.of()))
+                .expectError(409, "category.too_deep");
+    }
+
+    @Test
+    void unusualSpacesCountAsSpaces() {
+        owner.post("/api/v1/tags", Map.of("name", "Eid Sale")).expectStatus(201);
+
+        owner.post("/api/v1/tags", Map.of("name", "Eid\u00A0Sale")).expectError(409, "tag.name_taken");
+        owner.post("/api/v1/tags", Map.of("name", "Eid\u2003 Sale")).expectError(409, "tag.name_taken");
+        assertThat(owner.post("/api/v1/tags", Map.of("name", "\u00A0New\u00A0\u00A0arrival\u00A0")).expectStatus(201)
+                .<String>json("$.name")).isEqualTo("New arrival");
+        owner.post("/api/v1/tags", Map.of("name", "\u00A0\u00A0")).expectError(400, "validation.failed");
+    }
+
+    private int visibleCount() {
+        ApiResponse tree = owner.get("/api/v1/categories").expectStatus(200);
+        return tree.<List<Object>>json("$[*].id").size() + tree.<List<Object>>json("$[*].children[*].id").size();
+    }
+
+    @SafeVarargs
+    private List<ApiResponse> inParallel(java.util.concurrent.Callable<ApiResponse>... calls) throws Exception {
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(calls.length);
+        try {
+            java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+            List<java.util.concurrent.Future<ApiResponse>> futures = new java.util.ArrayList<>();
+            for (java.util.concurrent.Callable<ApiResponse> call : calls) {
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    return call.call();
+                }));
+            }
+            start.countDown();
+            List<ApiResponse> answers = new java.util.ArrayList<>();
+            for (java.util.concurrent.Future<ApiResponse> future : futures) {
+                answers.add(future.get(60, java.util.concurrent.TimeUnit.SECONDS));
+            }
+            return answers;
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     private String create(String name, String parentId) {

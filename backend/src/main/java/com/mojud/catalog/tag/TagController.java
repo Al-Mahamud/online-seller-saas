@@ -11,9 +11,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.Clock;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -91,13 +91,6 @@ class TagController {
     }
 
     private TagResponse saving(Supplier<TagResponse> work) {
-        try {
-            return transactions.execute(status -> work.get());
-        } catch (DataIntegrityViolationException e) {
-            if (Constraints.violated(e, "uq_tags_name")) {
-                throw new ApiException(ErrorCode.TAG_NAME_TAKEN);
-            }
-            throw e;
-        }
+        return Constraints.translating(transactions, Map.of("uq_tags_name", ErrorCode.TAG_NAME_TAKEN), work);
     }
 }
