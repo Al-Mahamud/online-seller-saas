@@ -2,12 +2,14 @@ package com.mojud.importing;
 
 import com.mojud.catalog.CatalogLimits;
 import com.mojud.catalog.CatalogLookup;
+import com.mojud.shared.async.AfterCommitTasks;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.id.Ids;
 import com.mojud.shared.ratelimit.RateLimiter;
 import com.mojud.shared.text.Text;
 import com.mojud.tenancy.CurrentBusiness;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
@@ -51,8 +53,16 @@ class ImportService {
     record Totals(int rows, int valid, int invalid, int create, int update) {
     }
 
+    /**
+     * Once committed: {@code toImport} rows were valid at commit, {@code done} of them are applied
+     * (created, updated, unchanged or failed); {@code skipped} rows had errors and were left out.
+     */
+    record Progress(int toImport, int done, int created, int updated, int unchanged, int failed, int skipped) {
+    }
+
+    /** {@code progress} is null until the import is committed. */
     record Job(UUID id, String fileName, Sheet.FileType fileType, String status, int headerRow, List<ColumnView> columns,
-            Totals totals, List<String> newCategories, Instant createdAt) {
+            Totals totals, List<String> newCategories, Progress progress, Instant createdAt, Instant finishedAt) {
     }
 
     /** {@code field} is the field's name in the reader's language (an option's own name for options). */
@@ -68,10 +78,12 @@ class ImportService {
     }
 
     private record JobRow(UUID id, String fileName, Sheet.FileType fileType, String status, int headerRow, int columnCount,
-            Mapping mapping, Totals totals, List<String> newCategories, Instant createdAt) {
+            Mapping mapping, Totals totals, List<String> newCategories, Instant createdAt, Instant finishedAt) {
     }
 
     private final SheetReader reader;
+    private final ImportRunner runner;
+    private final AfterCommitTasks afterCommit;
     private final CatalogLookup catalog;
     private final JdbcClient jdbc;
     private final JdbcTemplate batch;
@@ -81,10 +93,12 @@ class ImportService {
     private final Clock clock;
     private final RateLimiter importsPerBusiness;
 
-    ImportService(SheetReader reader, CatalogLookup catalog, DataSource dataSource, JsonMapper json, MessageSource messages,
+    ImportService(SheetReader reader, ImportRunner runner, AfterCommitTasks afterCommit, CatalogLookup catalog, DataSource dataSource, JsonMapper json, MessageSource messages,
             TransactionTemplate transactions, Clock clock, @Value("${mojud.imports.per-business.max}") int perBusinessMax,
             @Value("${mojud.imports.per-business.window}") Duration perBusinessWindow) {
         this.reader = reader;
+        this.runner = runner;
+        this.afterCommit = afterCommit;
         this.catalog = catalog;
         this.jdbc = JdbcClient.create(dataSource);
         this.batch = new JdbcTemplate(dataSource);
@@ -146,6 +160,105 @@ class ImportService {
                 .update();
         check(id, header, mapping);
         return view(load(id, false));
+    }
+
+    /**
+     * Checks the rows once more (the catalog may have changed since the preview) and queues the
+     * valid ones; the import starts once this commits. Rows with errors are left out.
+     */
+    @Transactional
+    Job commit(UUID id) {
+        CurrentBusiness me = CurrentBusiness.require();
+        JobRow job = load(id, true);
+        if (!MAPPING.equals(job.status())) {
+            throw new ApiException(ErrorCode.IMPORT_NOT_EDITABLE);
+        }
+        check(id, job.headerRow(), job.mapping());
+        if (load(id, false).totals().valid() == 0) {
+            throw new ApiException(ErrorCode.IMPORT_NOTHING_VALID);
+        }
+        jdbc.sql("update import_jobs set status = 'QUEUED', committed_by = ?, queued_at = ?, updated_at = ? where id = ?")
+                .params(me.userId(), Timestamp.from(clock.instant()), Timestamp.from(clock.instant()), id)
+                .update();
+        afterCommit.run(() -> runner.submit(me.businessId(), id));
+        return view(load(id, false));
+    }
+
+    /**
+     * Every row with a problem (left out, or failed when applied): its row number, the problems,
+     * then its cells under the sheet's own headers, so it can be fixed and uploaded again. UTF-8
+     * with a byte-order mark, so Excel shows Bangla correctly.
+     */
+    @Transactional(readOnly = true)
+    byte[] errorsCsv(UUID id) {
+        JobRow job = load(id, false);
+        Locale locale = LocaleContextHolder.getLocale();
+        StringBuilder csv = new StringBuilder("﻿");
+        List<String> header = new ArrayList<>(List.of(messages.getMessage("import.errors.row", null, locale),
+                messages.getMessage("import.errors.problems", null, locale)));
+        header.addAll(pad(headers(job), job.columnCount()));
+        csvLine(csv, header);
+        jdbc.sql("""
+                        select row_number, cells::text, errors::text from import_rows
+                        where job_id = ? and row_number > ? and errors <> '[]'::jsonb
+                        order by row_number
+                        """)
+                .params(id, job.headerRow())
+                .query((rs, n) -> {
+                    List<String> line = new ArrayList<>();
+                    line.add(Integer.toString(rs.getInt(1)));
+                    line.add(String.join("; ", Arrays.stream(json.readValue(rs.getString(3), RowChecker.RowError[].class))
+                            .map(error -> errorView(error, locale))
+                            .map(error -> error.column() + " " + error.field() + " " + error.message())
+                            .toList()));
+                    line.addAll(pad(List.of(json.readValue(rs.getString(2), String[].class)), job.columnCount()));
+                    return line;
+                })
+                .list()
+                .forEach(line -> csvLine(csv, line));
+        return csv.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static List<String> pad(List<String> cells, int size) {
+        List<String> padded = new ArrayList<>(cells);
+        while (padded.size() < size) {
+            padded.add("");
+        }
+        return padded;
+    }
+
+    /** RFC 4180: quoted when needed, CRLF line ends. */
+    private static void csvLine(StringBuilder csv, List<String> cells) {
+        for (int i = 0; i < cells.size(); i++) {
+            String cell = cells.get(i);
+            if (i > 0) {
+                csv.append(',');
+            }
+            if (cell.contains(",") || cell.contains("\"") || cell.contains("\n") || cell.contains("\r")) {
+                csv.append('"').append(cell.replace("\"", "\"\"")).append('"');
+            } else {
+                csv.append(cell);
+            }
+        }
+        csv.append("\r\n");
+    }
+
+    /** Counts of the committed rows by result. */
+    static Progress progress(JdbcClient jdbc, UUID id, int headerRow) {
+        return jdbc.sql("""
+                        select count(*) filter (where action is not null),
+                               count(*) filter (where result is not null),
+                               count(*) filter (where result = 'CREATED'),
+                               count(*) filter (where result = 'UPDATED'),
+                               count(*) filter (where result = 'UNCHANGED'),
+                               count(*) filter (where result = 'FAILED'),
+                               count(*) filter (where action is null)
+                        from import_rows where job_id = ? and row_number > ?
+                        """)
+                .params(id, headerRow)
+                .query((rs, n) -> new Progress(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5),
+                        rs.getInt(6), rs.getInt(7)))
+                .single();
     }
 
     /** The first rows (or the first rows with errors), as the commit would read them. */
@@ -245,8 +358,9 @@ class ImportService {
             columns.add(new ColumnView(index, letter(index), index < headers.size() ? headers.get(index) : "", samples,
                     mapped == null ? null : mapped.field(), mapped == null ? null : mapped.optionName()));
         }
+        Progress progress = MAPPING.equals(job.status()) ? null : progress(jdbc, job.id(), job.headerRow());
         return new Job(job.id(), job.fileName(), job.fileType(), job.status(), job.headerRow(), columns, job.totals(),
-                job.newCategories(), job.createdAt());
+                job.newCategories(), progress, job.createdAt(), job.finishedAt());
     }
 
     private List<String> headers(JobRow job) {
@@ -264,7 +378,7 @@ class ImportService {
     private JobRow load(UUID id, boolean lock) {
         return jdbc.sql("""
                         select id, file_name, file_type, status, header_row, column_count, mapping::text, total_rows,
-                               valid_rows, create_rows, update_rows, new_categories::text, created_at
+                               valid_rows, create_rows, update_rows, new_categories::text, created_at, finished_at
                         from import_jobs where id = ? and business_id = ?
                         """ + (lock ? " for update" : ""))
                 .params(id, CurrentBusiness.require().businessId())
@@ -275,7 +389,8 @@ class ImportService {
                             rs.getString(4), rs.getInt(5), rs.getInt(6),
                             new Mapping(List.of(json.readValue(rs.getString(7), Mapping.Column[].class))),
                             new Totals(total, valid, total - valid, rs.getInt(10), rs.getInt(11)),
-                            List.of(json.readValue(rs.getString(12), String[].class)), rs.getTimestamp(13).toInstant());
+                            List.of(json.readValue(rs.getString(12), String[].class)), rs.getTimestamp(13).toInstant(),
+                            rs.getTimestamp(14) == null ? null : rs.getTimestamp(14).toInstant());
                 })
                 .optional()
                 .orElseThrow(ApiException::notFound);
@@ -285,7 +400,10 @@ class ImportService {
         String field = error.field() == ImportField.OPTION
                 ? error.optionName()
                 : messages.getMessage("import.field." + error.field().name(), null, error.field().name(), locale);
-        String message = messages.getMessage("import.error." + error.code(), error.args().toArray(), error.code(), locale);
+        // Failures found when applying a row reuse the app's own messages (error.* and field.*).
+        String key = error.code().startsWith("error.") || error.code().startsWith("field.") ? error.code()
+                : "import.error." + error.code();
+        String message = messages.getMessage(key, error.args().toArray(), error.code(), locale);
         return new ErrorView(letter(error.column()), field, message);
     }
 

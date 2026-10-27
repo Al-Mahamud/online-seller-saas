@@ -16,4 +16,7 @@ public interface CatalogLookup {
 
     /** Which of {@code skus} are taken, upper-cased (SKUs are unique ignoring case). */
     Set<String> takenSkus(Collection<String> skus);
+
+    /** Which of {@code names} are names of products on sale, lower-cased. */
+    Set<String> activeProductNames(Collection<String> names);
 }

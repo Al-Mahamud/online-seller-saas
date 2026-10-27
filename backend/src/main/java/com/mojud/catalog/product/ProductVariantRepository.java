@@ -12,6 +12,10 @@ interface ProductVariantRepository extends JpaRepository<ProductVariant, UUID> {
 
     List<ProductVariant> findByProductIdInOrderByPosition(Collection<UUID> productIds);
 
+    /** {@code skus} upper-cased; SKUs are unique ignoring case. */
+    @Query("select v from ProductVariant v where upper(v.sku) in :skus")
+    List<ProductVariant> findBySkus(Collection<String> skus);
+
     /** Active variants of active products: what can still be sold. */
     @Query("""
             select v from ProductVariant v, Product p

@@ -21,7 +21,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Done |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Done |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Done |
-| 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | 5a in review |
+| 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | 5a done · 5b in review |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Not started |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Not started |
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Not started |
@@ -239,6 +239,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Rows over the plan's `import_rows` limit are refused (limit check is wired up in 10a).
 
 **Checked by:** a 2,000-row file imports with 37 bad rows reported and the rest kept; importing the same file twice changes nothing the second time.
+
+**As built:** the commit re-checks every row (the catalog may have changed since the preview), refuses an import with nothing valid, and starts the job once it commits, on the importer's own two threads (never the after-commit pool that sends sign-in codes); tests run it inline. Rows of one product go together through the catalog's public `CatalogImport` port, which finds the product by any of its SKUs, else the one product on sale with that name (so rows without SKUs do not duplicate on re-import), else creates it; it changes only what differs and adds new variants (with their option values) to existing products. Stock: OPENING for new variants, an ADJUST to the sheet's figure for existing ones, none when it already matches; movements carry the import and the committing member. Products are grouped into chunks of about 500 rows, each chunk one transaction with its rows' results; a failing chunk is retried product by product, so one bad product fails only its own rows. A sweeper (every minute, system role) starts queued jobs whose start was lost and resumes jobs whose heartbeat stopped for 5 minutes, skipping rows already done. When done: an "import finished" notification for managers and owners, and an `import.committed` audit entry. `errors.csv` holds every row with a problem (left out or failed) with its cells under the sheet's headers, so it can be fixed and uploaded again. 2,000 rows take about 4 s. Plan row limits arrive with billing (10a).
 
 ---
 

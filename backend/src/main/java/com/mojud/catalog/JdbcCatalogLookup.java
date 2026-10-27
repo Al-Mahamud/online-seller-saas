@@ -48,4 +48,17 @@ class JdbcCatalogLookup implements CatalogLookup {
                 .query(String.class)
                 .list());
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> activeProductNames(Collection<String> names) {
+        if (names.isEmpty()) {
+            return Set.of();
+        }
+        String[] lower = names.stream().map(name -> name.toLowerCase(Locale.ROOT)).distinct().toArray(String[]::new);
+        return new HashSet<>(jdbc.sql("select lower(name) from products where business_id = ? and status = 'ACTIVE' and lower(name) = any (?)")
+                .params(TenantScope.current().orElseThrow(), lower)
+                .query(String.class)
+                .list());
+    }
 }

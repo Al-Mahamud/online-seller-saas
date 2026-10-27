@@ -11,6 +11,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -76,6 +77,23 @@ class ImportController {
     ImportService.Job remap(@PathVariable UUID id, @Valid @RequestBody MappingRequest body) {
         return imports.remap(id, body.headerRow(), body.columns().stream()
                 .map(c -> new ImportService.ColumnRequest(c.index(), c.field(), c.optionName())).toList());
+    }
+
+    /** Queues the valid rows; the import runs in the background (follow it with GET /imports/{id}). */
+    @PostMapping("/api/v1/imports/{id}/commit")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    ImportService.Job commit(@PathVariable UUID id) {
+        return imports.commit(id);
+    }
+
+    /** Rows with problems, ready to fix and upload again. */
+    @GetMapping("/api/v1/imports/{id}/errors.csv")
+    ResponseEntity<byte[]> errors(@PathVariable UUID id) {
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename("import-errors.csv").build().toString())
+                .body(imports.errorsCsv(id));
     }
 
     /** The first 20 data rows, or with {@code invalidOnly} the first 20 with errors. */

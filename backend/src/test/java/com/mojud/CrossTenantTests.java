@@ -227,6 +227,12 @@ class CrossTenantTests {
                         Map.of("index", 0, "field", "NAME"), Map.of("index", 1, "field", "PRICE"))))));
         CASES.put("GET /api/v1/imports/{id}/preview", (a, b) -> expectNotFound(
                 b.owner().get("/api/v1/imports/" + a.importId() + "/preview")));
+        CASES.put("POST /api/v1/imports/{id}/commit", (a, b) -> {
+            expectNotFound(b.owner().post("/api/v1/imports/" + a.importId() + "/commit", null));
+            assertThat(a.owner().get("/api/v1/imports/" + a.importId()).<String>json("$.status")).isEqualTo("MAPPING");
+        });
+        CASES.put("GET /api/v1/imports/{id}/errors.csv", (a, b) -> assertThat(
+                b.owner().download("/api/v1/imports/" + a.importId() + "/errors.csv").statusCode()).isEqualTo(404));
         CASES.put("GET /api/v1/imports/template.xlsx", (a, b) -> assertThat(
                 b.owner().download("/api/v1/imports/template.xlsx").statusCode()).isEqualTo(200));
 

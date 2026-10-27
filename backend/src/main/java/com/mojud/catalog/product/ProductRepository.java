@@ -15,6 +15,10 @@ interface ProductRepository extends JpaRepository<Product, UUID> {
      * passes a position after everything (see ProductService). A top-level category also finds
      * products in its subcategories.
      */
+    /** Products on sale with this name, ignoring case. */
+    @Query("select p from Product p where lower(p.name) = lower(:name) and p.status = com.mojud.catalog.product.ProductStatus.ACTIVE")
+    List<Product> findActiveByName(String name);
+
     @Query("""
             select p from Product p
             where p.status = :status

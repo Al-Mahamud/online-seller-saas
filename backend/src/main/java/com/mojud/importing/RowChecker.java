@@ -75,9 +75,13 @@ final class RowChecker {
         repeatedSkus(parsed, mapping, errors);
         products(parsed, mapping, errors);
         Set<String> taken = catalog.takenSkus(parsed.stream().map(Parsed::sku).filter(sku -> sku != null).toList());
+        Set<String> onSale = catalog.activeProductNames(parsed.stream().map(Parsed::name).filter(name -> name != null).toList());
         List<Checked> checked = parsed.stream().map(row -> {
             List<RowError> list = errors.get(row.rowNumber());
-            Action action = row.sku() != null && taken.contains(row.sku().toUpperCase(Locale.ROOT)) ? Action.UPDATE : Action.CREATE;
+            // As the commit decides: a known SKU, else a product on sale with this name, is updated.
+            boolean known = (row.sku() != null && taken.contains(row.sku().toUpperCase(Locale.ROOT)))
+                    || (row.name() != null && onSale.contains(row.name().toLowerCase(Locale.ROOT)));
+            Action action = known ? Action.UPDATE : Action.CREATE;
             return new Checked(row.rowNumber(), list.isEmpty() ? action : null, List.copyOf(list));
         }).toList();
         return new Outcome(checked, categories.created());

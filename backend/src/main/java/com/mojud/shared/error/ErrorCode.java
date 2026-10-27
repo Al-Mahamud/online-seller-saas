@@ -98,6 +98,8 @@ public enum ErrorCode {
     IMPORT_TOO_BIG("import.too_big", HttpStatus.CONTENT_TOO_LARGE),
     /** The import was committed; its mapping can no longer change. */
     IMPORT_NOT_EDITABLE("import.not_editable", HttpStatus.CONFLICT),
+    /** Every row has errors; there is nothing to import. */
+    IMPORT_NOTHING_VALID("import.nothing_valid", HttpStatus.CONFLICT),
 
     // Errors raised by the framework before a controller runs.
     MALFORMED_REQUEST("request.malformed", HttpStatus.BAD_REQUEST),

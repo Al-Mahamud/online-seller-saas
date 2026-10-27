@@ -44,7 +44,15 @@ public class StockService {
     }
 
     /** What caused a change, for reading the history later. */
-    public record Reference(String type, UUID id, String note) {
+    /**
+     * What caused a change, and who: {@code actorId} names the user when no member is signed in
+     * (an import running in the background); null means the signed-in member, if any.
+     */
+    public record Reference(String type, UUID id, String note, UUID actorId) {
+
+        public Reference(String type, UUID id, String note) {
+            this(type, id, note, null);
+        }
 
         /** No cause to point at, such as opening stock entered with a new product. */
         public static Reference none() {
@@ -61,6 +69,10 @@ public class StockService {
 
         public static Reference returned(UUID returnId) {
             return new Reference("RETURN", returnId, null);
+        }
+
+        public static Reference imported(UUID importJobId, UUID committedBy) {
+            return new Reference("IMPORT", importJobId, null, committedBy);
         }
     }
 
@@ -218,7 +230,8 @@ public class StockService {
         }
 
         Instant now = clock.instant();
-        UUID user = CurrentBusiness.get().map(CurrentBusiness::userId).orElse(null);
+        UUID user = reference.actorId() != null ? reference.actorId()
+                : CurrentBusiness.get().map(CurrentBusiness::userId).orElse(null);
         List<StockLevel> after = new ArrayList<>();
         List<StockChanged.Change> changes = new ArrayList<>();
         deltas.forEach((variantId, delta) -> {
