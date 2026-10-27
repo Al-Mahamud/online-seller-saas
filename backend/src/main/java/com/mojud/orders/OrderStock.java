@@ -4,6 +4,7 @@ import com.mojud.inventory.StockService;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,12 +43,37 @@ class OrderStock {
         return deduct ? StockState.DEDUCTED : StockState.RESERVED;
     }
 
-    /** Shipping: a reservation becomes a deduction (SHIP); stock already taken (DEDUCTED) stays as it is. */
+    /**
+     * Shipping: a reservation becomes a deduction (SHIP); stock already taken (DEDUCTED) stays as it
+     * is; a re-shipment after a failed delivery (NONE) takes the stock again (SALE).
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     void ship(UUID orderId, List<Totals.Line> lines, StockState state) {
+        List<StockService.Line> stockLines = lines.stream().map(l -> new StockService.Line(l.variantId(), l.quantity())).toList();
         if (state == StockState.RESERVED) {
-            stock.ship(lines.stream().map(l -> new StockService.Line(l.variantId(), l.quantity())).toList(),
-                    StockService.Reference.order(orderId));
+            stock.ship(stockLines, StockService.Reference.order(orderId));
+        } else if (state == StockState.NONE) {
+            named(lines, () -> stock.sell(stockLines, StockService.Reference.order(orderId)));
+        }
+    }
+
+    /** Goods back from the customer: restocked (RETURN) or written off (RETURN_DAMAGED). */
+    @Transactional(propagation = Propagation.MANDATORY)
+    void returned(UUID returnId, List<OrderItem> items, List<OrderReturns.Line> lines) {
+        Map<UUID, UUID> variantOf = new HashMap<>();
+        items.forEach(item -> variantOf.put(item.getId(), item.getVariantId()));
+        List<StockService.Line> restock = new ArrayList<>();
+        List<StockService.Line> writeOff = new ArrayList<>();
+        for (OrderReturns.Line line : lines) {
+            StockService.Line stockLine = new StockService.Line(variantOf.get(line.orderItemId()), line.quantity());
+            (line.disposition() == OrderReturns.Disposition.RESTOCK ? restock : writeOff).add(stockLine);
+        }
+        StockService.Reference reference = StockService.Reference.returned(returnId);
+        if (!restock.isEmpty()) {
+            stock.restock(restock, reference);
+        }
+        if (!writeOff.isEmpty()) {
+            stock.writeOffReturn(writeOff, reference);
         }
     }
 

@@ -68,6 +68,13 @@ class Shipment {
         codStatus = collected > 0 ? "WITH_COURIER" : "NONE";
     }
 
+    /** It came back undelivered: nothing collected. */
+    void returned() {
+        status = "RETURNED";
+        codCollected = 0L;
+        codStatus = "NONE";
+    }
+
     /** The courier paid the business what it collected. */
     void settled(Instant now) {
         codStatus = "SETTLED";

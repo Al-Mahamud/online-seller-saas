@@ -31,6 +31,8 @@ class OrderTransitions {
 
     private final OrderRepository orders;
     private final ShipmentRepository shipments;
+    private final OrderItemRepository items;
+    private final OrderReturns returns;
     private final OrderService service;
     private final OrderStock stock;
     private final OrderEvents events;
@@ -39,10 +41,13 @@ class OrderTransitions {
     private final AuditTrail audit;
     private final Clock clock;
 
-    OrderTransitions(OrderRepository orders, ShipmentRepository shipments, OrderService service, OrderStock stock, OrderEvents events,
+    OrderTransitions(OrderRepository orders, ShipmentRepository shipments, OrderItemRepository items, OrderReturns returns,
+            OrderService service, OrderStock stock, OrderEvents events,
             CustomerDirectory customers, BusinessDefaults settings, AuditTrail audit, Clock clock) {
         this.orders = orders;
         this.shipments = shipments;
+        this.items = items;
+        this.returns = returns;
         this.service = service;
         this.stock = stock;
         this.events = events;
@@ -104,7 +109,11 @@ class OrderTransitions {
         if (handover.courierCharge() < 0 || handover.courierCharge() > Totals.MAX_TOTAL) {
             throw ApiException.invalidField("courierCharge", "field.invalid_value");
         }
-        Order order = locked(id, version, Set.of(OrderStatus.CONFIRMED, OrderStatus.PACKED));
+        Order order = locked(id, version, Set.of(OrderStatus.CONFIRMED, OrderStatus.PACKED, OrderStatus.RETURNED));
+        if (order.getStatus() == OrderStatus.RETURNED && order.getDeliveredAt() != null) {
+            // Goods the customer received and sent back are not shipped again on this order.
+            throw new ApiException(ErrorCode.ORDER_INVALID_TRANSITION).withDetail("status", order.getStatus().name());
+        }
         OrderStatus from = order.getStatus();
         Instant now = clock.instant();
         stock.ship(id, service.currentLines(id), order.getStockState());
@@ -123,22 +132,115 @@ class OrderTransitions {
      * balance due; refused items come back through a return (8c).
      */
     @Transactional
-    OrderViews.Detail deliver(UUID id, Long codCollected, Long version) {
+    OrderViews.Detail deliver(UUID id, Long codCollected, List<OrderReturns.Line> refused, String reason, Long version) {
         CurrentBusiness me = CurrentBusiness.require();
         Order order = locked(id, version, Set.of(OrderStatus.SHIPPED));
         Shipment shipment = shipments.findInTransit(id).orElseThrow();
-        long collected = codCollected == null ? shipment.getCodExpected() : codCollected;
-        if (collected < 0 || collected > shipment.getCodExpected()) {
+        Instant now = clock.instant();
+        boolean partial = refused != null && !refused.isEmpty();
+        long credit = 0;
+        List<OrderItem> lines = items.findByOrder(id);
+        if (partial) {
+            credit = returns.check(refused, lines, shipment.getId(), false);
+            if (returns.allBackWith(refused, lines, shipment.getId())) {
+                // Everything refused is a failed delivery, not a delivery.
+                throw ApiException.invalidField("refused", "field.refused_everything");
+            }
+            order.credit(Math.min(credit, goodsValue(order)), now);
+        }
+        // What the courier took cannot be more than it was to collect, nor more than is now owed.
+        long cap = Math.min(shipment.getCodExpected(), Math.max(0, order.balanceDue()));
+        long collected = codCollected == null ? cap : codCollected;
+        if (collected < 0 || collected > cap) {
             throw ApiException.invalidField("codCollected", "field.cod_collected_range");
         }
-        Instant now = clock.instant();
         shipment.delivered(collected, now);
         order.deliver(collected, now);
+        if (partial) {
+            orders.flush();
+            UUID returnId = returns.save(id, shipment.getId(), ReturnKind.PARTIAL_DELIVERY, reasonOf(reason, "Refused at delivery"),
+                    Math.min(credit, goodsValue(order)), null, refused, me.userId(), now);
+            stock.returned(returnId, lines, refused);
+        }
         orders.flush();
-        events.record(id, OrderStatus.SHIPPED, OrderStatus.DELIVERED, me.userId(), "", now);
+        events.record(id, OrderStatus.SHIPPED, OrderStatus.DELIVERED, me.userId(), partial ? "Some items refused" : "", now);
         audit.record(me.businessId(), me.userId(), "order.delivered", "order", id, "number", order.getNumberLabel(),
                 "codCollected", collected);
         return service.detail(order);
+    }
+
+    /**
+     * Goods coming back (implementation-plan.md 8c). FAILED_DELIVERY: a SHIPPED parcel came back
+     * whole (the order is RETURNED and may be shipped again); CUSTOMER_RETURN: some or all of a
+     * DELIVERED order sent back (all of it makes the order RETURNED). Each item is restocked or
+     * written off; the customer no longer owes for the goods; a refund may be given.
+     */
+    @Transactional
+    OrderViews.Detail returnGoods(UUID id, ReturnKind kind, String reason, List<OrderReturns.Line> given,
+            OrderReturns.Refund refund, Long version) {
+        CurrentBusiness me = CurrentBusiness.require();
+        String why = Text.requireNonBlank(reason, "reason");
+        if (why.length() > MAX_REASON) {
+            throw ApiException.invalidField("reason", "field.too_long");
+        }
+        if (kind == ReturnKind.PARTIAL_DELIVERY) {
+            throw ApiException.invalidField("kind", "field.invalid_value");
+        }
+        boolean failed = kind == ReturnKind.FAILED_DELIVERY;
+        Order order = locked(id, version, Set.of(failed ? OrderStatus.SHIPPED : OrderStatus.DELIVERED));
+        OrderStatus from = order.getStatus();
+        Shipment shipment = failed ? shipments.findInTransit(id).orElseThrow() : shipments.findDelivered(id).orElseThrow();
+        List<OrderItem> lines = items.findByOrder(id);
+        boolean noneGiven = given == null || given.isEmpty();
+        // A failed delivery given no items brings everything back to the shelf.
+        List<OrderReturns.Line> back = noneGiven && failed
+                ? lines.stream().map(item -> new OrderReturns.Line(item.getId(), item.getQuantity(), OrderReturns.Disposition.RESTOCK)).toList()
+                : noneGiven ? List.of() : given;
+        long value = returns.check(back, lines, shipment.getId(), failed);
+        Instant now = clock.instant();
+        long creditBefore = order.getReturnCredit();
+        if (failed) {
+            shipment.returned();
+            order.failedDelivery(now);
+        } else {
+            order.credit(Math.min(value, goodsValue(order) - creditBefore), now);
+        }
+        long credit = order.getReturnCredit() - creditBefore;
+        if (refund != null) {
+            if (refund.amount() <= 0 || refund.amount() > -order.balanceDue()) {
+                throw ApiException.invalidField("refund.amount", "field.refund_too_large");
+            }
+            order.refund(refund.amount(), now);
+        }
+        orders.flush();
+        UUID returnId = returns.save(id, shipment.getId(), kind, why, credit, refund, back, me.userId(), now);
+        stock.returned(returnId, lines, back);
+        if (!failed && returns.allBack(lines, shipment.getId())) {
+            order.allReturned(now);
+        }
+        orders.flush();
+        if (order.getStatus() != from) {
+            events.record(id, from, order.getStatus(), me.userId(), why, now);
+        }
+        audit.record(me.businessId(), me.userId(), "order.returned", "order", id, "number", order.getNumberLabel(),
+                "kind", kind.name(), "credit", credit, "refund", refund == null ? 0 : refund.amount());
+        return service.detail(order);
+    }
+
+    /** What the goods cost the customer: items less discount (the delivery charge stays owed). */
+    private static long goodsValue(Order order) {
+        return order.getSubtotal() - order.getDiscount();
+    }
+
+    private static String reasonOf(String reason, String otherwise) {
+        if (reason == null || reason.isBlank()) {
+            return otherwise;
+        }
+        String cleaned = reason.strip();
+        if (cleaned.length() > MAX_REASON) {
+            throw ApiException.invalidField("reason", "field.too_long");
+        }
+        return cleaned;
     }
 
     /** DRAFT, CONFIRMED or PACKED to CANCELLED, with a reason; gives back whatever stock it held. */

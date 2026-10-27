@@ -136,13 +136,47 @@ class OrderController {
                 body.courierCharge() == null ? 0 : body.courierCharge()), body.version());
     }
 
-    record DeliverRequest(Long codCollected, Long version) {
+    record ReturnLineRequest(@NotNull UUID orderItemId, @NotNull @Min(1) @Max(10_000) Integer quantity,
+            @NotNull OrderReturns.Disposition disposition) {
     }
 
-    /** {@code codCollected}: what the courier took from the customer; left out, what it was to collect. */
+    /**
+     * {@code codCollected}: what the courier took from the customer (left out: what it was to
+     * collect, less what refused items took off). {@code refused}: items the customer turned down
+     * at the door, each restocked or written off.
+     */
+    record DeliverRequest(Long codCollected, @Size(max = 200) List<@Valid @NotNull ReturnLineRequest> refused,
+            @Size(max = 1000) String reason, Long version) {
+    }
+
     @PostMapping("/api/v1/orders/{id}/deliver")
-    OrderViews.Detail deliver(@PathVariable UUID id, @RequestBody(required = false) DeliverRequest body) {
-        return transitions.deliver(id, body == null ? null : body.codCollected(), body == null ? null : body.version());
+    OrderViews.Detail deliver(@PathVariable UUID id, @Valid @RequestBody(required = false) DeliverRequest body) {
+        return body == null ? transitions.deliver(id, null, null, null, null)
+                : transitions.deliver(id, body.codCollected(), lines(body.refused()), body.reason(), body.version());
+    }
+
+    record RefundRequest(@NotNull Long amount, @NotNull PaymentMethod method, @Size(max = 200) String reference) {
+    }
+
+    /**
+     * {@code kind}: FAILED_DELIVERY (a shipped parcel came back; items left out all go back on the
+     * shelf) or CUSTOMER_RETURN (some or all of a delivered order).
+     */
+    record ReturnRequest(@NotNull ReturnKind kind, @NotNull @Size(max = 1000) String reason,
+            @Size(max = 200) List<@Valid @NotNull ReturnLineRequest> items, @Valid RefundRequest refund, Long version) {
+    }
+
+    @PostMapping("/api/v1/orders/{id}/returns")
+    @ResponseStatus(HttpStatus.CREATED)
+    OrderViews.Detail returnGoods(@PathVariable UUID id, @Valid @RequestBody ReturnRequest body) {
+        OrderReturns.Refund refund = body.refund() == null ? null : new OrderReturns.Refund(body.refund().amount(),
+                body.refund().method(), OrderService.reference(body.refund().reference()));
+        return transitions.returnGoods(id, body.kind(), body.reason(), lines(body.items()), refund, body.version());
+    }
+
+    private static List<OrderReturns.Line> lines(List<ReturnLineRequest> requests) {
+        return requests == null ? null : requests.stream()
+                .map(line -> new OrderReturns.Line(line.orderItemId(), line.quantity(), line.disposition())).toList();
     }
 
     record PaymentRequest(@NotNull PaymentMethod method, @NotNull Long amount, @Size(max = 200) String reference,

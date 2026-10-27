@@ -24,7 +24,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Done |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Done |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Done |
-| 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | 8a done · 8b in review |
+| 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | 8a, 8b done · 8c in review |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Not started |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Not started |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Not started |
@@ -334,6 +334,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Re-ship after a failed delivery: new shipment on the same order (stock taken again).
 
 **Checked by:** stock and money results for each return path; returning more than was shipped is rejected.
+
+**As built:** `returns` (kind, reason, credit, optional refund with method and reference) and `return_items` (per order item: quantity and RESTOCK or WRITE_OFF, so one item can be split). Every return belongs to the shipment the goods came back from, and an item never comes back more than that shipment carried. Money: a return gives a **credit** (what the customer no longer owes): a failed delivery credits the whole order; refused or returned items credit their price, at most the goods' value after discount (the delivery charge stays owed). `netTotal = total − returnCredit`, `balanceDue = netTotal − amountPaid`; below zero the payment status is REFUND_DUE. A refund given with a return lowers what was paid; before delivery it lowers the advance too, so a re-shipment collects it again. Paths: `POST /orders/{id}/returns` FAILED_DELIVERY (SHIPPED to RETURNED; items left out all go back on the shelf; the shipment is RETURNED with nothing collected) or CUSTOMER_RETURN (from DELIVERED; everything back makes the order RETURNED); partial delivery is `POST /orders/{id}/deliver` with `refused` items (refusing everything is refused: record a failed delivery), and the courier's collection defaults to and is capped by what is still owed. A failed delivery can be shipped again (stock taken again with SALE, credit reset, a new shipment collects what is owed); a customer return cannot.
 
 ### 8d: Packing slip and invoice (0.5 days)
 

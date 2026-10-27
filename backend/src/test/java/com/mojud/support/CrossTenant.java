@@ -121,6 +121,14 @@ public final class CrossTenant {
         owner.post("/api/v1/orders/" + shippedOrderId + "/confirm", null).expectStatus(200);
         owner.post("/api/v1/orders/" + shippedOrderId + "/ship", Map.of("courier", courier, "trackingNo", "T-" + marker))
                 .expectStatus(200);
+        // A third order whose parcel came back (failed delivery), so returns have rows.
+        String returned = owner.post("/api/v1/orders", Map.of("customerId", customerId.toString(),
+                "items", List.of(Map.of("variantId", product.<String>json("$.variants[0].id"), "quantity", 1))))
+                .expectStatus(201).json("$.id");
+        owner.post("/api/v1/orders/" + returned + "/confirm", null).expectStatus(200);
+        owner.post("/api/v1/orders/" + returned + "/ship", Map.of("courier", courier)).expectStatus(200);
+        owner.post("/api/v1/orders/" + returned + "/returns", Map.of("kind", "FAILED_DELIVERY", "reason", "Not at home"))
+                .expectStatus(201);
         // A bKash advance on the draft, so payments has rows.
         owner.post("/api/v1/orders/" + orderId + "/payments", Map.of("method", "BKASH", "amount", 5000,
                 "reference", "TX-" + marker)).expectStatus(201);

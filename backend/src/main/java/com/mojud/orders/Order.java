@@ -59,6 +59,10 @@ class Order {
 
     private long amountPaid;
 
+    private long returnCredit;
+
+    private Instant returnedAt;
+
     private String deliveryName;
 
     private String deliveryPhone;
@@ -145,9 +149,49 @@ class Order {
         updatedAt = now;
     }
 
-    /** What the customer owes now: the total less everything paid (advances, COD collected, later payments). */
+    /** What the customer owes for what they kept: the total less what returns took off. */
+    long netTotal() {
+        return total - returnCredit;
+    }
+
+    /** What the customer still owes; negative when they paid more than they now owe (a refund is due). */
     long balanceDue() {
-        return total - amountPaid;
+        return netTotal() - amountPaid;
+    }
+
+    /** Goods came back: the customer no longer owes {@code credit} for them. */
+    void credit(long credit, Instant now) {
+        returnCredit = Math.min(total, returnCredit + credit);
+        updatedAt = now;
+    }
+
+    /**
+     * Money given back. Before anything was delivered it was an advance: the advance shrinks, and a
+     * re-shipment collects that much more.
+     */
+    void refund(long amount, Instant now) {
+        if (deliveredAt == null) {
+            advancePaid -= amount;
+            codAmount += amount;
+        }
+        amountPaid -= amount;
+        updatedAt = now;
+    }
+
+    /** The parcel came back undelivered: the customer owes nothing for it, and the stock is back. */
+    void failedDelivery(Instant now) {
+        status = OrderStatus.RETURNED;
+        stockState = StockState.NONE;
+        returnCredit = total;
+        returnedAt = now;
+        updatedAt = now;
+    }
+
+    /** Everything delivered has come back. */
+    void allReturned(Instant now) {
+        status = OrderStatus.RETURNED;
+        returnedAt = now;
+        updatedAt = now;
     }
 
     /** Status changes: OrderTransitions only. */
@@ -164,8 +208,11 @@ class Order {
         updatedAt = now;
     }
 
-    /** Stock leaves on_hand at shipping at the latest. */
+    /** Stock leaves on_hand at shipping at the latest. A re-shipment after a failed delivery is owed in full again. */
     void ship(Instant now) {
+        if (status == OrderStatus.RETURNED) {
+            returnCredit = 0;
+        }
         status = OrderStatus.SHIPPED;
         stockState = StockState.DEDUCTED;
         shippedAt = now;
@@ -237,9 +284,21 @@ class Order {
         return amountPaid;
     }
 
-    /** UNPAID, PARTIAL or PAID, from what was paid against the total. */
+    /** UNPAID, PARTIAL, PAID, or REFUND_DUE (paid more than is now owed), against the net total. */
     String getPaymentStatus() {
-        return amountPaid >= total ? "PAID" : amountPaid == 0 ? "UNPAID" : "PARTIAL";
+        long owed = netTotal();
+        if (amountPaid > owed) {
+            return "REFUND_DUE";
+        }
+        return amountPaid == owed ? "PAID" : amountPaid == 0 ? "UNPAID" : "PARTIAL";
+    }
+
+    long getReturnCredit() {
+        return returnCredit;
+    }
+
+    Instant getReturnedAt() {
+        return returnedAt;
     }
 
     long getCodAmount() {

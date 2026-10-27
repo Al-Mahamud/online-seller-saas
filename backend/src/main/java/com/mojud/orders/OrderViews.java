@@ -35,10 +35,10 @@ final class OrderViews {
 
     record Detail(UUID id, long number, String numberLabel, OrderStatus status, String source, CustomerRef customer,
             Delivery delivery, List<Item> items, long subtotal, long discount, long deliveryCharge, long total,
-            long advancePaid, long codAmount, long amountPaid, long balanceDue, String paymentStatus,
-            List<PaymentView> payments, String note, UUID createdBy, Instant createdAt, Instant updatedAt,
+            long advancePaid, long codAmount, long returnCredit, long netTotal, long amountPaid, long balanceDue,
+            String paymentStatus, List<PaymentView> payments, List<OrderReturns.View> returns, String note, UUID createdBy, Instant createdAt, Instant updatedAt,
             Instant confirmedAt, Instant packedAt, Instant shippedAt, Instant deliveredAt, Instant cancelledAt,
-            String cancelReason, StockState stockState, List<ShipmentView> shipments, Long version) {
+            Instant returnedAt, String cancelReason, StockState stockState, List<ShipmentView> shipments, Long version) {
     }
 
     private OrderViews() {
@@ -52,7 +52,7 @@ final class OrderViews {
     }
 
     static Detail detail(Order order, List<OrderItem> items, List<Shipment> shipments, List<Payment> payments,
-            GeoDirectory geo, boolean showCost) {
+            List<OrderReturns.View> returns, GeoDirectory geo, boolean showCost) {
         Order.Parties parties = order.parties();
         GeoRef district = parties.deliveryDistrictId() == null ? null : geo.district(parties.deliveryDistrictId())
                 .map(d -> new GeoRef(d.id(), d.nameEn(), d.nameBn())).orElse(null);
@@ -65,11 +65,12 @@ final class OrderViews {
                         item.getVariantLabel(), item.getSku(), item.getQuantity(), item.getUnitPrice(),
                         showCost ? item.getUnitCost() : null, item.getQuantity() * item.getUnitPrice())).toList(),
                 order.getSubtotal(), order.getDiscount(), order.getDeliveryCharge(), order.getTotal(),
-                order.getAdvancePaid(), order.getCodAmount(), order.getAmountPaid(), order.balanceDue(),
-                order.getPaymentStatus(), payments.stream().map(p -> new PaymentView(p.getId(), p.getMethod(), p.getAmount(),
-                        p.getReference(), p.getReceivedAt())).toList(), order.getNote(), order.getCreatedBy(), order.getCreatedAt(),
+                order.getAdvancePaid(), order.getCodAmount(), order.getReturnCredit(), order.netTotal(),
+                order.getAmountPaid(), order.balanceDue(), order.getPaymentStatus(),
+                payments.stream().map(p -> new PaymentView(p.getId(), p.getMethod(), p.getAmount(), p.getReference(),
+                        p.getReceivedAt())).toList(), returns, order.getNote(), order.getCreatedBy(), order.getCreatedAt(),
                 order.getUpdatedAt(), order.getConfirmedAt(), order.getPackedAt(), order.getShippedAt(),
-                order.getDeliveredAt(), order.getCancelledAt(), order.getCancelReason(), order.getStockState(),
+                order.getDeliveredAt(), order.getCancelledAt(), order.getReturnedAt(), order.getCancelReason(), order.getStockState(),
                 shipments.stream().map(s -> new ShipmentView(s.getId(), s.getCourier(), s.getTrackingNo(),
                         s.getCourierCharge(), s.getStatus(), s.getCodExpected(), s.getCodCollected(), s.getCodStatus(),
                         s.getShippedAt(), s.getDeliveredAt(), s.getSettledAt())).toList(),

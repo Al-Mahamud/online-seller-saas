@@ -301,6 +301,11 @@ class CrossTenantTests {
             assertThat(results.<List<String>>json("$[*].code")).containsExactly("resource.not_found");
             assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<String>json("$.status")).isEqualTo("DRAFT");
         });
+        CASES.put("POST /api/v1/orders/{id}/returns", (a, b) -> {
+            expectNotFound(b.owner().post("/api/v1/orders/" + a.shippedOrderId() + "/returns",
+                    Map.of("kind", "FAILED_DELIVERY", "reason", "Not mine")));
+            assertThat(a.owner().get("/api/v1/orders/" + a.shippedOrderId()).<String>json("$.status")).isEqualTo("SHIPPED");
+        });
         CASES.put("POST /api/v1/orders/{id}/payments", (a, b) -> {
             expectNotFound(b.owner().post("/api/v1/orders/" + a.orderId() + "/payments", Map.of("method", "CASH", "amount", 100)));
             assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<Integer>json("$.amountPaid")).isEqualTo(5000);
@@ -402,10 +407,10 @@ class CrossTenantTests {
         assertThat(product.<String>json("$.status")).isEqualTo("ACTIVE");
         assertThat(product.<String>json("$.categoryId")).isEqualTo(a.subcategoryId().toString());
         assertThat(product.<Integer>json("$.variants[0].price")).isEqualTo(120000);
-        // 15 in, 12 damaged, 1 shipped (the fixture's shipped order).
+        // 15 in, 12 damaged, 1 shipped (the fixture's shipped order), 1 shipped and back (its returned one).
         assertThat(product.<Integer>json("$.variants[0].onHand")).isEqualTo(2);
         assertThat(a.owner().get("/api/v1/variants/" + a.variantId() + "/movements").<List<String>>json("$.items[*].type"))
-                .containsExactly("SHIP", "RESERVE", "DAMAGE", "RECEIVE", "OPENING");
+                .containsExactly("RETURN", "SHIP", "RESERVE", "SHIP", "RESERVE", "DAMAGE", "RECEIVE", "OPENING");
         ApiResponse shipped = a.owner().get("/api/v1/orders/" + a.shippedOrderId());
         assertThat(shipped.<String>json("$.status")).isEqualTo("SHIPPED");
         assertThat(shipped.<String>json("$.shipments[0].courier")).isEqualTo(a.courier());

@@ -18,6 +18,10 @@ interface ShipmentRepository extends JpaRepository<Shipment, UUID> {
     @Query("select s from Shipment s where s.orderId = :orderId and s.status = 'IN_TRANSIT'")
     Optional<Shipment> findInTransit(UUID orderId);
 
+    /** The shipment the customer received (the last delivered one). */
+    @Query("select s from Shipment s where s.orderId = :orderId and s.status = 'DELIVERED' order by s.shippedAt desc limit 1")
+    Optional<Shipment> findDelivered(UUID orderId);
+
     /** "" for any status, COD status or courier (lower-cased). Newest first. */
     @Query("""
             select s from Shipment s
