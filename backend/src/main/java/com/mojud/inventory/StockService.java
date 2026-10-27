@@ -9,6 +9,7 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -125,6 +126,20 @@ public class StockService {
             }
             return new Delta(q - level.onHand(), 0);
         }, true);
+    }
+
+    /**
+     * Locks these variants' stock rows now, in variant-id order. For a caller about to make several
+     * changes in one transaction (an order edit that reserves some variants and releases others):
+     * taking every lock first, in one order, means two such callers cannot deadlock.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lockAll(Collection<UUID> variantIds) {
+        if (!variantIds.isEmpty()) {
+            TreeMap<UUID, Integer> ids = new TreeMap<>();
+            variantIds.forEach(id -> ids.put(id, 0));
+            lock(TenantScope.current().orElseThrow(), ids);
+        }
     }
 
     // Orders (Phase 7).

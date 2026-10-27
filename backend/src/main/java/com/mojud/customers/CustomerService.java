@@ -21,6 +21,7 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -116,6 +117,18 @@ class CustomerService implements CustomerDirectory {
         }
         View created = create(new Details(name, e164, null, address, districtId, areaId, null));
         return find(created.id()).orElseThrow();
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void orderConfirmed(UUID customerId, Instant at) {
+        customers.addOrder(customerId, at);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void confirmedOrderCancelled(UUID customerId) {
+        customers.removeOrder(customerId);
     }
 
     private static Snapshot snapshot(Customer customer) {

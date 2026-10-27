@@ -6,10 +6,23 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 /** Scoped to the current business by Hibernate ({@code @TenantId}) and by row-level security. */
 interface CustomerRepository extends JpaRepository<Customer, UUID> {
+
+    /** Atomic, and without touching the version: orders count while staff edit the customer. */
+    @Modifying
+    @Query("""
+            update Customer c set c.orderCount = c.orderCount + 1,
+                   c.lastOrderAt = case when c.lastOrderAt is null or c.lastOrderAt < :at then :at else c.lastOrderAt end
+            where c.id = :id""")
+    void addOrder(UUID id, Instant at);
+
+    @Modifying
+    @Query("update Customer c set c.orderCount = c.orderCount - 1 where c.id = :id and c.orderCount > 0")
+    void removeOrder(UUID id);
 
     /** {@code phone} in E.164. */
     Optional<Customer> findByPhone(String phone);

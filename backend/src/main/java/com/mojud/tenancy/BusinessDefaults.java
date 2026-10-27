@@ -11,4 +11,7 @@ public interface BusinessDefaults {
 
     /** Put before order numbers: "RK-" makes order 1001 "RK-1001"; empty shows "#1001". */
     String orderNumberPrefix();
+
+    /** True when confirming an order takes its stock (stock_commit_point CONFIRM); else shipping does. */
+    boolean deductsStockAtConfirm();
 }

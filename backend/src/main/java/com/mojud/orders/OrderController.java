@@ -30,9 +30,11 @@ import org.springframework.web.bind.annotation.RestController;
 class OrderController {
 
     private final OrderService orders;
+    private final OrderTransitions transitions;
 
-    OrderController(OrderService orders) {
+    OrderController(OrderService orders, OrderTransitions transitions) {
         this.orders = orders;
+        this.transitions = transitions;
     }
 
     record ItemRequest(@NotNull UUID variantId, @NotNull @Min(1) @Max(10_000) Integer quantity, Long unitPrice) {
@@ -79,12 +81,30 @@ class OrderController {
             @Size(max = 2000) String note, Long version) {
     }
 
-    /** Edits a DRAFT order; fields left out stay. */
+    /** Edits a DRAFT or CONFIRMED order (a confirmed one moves only the stock difference); fields left out stay. */
     @PatchMapping("/api/v1/orders/{id}")
     OrderViews.Detail update(@PathVariable UUID id, @Valid @RequestBody UpdateRequest body) {
         return orders.update(id, new OrderService.Changes(body.customerId(), customer(body.customer()),
                 delivery(body.delivery()), body.items() == null ? null : items(body.items()), body.discount(),
                 body.deliveryCharge(), body.advancePaid(), body.note(), body.version()));
+    }
+
+    record ConfirmRequest(Long version) {
+    }
+
+    /** Reserves (or takes) the items' stock; 409 {@code stock.insufficient} names the short items. */
+    @PostMapping("/api/v1/orders/{id}/confirm")
+    OrderViews.Detail confirm(@PathVariable UUID id, @RequestBody(required = false) ConfirmRequest body) {
+        return transitions.confirm(id, body == null ? null : body.version());
+    }
+
+    record CancelRequest(@NotNull @Size(max = 1000) String reason, Long version) {
+    }
+
+    /** From DRAFT, CONFIRMED or PACKED, with a reason; gives back the stock it held. */
+    @PostMapping("/api/v1/orders/{id}/cancel")
+    OrderViews.Detail cancel(@PathVariable UUID id, @Valid @RequestBody CancelRequest body) {
+        return transitions.cancel(id, body.reason(), body.version());
     }
 
     private static OrderService.CustomerInput customer(CustomerRequest request) {

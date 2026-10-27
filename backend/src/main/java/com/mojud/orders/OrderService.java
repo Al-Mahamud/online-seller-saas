@@ -8,7 +8,6 @@ import com.mojud.delivery.GeoDirectory;
 import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
-import com.mojud.shared.id.Ids;
 import com.mojud.shared.idempotency.Idempotency;
 import com.mojud.shared.paging.Cursor;
 import com.mojud.shared.paging.CursorPage;
@@ -17,7 +16,6 @@ import com.mojud.shared.text.Text;
 import com.mojud.shared.time.DhakaTime;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -30,9 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import javax.sql.DataSource;
 import org.springframework.data.domain.Limit;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -88,13 +84,14 @@ class OrderService {
     private final DeliveryCharges charges;
     private final GeoDirectory geo;
     private final Idempotency idempotency;
+    private final OrderEvents events;
+    private final OrderStock stock;
     private final AuditTrail audit;
-    private final JdbcClient jdbc;
     private final Clock clock;
 
     OrderService(OrderRepository orders, OrderItemRepository items, OrderNumbers numbers, CatalogLookup catalog,
             CustomerDirectory customers, DeliveryCharges charges, GeoDirectory geo, Idempotency idempotency,
-            AuditTrail audit, DataSource dataSource, Clock clock) {
+            OrderEvents events, OrderStock stock, AuditTrail audit, Clock clock) {
         this.orders = orders;
         this.items = items;
         this.numbers = numbers;
@@ -103,8 +100,9 @@ class OrderService {
         this.charges = charges;
         this.geo = geo;
         this.idempotency = idempotency;
+        this.events = events;
+        this.stock = stock;
         this.audit = audit;
-        this.jdbc = JdbcClient.create(dataSource);
         this.clock = clock;
     }
 
@@ -127,32 +125,45 @@ class OrderService {
             saveLines(order.getId(), lines);
             // The event is plain SQL: the order must be written first.
             orders.flush();
-            event(order.getId(), null, OrderStatus.DRAFT, me.userId(), "", now);
+            events.record(order.getId(), null, OrderStatus.DRAFT, me.userId(), "", now);
             audit.record(me.businessId(), me.userId(), "order.created", "order", order.getId(),
                     "number", number.label(), "total", totals.total());
             return detail(order);
         });
     }
 
+    /**
+     * Edits a DRAFT or CONFIRMED order. In a confirmed order only the difference in items moves
+     * stock (more reserved or taken, the rest given back), the customer stays, and the delivery
+     * details stay complete. Packed orders are not edited (backend-plan.md §6).
+     */
     @Transactional
     OrderViews.Detail update(UUID id, Changes changes) {
         CurrentBusiness me = CurrentBusiness.require();
-        Order order = find(id);
+        Order order = orders.findLocked(id).orElseThrow(ApiException::notFound);
         if (changes.version() != null && !Objects.equals(changes.version(), order.getVersion())) {
             throw new ApiException(ErrorCode.CONCURRENT_MODIFICATION);
         }
-        if (order.getStatus() != OrderStatus.DRAFT) {
+        if (order.getStatus() != OrderStatus.DRAFT && order.getStatus() != OrderStatus.CONFIRMED) {
             throw new ApiException(ErrorCode.ORDER_NOT_EDITABLE);
         }
+        boolean confirmed = order.getStatus() == OrderStatus.CONFIRMED;
         Order.Parties before = order.parties();
         boolean customerChanged = changes.customerId() != null || changes.customer() != null;
+        if (confirmed && customerChanged) {
+            throw ApiException.invalidField("customer", "field.customer_fixed");
+        }
         CustomerDirectory.Snapshot customer = customerChanged
                 ? customer(changes.customerId(), changes.customer(), true)
                 : customers.find(before.customerId()).orElseThrow();
         Order.Parties parties = customerChanged || changes.delivery() != null
                 ? parties(customer, changes.delivery(), customerChanged ? null : before)
                 : before;
-        List<Totals.Line> lines = changes.items() != null ? lines(changes.items()) : currentLines(id);
+        if (confirmed) {
+            requireDeliveryDetails(parties);
+        }
+        List<Totals.Line> current = currentLines(id);
+        List<Totals.Line> lines = changes.items() != null ? lines(changes.items()) : current;
         boolean placeChanged = !Objects.equals(parties.deliveryAreaId(), before.deliveryAreaId())
                 || !Objects.equals(parties.deliveryDistrictId(), before.deliveryDistrictId());
         long deliveryCharge = changes.deliveryCharge() != null ? charge(changes.deliveryCharge())
@@ -165,6 +176,7 @@ class OrderService {
         String note = changes.note() != null ? note(changes.note()) : order.getNote();
         order.change(parties, totals, note, clock.instant());
         if (changes.items() != null) {
+            stock.rebalance(id, current, lines, order.getStockState());
             items.deleteByOrder(id);
             saveLines(id, lines);
         }
@@ -295,7 +307,17 @@ class OrderService {
         return lines;
     }
 
-    private List<Totals.Line> currentLines(UUID orderId) {
+    /** A confirmed order must say where it goes: an address and at least a district. */
+    static void requireDeliveryDetails(Order.Parties parties) {
+        if (parties.deliveryAddress().isBlank()) {
+            throw ApiException.invalidField("delivery.address", "field.needed_to_confirm");
+        }
+        if (parties.deliveryDistrictId() == null) {
+            throw ApiException.invalidField("delivery.districtId", "field.needed_to_confirm");
+        }
+    }
+
+    List<Totals.Line> currentLines(UUID orderId) {
         return items.findByOrder(orderId).stream().map(item -> new Totals.Line(item.getVariantId(), item.getProductName(),
                 item.getVariantLabel(), item.getSku(), item.getQuantity(), item.getUnitPrice(), item.getUnitCost())).toList();
     }
@@ -304,17 +326,6 @@ class OrderService {
         for (int i = 0; i < lines.size(); i++) {
             items.save(new OrderItem(orderId, lines.get(i), i));
         }
-    }
-
-    /** Status changes (OrderTransitions in 7b) and the creation are recorded the same way. */
-    void event(UUID orderId, OrderStatus from, OrderStatus to, UUID userId, String note, Instant now) {
-        jdbc.sql("""
-                        insert into order_events (id, business_id, order_id, from_status, to_status, user_id, note, created_at)
-                        values (?, ?, ?, ?, ?, ?, ?, ?)
-                        """)
-                .params(Ids.newId(), CurrentBusiness.require().businessId(), orderId, from == null ? null : from.name(),
-                        to.name(), userId, note, Timestamp.from(now))
-                .update();
     }
 
     private static long amount(Long value, String field) {
@@ -347,7 +358,7 @@ class OrderService {
         return orders.findById(id).orElseThrow(ApiException::notFound);
     }
 
-    private OrderViews.Detail detail(Order order) {
+    OrderViews.Detail detail(Order order) {
         boolean showCost = CurrentBusiness.require().isAtLeast(BusinessRole.MANAGER);
         return OrderViews.detail(order, items.findByOrder(order.getId()), geo, showCost);
     }

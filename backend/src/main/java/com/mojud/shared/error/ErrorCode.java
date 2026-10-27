@@ -97,6 +97,8 @@ public enum ErrorCode {
     // Orders.
     /** The order's status no longer allows this change (only drafts are edited, before 7b). */
     ORDER_NOT_EDITABLE("order.not_editable", HttpStatus.CONFLICT),
+    /** The order's status does not allow this move; {@code status} is the status it is in. */
+    ORDER_INVALID_TRANSITION("order.invalid_transition", HttpStatus.CONFLICT),
 
     // Imports.
     /** Not an .xlsx or a UTF-8 .csv (an old .xls, a CSV in another encoding, a damaged file). */

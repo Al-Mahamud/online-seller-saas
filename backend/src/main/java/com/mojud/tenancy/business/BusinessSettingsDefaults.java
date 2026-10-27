@@ -25,6 +25,14 @@ class BusinessSettingsDefaults implements BusinessDefaults {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean deductsStockAtConfirm() {
+        return settings.findById(TenantScope.current().orElseThrow())
+                .map(s -> s.getStockCommitPoint() == StockCommitPoint.CONFIRM)
+                .orElseThrow(ApiException::notFound);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public int lowStockDefault() {
         return settings.findById(TenantScope.current().orElseThrow())
                 .map(BusinessSettings::getLowStockDefault)

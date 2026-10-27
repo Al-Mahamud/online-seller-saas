@@ -209,8 +209,8 @@ class OrderTests {
         owner.patch("/api/v1/orders/" + id, Map.of("note", "Stale", "version", 0)).expectError(409, "resource.modified");
         owner.patch("/api/v1/orders/" + id, Map.of("discount", 999999999)).expectError(400, "validation.failed");
 
-        // Once out of DRAFT (OrderTransitions, 7b), an order is not edited this way.
-        systemDatabase.jdbc().sql("update orders set status = 'CONFIRMED' where id = ?").param(UUID.fromString(id)).update();
+        // Packed orders are not edited (packing comes with Phase 8).
+        systemDatabase.jdbc().sql("update orders set status = 'PACKED' where id = ?").param(UUID.fromString(id)).update();
         owner.patch("/api/v1/orders/" + id, Map.of("note", "Too late")).expectError(409, "order.not_editable");
     }
 

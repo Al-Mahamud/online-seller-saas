@@ -1,5 +1,6 @@
 package com.mojud.customers;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,4 +20,10 @@ public interface CustomerDirectory {
      * @throws com.mojud.shared.error.ApiException a validation error for an unusable name, phone or place
      */
     Snapshot findOrCreate(String name, String phone, String address, Integer districtId, Integer areaId);
+
+    /** One more confirmed order (counted from confirmation; a cancel takes it back). */
+    void orderConfirmed(UUID customerId, Instant at);
+
+    /** A confirmed order was cancelled. */
+    void confirmedOrderCancelled(UUID customerId);
 }

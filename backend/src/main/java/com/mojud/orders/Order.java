@@ -85,6 +85,11 @@ class Order {
 
     private Instant cancelledAt;
 
+    @Enumerated(EnumType.STRING)
+    private StockState stockState;
+
+    private String cancelReason;
+
     @Version
     private Long version;
 
@@ -96,6 +101,7 @@ class Order {
         this.number = number;
         this.numberLabel = numberLabel;
         this.status = OrderStatus.DRAFT;
+        this.stockState = StockState.NONE;
         this.source = "MANUAL";
         this.createdBy = createdBy;
         this.createdAt = now;
@@ -118,6 +124,22 @@ class Order {
         advancePaid = totals.advancePaid();
         codAmount = totals.codAmount();
         note = newNote;
+        updatedAt = now;
+    }
+
+    /** Status changes: OrderTransitions only. */
+    void confirm(StockState taken, Instant now) {
+        status = OrderStatus.CONFIRMED;
+        stockState = taken;
+        confirmedAt = now;
+        updatedAt = now;
+    }
+
+    void cancel(String reason, Instant now) {
+        status = OrderStatus.CANCELLED;
+        stockState = StockState.NONE;
+        cancelReason = reason;
+        cancelledAt = now;
         updatedAt = now;
     }
 
@@ -204,6 +226,14 @@ class Order {
 
     Instant getCancelledAt() {
         return cancelledAt;
+    }
+
+    StockState getStockState() {
+        return stockState;
+    }
+
+    String getCancelReason() {
+        return cancelReason;
     }
 
     Long getVersion() {

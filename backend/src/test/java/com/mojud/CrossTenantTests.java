@@ -274,6 +274,14 @@ class CrossTenantTests {
             expectNoLeak(b.owner().get("/api/v1/orders?number=1001"), a);
         });
         CASES.put("GET /api/v1/orders/{id}", (a, b) -> expectNotFound(b.owner().get("/api/v1/orders/" + a.orderId())));
+        CASES.put("POST /api/v1/orders/{id}/confirm", (a, b) -> {
+            expectNotFound(b.owner().post("/api/v1/orders/" + a.orderId() + "/confirm", null));
+            assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<String>json("$.status")).isEqualTo("DRAFT");
+        });
+        CASES.put("POST /api/v1/orders/{id}/cancel", (a, b) -> {
+            expectNotFound(b.owner().post("/api/v1/orders/" + a.orderId() + "/cancel", Map.of("reason", "Not mine")));
+            assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<String>json("$.status")).isEqualTo("DRAFT");
+        });
         CASES.put("PATCH /api/v1/orders/{id}", (a, b) -> expectNotFound(
                 b.owner().patch("/api/v1/orders/" + a.orderId(), Map.of("note", "Taken over"))));
 

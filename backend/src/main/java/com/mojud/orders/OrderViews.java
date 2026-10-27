@@ -29,7 +29,7 @@ final class OrderViews {
             Delivery delivery, List<Item> items, long subtotal, long discount, long deliveryCharge, long total,
             long advancePaid, long codAmount, String note, UUID createdBy, Instant createdAt, Instant updatedAt,
             Instant confirmedAt, Instant packedAt, Instant shippedAt, Instant deliveredAt, Instant cancelledAt,
-            Long version) {
+            String cancelReason, StockState stockState, Long version) {
     }
 
     private OrderViews() {
@@ -57,6 +57,7 @@ final class OrderViews {
                 order.getSubtotal(), order.getDiscount(), order.getDeliveryCharge(), order.getTotal(),
                 order.getAdvancePaid(), order.getCodAmount(), order.getNote(), order.getCreatedBy(), order.getCreatedAt(),
                 order.getUpdatedAt(), order.getConfirmedAt(), order.getPackedAt(), order.getShippedAt(),
-                order.getDeliveredAt(), order.getCancelledAt(), order.getVersion());
+                order.getDeliveredAt(), order.getCancelledAt(), order.getCancelReason(), order.getStockState(),
+                order.getVersion());
     }
 }

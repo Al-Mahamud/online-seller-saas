@@ -23,7 +23,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Done |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Done |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Done |
-| 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | 7a in review |
+| 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | 7a done · 7b in review |
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Not started |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Not started |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Not started |
@@ -294,6 +294,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Order events and audit for every transition.
 
 **Checked by:** the concurrency test from §6 (20 threads, 5 units, exactly 5 succeed) in both stock modes; two parallel cancels give one cancel and one 409.
+
+**As built:** orders record what they did to stock (`stock_state`: NONE, RESERVED, DEDUCTED), so a cancel or an edit undoes exactly that even after the business switches `stock_commit_point`. Transitions lock the order row (`SELECT … FOR UPDATE`) before reading its status: a second cancel waits and then gets 409 `order.invalid_transition` (the row version stays as a second guard; the test fails without the lock). Confirmation needs a delivery address and district. Shortages name the items (product, option label, SKU, requested, available). Confirmed orders can be edited: only the difference moves stock, with every involved variant locked first in variant-id order (`StockService.lockAll`), and the customer can no longer change. Customers' `order_count` counts confirmed orders (a cancel takes one back) and `last_order_at` is set at confirmation, by atomic updates that leave the customer's version alone.
 
 ---
 
