@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import com.mojud.shared.error.ApiException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,12 +41,15 @@ class OrderController {
     private final OrderService orders;
     private final OrderTransitions transitions;
     private final BulkActions bulk;
+    private final OrderPayments payments;
     private final ShipmentRepository shipments;
 
-    OrderController(OrderService orders, OrderTransitions transitions, BulkActions bulk, ShipmentRepository shipments) {
+    OrderController(OrderService orders, OrderTransitions transitions, BulkActions bulk, OrderPayments payments,
+            ShipmentRepository shipments) {
         this.orders = orders;
         this.transitions = transitions;
         this.bulk = bulk;
+        this.payments = payments;
         this.shipments = shipments;
     }
 
@@ -61,7 +66,8 @@ class OrderController {
 
     record CreateRequest(UUID customerId, @Valid CustomerRequest customer, @Valid DeliveryRequest delivery,
             @NotNull @Size(max = 200) List<@Valid @NotNull ItemRequest> items, Long discount, Long deliveryCharge,
-            Long advancePaid, @Size(max = 2000) String note) {
+            Long advancePaid, PaymentMethod advanceMethod, @Size(max = 200) String advanceReference,
+            @Size(max = 2000) String note) {
     }
 
     /** Creates a DRAFT order. With an {@code Idempotency-Key} header, a resend returns the first answer. */
@@ -70,7 +76,8 @@ class OrderController {
     OrderViews.Detail create(@Valid @RequestBody CreateRequest body,
             @RequestHeader(name = Idempotency.HEADER, required = false) @Size(max = 100) String idempotencyKey) {
         return orders.create(new OrderService.Draft(body.customerId(), customer(body.customer()), delivery(body.delivery()),
-                items(body.items()), body.discount(), body.deliveryCharge(), body.advancePaid(), body.note()), idempotencyKey);
+                items(body.items()), body.discount(), body.deliveryCharge(), body.advancePaid(), body.advanceMethod(),
+                body.advanceReference(), body.note()), idempotencyKey);
     }
 
     @GetMapping("/api/v1/orders")
@@ -87,6 +94,7 @@ class OrderController {
         return orders.get(id);
     }
 
+    /** {@code advancePaid} is not accepted here: record a payment instead (POST /orders/{id}/payments). */
     record UpdateRequest(UUID customerId, @Valid CustomerRequest customer, @Valid DeliveryRequest delivery,
             @Size(max = 200) List<@Valid @NotNull ItemRequest> items, Long discount, Long deliveryCharge, Long advancePaid,
             @Size(max = 2000) String note, Long version) {
@@ -95,9 +103,12 @@ class OrderController {
     /** Edits a DRAFT or CONFIRMED order (a confirmed one moves only the stock difference); fields left out stay. */
     @PatchMapping("/api/v1/orders/{id}")
     OrderViews.Detail update(@PathVariable UUID id, @Valid @RequestBody UpdateRequest body) {
+        if (body.advancePaid() != null) {
+            throw ApiException.invalidField("advancePaid", "field.advance_use_payments");
+        }
         return orders.update(id, new OrderService.Changes(body.customerId(), customer(body.customer()),
                 delivery(body.delivery()), body.items() == null ? null : items(body.items()), body.discount(),
-                body.deliveryCharge(), body.advancePaid(), body.note(), body.version()));
+                body.deliveryCharge(), body.note(), body.version()));
     }
 
     record ConfirmRequest(Long version) {
@@ -125,9 +136,24 @@ class OrderController {
                 body.courierCharge() == null ? 0 : body.courierCharge()), body.version());
     }
 
+    record DeliverRequest(Long codCollected, Long version) {
+    }
+
+    /** {@code codCollected}: what the courier took from the customer; left out, what it was to collect. */
     @PostMapping("/api/v1/orders/{id}/deliver")
-    OrderViews.Detail deliver(@PathVariable UUID id, @RequestBody(required = false) ConfirmRequest body) {
-        return transitions.deliver(id, body == null ? null : body.version());
+    OrderViews.Detail deliver(@PathVariable UUID id, @RequestBody(required = false) DeliverRequest body) {
+        return transitions.deliver(id, body == null ? null : body.codCollected(), body == null ? null : body.version());
+    }
+
+    record PaymentRequest(@NotNull PaymentMethod method, @NotNull Long amount, @Size(max = 200) String reference,
+            Instant receivedAt) {
+    }
+
+    /** Money paid to the business directly: before shipping (an advance) or after delivery (a shortfall). */
+    @PostMapping("/api/v1/orders/{id}/payments")
+    @ResponseStatus(HttpStatus.CREATED)
+    OrderViews.Detail pay(@PathVariable UUID id, @Valid @RequestBody PaymentRequest body) {
+        return payments.record(id, body.method(), body.amount(), body.reference(), body.receivedAt());
     }
 
     record BulkPackRequest(@NotNull @Size(max = 200) List<@NotNull UUID> orderIds) {

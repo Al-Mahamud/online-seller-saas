@@ -99,6 +99,10 @@ public enum ErrorCode {
     ORDER_NOT_EDITABLE("order.not_editable", HttpStatus.CONFLICT),
     /** The order's status does not allow this move; {@code status} is the status it is in. */
     ORDER_INVALID_TRANSITION("order.invalid_transition", HttpStatus.CONFLICT),
+    /** Payments are recorded before shipping or after delivery, not while the courier has the parcel. */
+    ORDER_NOT_PAYABLE("order.not_payable", HttpStatus.CONFLICT),
+    /** Only delivered shipments with COD still with the courier are settled; {@code shipmentIds} lists the others. */
+    COD_NOT_SETTLEABLE("cod.not_settleable", HttpStatus.CONFLICT),
 
     // Imports.
     /** Not an .xlsx or a UTF-8 .csv (an old .xls, a CSV in another encoding, a damaged file). */

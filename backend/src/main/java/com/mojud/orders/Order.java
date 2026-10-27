@@ -57,6 +57,8 @@ class Order {
 
     private long codAmount;
 
+    private long amountPaid;
+
     private String deliveryName;
 
     private String deliveryPhone;
@@ -106,6 +108,7 @@ class Order {
         this.createdBy = createdBy;
         this.createdAt = now;
         change(parties, totals, note, now);
+        this.amountPaid = totals.advancePaid();
     }
 
     void change(Parties parties, Totals totals, String newNote, Instant now) {
@@ -125,6 +128,26 @@ class Order {
         codAmount = totals.codAmount();
         note = newNote;
         updatedAt = now;
+    }
+
+    /**
+     * The customer paid the business directly. Before the parcel leaves it is an advance (the
+     * courier collects that much less); after delivery it pays off what is still owed.
+     */
+    void paid(long amount, Instant now) {
+        if (status == OrderStatus.DELIVERED) {
+            amountPaid += amount;
+        } else {
+            advancePaid += amount;
+            codAmount -= amount;
+            amountPaid += amount;
+        }
+        updatedAt = now;
+    }
+
+    /** What the customer owes now: the total less everything paid (advances, COD collected, later payments). */
+    long balanceDue() {
+        return total - amountPaid;
     }
 
     /** Status changes: OrderTransitions only. */
@@ -149,8 +172,10 @@ class Order {
         updatedAt = now;
     }
 
-    void deliver(Instant now) {
+    /** {@code codCollected}: what the courier took from the customer, in poisha. */
+    void deliver(long codCollected, Instant now) {
         status = OrderStatus.DELIVERED;
+        amountPaid += codCollected;
         deliveredAt = now;
         updatedAt = now;
     }
@@ -206,6 +231,15 @@ class Order {
 
     long getAdvancePaid() {
         return advancePaid;
+    }
+
+    long getAmountPaid() {
+        return amountPaid;
+    }
+
+    /** UNPAID, PARTIAL or PAID, from what was paid against the total. */
+    String getPaymentStatus() {
+        return amountPaid >= total ? "PAID" : amountPaid == 0 ? "UNPAID" : "PARTIAL";
     }
 
     long getCodAmount() {

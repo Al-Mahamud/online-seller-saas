@@ -301,6 +301,19 @@ class CrossTenantTests {
             assertThat(results.<List<String>>json("$[*].code")).containsExactly("resource.not_found");
             assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<String>json("$.status")).isEqualTo("DRAFT");
         });
+        CASES.put("POST /api/v1/orders/{id}/payments", (a, b) -> {
+            expectNotFound(b.owner().post("/api/v1/orders/" + a.orderId() + "/payments", Map.of("method", "CASH", "amount", 100)));
+            assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<Integer>json("$.amountPaid")).isEqualTo(5000);
+        });
+        CASES.put("GET /api/v1/shipments", (a, b) -> {
+            expectNoLeak(b.owner().get("/api/v1/shipments"), a);
+            expectNoLeak(b.owner().get("/api/v1/shipments?courier=" + a.courier().replace(" ", "%20")), a);
+        });
+        CASES.put("POST /api/v1/shipments/settle-cod", (a, b) -> {
+            expectNotFound(b.owner().post("/api/v1/shipments/settle-cod", Map.of("shipmentIds", List.of(a.shipmentId().toString()))));
+            assertThat(a.owner().get("/api/v1/orders/" + a.shippedOrderId()).<String>json("$.shipments[0].codStatus"))
+                    .isEqualTo("WITH_COURIER");
+        });
         CASES.put("GET /api/v1/shipments/couriers", (a, b) -> expectNoLeak(b.owner().get("/api/v1/shipments/couriers"), a));
         CASES.put("POST /api/v1/orders/{id}/cancel", (a, b) -> {
             expectNotFound(b.owner().post("/api/v1/orders/" + a.orderId() + "/cancel", Map.of("reason", "Not mine")));

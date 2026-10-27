@@ -117,17 +117,27 @@ class OrderTransitions {
         return service.detail(order);
     }
 
-    /** SHIPPED to DELIVERED: the customer has the parcel. (What the courier collected: 8b.) */
+    /**
+     * SHIPPED to DELIVERED: the customer has the parcel. {@code codCollected} is what the courier
+     * took from them (null: what it was to collect). Less leaves the order partly paid with a
+     * balance due; refused items come back through a return (8c).
+     */
     @Transactional
-    OrderViews.Detail deliver(UUID id, Long version) {
+    OrderViews.Detail deliver(UUID id, Long codCollected, Long version) {
         CurrentBusiness me = CurrentBusiness.require();
         Order order = locked(id, version, Set.of(OrderStatus.SHIPPED));
+        Shipment shipment = shipments.findInTransit(id).orElseThrow();
+        long collected = codCollected == null ? shipment.getCodExpected() : codCollected;
+        if (collected < 0 || collected > shipment.getCodExpected()) {
+            throw ApiException.invalidField("codCollected", "field.cod_collected_range");
+        }
         Instant now = clock.instant();
-        shipments.findInTransit(id).orElseThrow().delivered(now);
-        order.deliver(now);
+        shipment.delivered(collected, now);
+        order.deliver(collected, now);
         orders.flush();
         events.record(id, OrderStatus.SHIPPED, OrderStatus.DELIVERED, me.userId(), "", now);
-        audit.record(me.businessId(), me.userId(), "order.delivered", "order", id, "number", order.getNumberLabel());
+        audit.record(me.businessId(), me.userId(), "order.delivered", "order", id, "number", order.getNumberLabel(),
+                "codCollected", collected);
         return service.detail(order);
     }
 

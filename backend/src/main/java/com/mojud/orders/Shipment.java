@@ -60,9 +60,18 @@ class Shipment {
         this.shippedAt = now;
     }
 
-    void delivered(Instant now) {
+    /** Nothing collected leaves nothing to settle. */
+    void delivered(long collected, Instant now) {
         status = "DELIVERED";
         deliveredAt = now;
+        codCollected = collected;
+        codStatus = collected > 0 ? "WITH_COURIER" : "NONE";
+    }
+
+    /** The courier paid the business what it collected. */
+    void settled(Instant now) {
+        codStatus = "SETTLED";
+        settledAt = now;
     }
 
     UUID getId() {

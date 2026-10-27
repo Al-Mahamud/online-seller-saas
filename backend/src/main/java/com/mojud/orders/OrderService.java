@@ -65,20 +65,22 @@ class OrderService {
      * delivery zone's charge for the address; money in poisha.
      */
     record Draft(UUID customerId, CustomerInput customer, DeliveryInput delivery, List<ItemInput> items, Long discount,
-            Long deliveryCharge, Long advancePaid, String note) {
+            Long deliveryCharge, Long advancePaid, PaymentMethod advanceMethod, String advanceReference, String note) {
     }
 
     /**
      * Changes to a draft; null fields stay. {@code items} replace all lines. A new delivery place
-     * without a {@code deliveryCharge} takes the new place's zone charge.
+     * without a {@code deliveryCharge} takes the new place's zone charge. The advance is not edited
+     * here: payments are recorded (8b), so the order's advance is always their sum.
      */
     record Changes(UUID customerId, CustomerInput customer, DeliveryInput delivery, List<ItemInput> items, Long discount,
-            Long deliveryCharge, Long advancePaid, String note, Long version) {
+            Long deliveryCharge, String note, Long version) {
     }
 
     private final OrderRepository orders;
     private final OrderItemRepository items;
     private final ShipmentRepository shipments;
+    private final PaymentRepository payments;
     private final OrderNumbers numbers;
     private final CatalogLookup catalog;
     private final CustomerDirectory customers;
@@ -90,12 +92,14 @@ class OrderService {
     private final AuditTrail audit;
     private final Clock clock;
 
-    OrderService(OrderRepository orders, OrderItemRepository items, ShipmentRepository shipments, OrderNumbers numbers, CatalogLookup catalog,
+    OrderService(OrderRepository orders, OrderItemRepository items, ShipmentRepository shipments, PaymentRepository payments,
+            OrderNumbers numbers, CatalogLookup catalog,
             CustomerDirectory customers, DeliveryCharges charges, GeoDirectory geo, Idempotency idempotency,
             OrderEvents events, OrderStock stock, AuditTrail audit, Clock clock) {
         this.orders = orders;
         this.items = items;
         this.shipments = shipments;
+        this.payments = payments;
         this.numbers = numbers;
         this.catalog = catalog;
         this.customers = customers;
@@ -125,6 +129,10 @@ class OrderService {
             Order order = orders.save(new Order(number.value(), number.label(), parties, totals, note(draft.note()),
                     me.userId(), now));
             saveLines(order.getId(), lines);
+            if (totals.advancePaid() > 0) {
+                payments.save(new Payment(order.getId(), draft.advanceMethod() == null ? PaymentMethod.OTHER : draft.advanceMethod(),
+                        totals.advancePaid(), reference(draft.advanceReference()), now, me.userId(), now));
+            }
             // The event is plain SQL: the order must be written first.
             orders.flush();
             events.record(order.getId(), null, OrderStatus.DRAFT, me.userId(), "", now);
@@ -173,8 +181,7 @@ class OrderService {
                 : order.getDeliveryCharge();
         Totals totals = Totals.of(lines,
                 changes.discount() != null ? amount(changes.discount(), "discount") : order.getDiscount(),
-                deliveryCharge,
-                changes.advancePaid() != null ? amount(changes.advancePaid(), "advancePaid") : order.getAdvancePaid());
+                deliveryCharge, order.getAdvancePaid());
         String note = changes.note() != null ? note(changes.note()) : order.getNote();
         order.change(parties, totals, note, clock.instant());
         if (changes.items() != null) {
@@ -344,6 +351,14 @@ class OrderService {
         return amount(value, "deliveryCharge");
     }
 
+    static String reference(String reference) {
+        String cleaned = reference == null ? "" : reference.strip();
+        if (cleaned.length() > 100) {
+            throw ApiException.invalidField("reference", "field.too_long");
+        }
+        return cleaned;
+    }
+
     private static String note(String note) {
         return note == null ? "" : text(note, "note", MAX_NOTE);
     }
@@ -362,7 +377,7 @@ class OrderService {
 
     OrderViews.Detail detail(Order order) {
         boolean showCost = CurrentBusiness.require().isAtLeast(BusinessRole.MANAGER);
-        return OrderViews.detail(order, items.findByOrder(order.getId()), shipments.findByOrder(order.getId()), geo,
-                showCost);
+        return OrderViews.detail(order, items.findByOrder(order.getId()), shipments.findByOrder(order.getId()),
+                payments.findByOrder(order.getId()), geo, showCost);
     }
 }

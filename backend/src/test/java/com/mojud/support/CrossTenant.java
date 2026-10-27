@@ -31,7 +31,8 @@ public final class CrossTenant {
             UUID categoryId, String categoryName, UUID subcategoryId, String subcategoryName, UUID tagId, String tagName,
             UUID productId, String productName, UUID variantId, String sku, UUID fileId, UUID productImageId,
             UUID notificationId, UUID importId, UUID customerId, String customerName, String customerPhone,
-            UUID zoneId, String zoneName, UUID orderId, UUID shippedOrderId, String courier) {
+            UUID zoneId, String zoneName, UUID orderId, UUID shippedOrderId, String courier,
+            UUID shipmentId) {
 
         /** Values that must never appear in another business's answers. */
         public Set<String> markers() {
@@ -41,7 +42,7 @@ public final class CrossTenant {
                     tagId.toString(), tagName, productId.toString(), productName, variantId.toString(), sku,
                     fileId.toString(), productImageId.toString(), notificationId.toString(), importId.toString(),
                     customerId.toString(), customerName, customerPhone, zoneId.toString(), zoneName, orderId.toString(),
-                    shippedOrderId.toString(), courier);
+                    shippedOrderId.toString(), courier, shipmentId.toString());
         }
     }
 
@@ -120,13 +121,17 @@ public final class CrossTenant {
         owner.post("/api/v1/orders/" + shippedOrderId + "/confirm", null).expectStatus(200);
         owner.post("/api/v1/orders/" + shippedOrderId + "/ship", Map.of("courier", courier, "trackingNo", "T-" + marker))
                 .expectStatus(200);
+        // A bKash advance on the draft, so payments has rows.
+        owner.post("/api/v1/orders/" + orderId + "/payments", Map.of("method", "BKASH", "amount", 5000,
+                "reference", "TX-" + marker)).expectStatus(201);
+        UUID shipmentId = UUID.fromString(owner.get("/api/v1/orders/" + shippedOrderId).json("$.shipments[0].id"));
         return new Tenant(owner, ownerAccount, TestBusinesses.userId(owner), businessId, name, phone, prefix, staff,
                 staffAccount, staffId, membershipIds.of(businessId, staffId), inviteId, invitedEmail,
                 lastInviteToken(messages, invitedEmail), categoryId, categoryName, subcategoryId, subcategoryName,
                 tagId, tagName, UUID.fromString(product.json("$.id")), productName,
                 UUID.fromString(product.json("$.variants[0].id")), sku, fileId, productImageId, notificationId, importId,
                 customerId, customerName, customerPhone, zoneId, zoneName, orderId,
-                shippedOrderId, courier);
+                shippedOrderId, courier, shipmentId);
     }
 
     /** Looks up a membership id; tests pass a query through the system role. */

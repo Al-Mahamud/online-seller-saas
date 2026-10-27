@@ -26,13 +26,17 @@ final class OrderViews {
             Long codCollected, String codStatus, Instant shippedAt, Instant deliveredAt, Instant settledAt) {
     }
 
+    record PaymentView(UUID id, PaymentMethod method, long amount, String reference, Instant receivedAt) {
+    }
+
     record Summary(UUID id, long number, String numberLabel, OrderStatus status, String customerName, String customerPhone,
-            int itemCount, long total, long codAmount, Instant createdAt) {
+            int itemCount, long total, long codAmount, String paymentStatus, Instant createdAt) {
     }
 
     record Detail(UUID id, long number, String numberLabel, OrderStatus status, String source, CustomerRef customer,
             Delivery delivery, List<Item> items, long subtotal, long discount, long deliveryCharge, long total,
-            long advancePaid, long codAmount, String note, UUID createdBy, Instant createdAt, Instant updatedAt,
+            long advancePaid, long codAmount, long amountPaid, long balanceDue, String paymentStatus,
+            List<PaymentView> payments, String note, UUID createdBy, Instant createdAt, Instant updatedAt,
             Instant confirmedAt, Instant packedAt, Instant shippedAt, Instant deliveredAt, Instant cancelledAt,
             String cancelReason, StockState stockState, List<ShipmentView> shipments, Long version) {
     }
@@ -44,11 +48,11 @@ final class OrderViews {
         Order.Parties parties = order.parties();
         return new Summary(order.getId(), order.getNumber(), order.getNumberLabel(), order.getStatus(),
                 parties.customerName(), parties.customerPhone(), itemCount, order.getTotal(), order.getCodAmount(),
-                order.getCreatedAt());
+                order.getPaymentStatus(), order.getCreatedAt());
     }
 
-    static Detail detail(Order order, List<OrderItem> items, List<Shipment> shipments, GeoDirectory geo,
-            boolean showCost) {
+    static Detail detail(Order order, List<OrderItem> items, List<Shipment> shipments, List<Payment> payments,
+            GeoDirectory geo, boolean showCost) {
         Order.Parties parties = order.parties();
         GeoRef district = parties.deliveryDistrictId() == null ? null : geo.district(parties.deliveryDistrictId())
                 .map(d -> new GeoRef(d.id(), d.nameEn(), d.nameBn())).orElse(null);
@@ -61,7 +65,9 @@ final class OrderViews {
                         item.getVariantLabel(), item.getSku(), item.getQuantity(), item.getUnitPrice(),
                         showCost ? item.getUnitCost() : null, item.getQuantity() * item.getUnitPrice())).toList(),
                 order.getSubtotal(), order.getDiscount(), order.getDeliveryCharge(), order.getTotal(),
-                order.getAdvancePaid(), order.getCodAmount(), order.getNote(), order.getCreatedBy(), order.getCreatedAt(),
+                order.getAdvancePaid(), order.getCodAmount(), order.getAmountPaid(), order.balanceDue(),
+                order.getPaymentStatus(), payments.stream().map(p -> new PaymentView(p.getId(), p.getMethod(), p.getAmount(),
+                        p.getReference(), p.getReceivedAt())).toList(), order.getNote(), order.getCreatedBy(), order.getCreatedAt(),
                 order.getUpdatedAt(), order.getConfirmedAt(), order.getPackedAt(), order.getShippedAt(),
                 order.getDeliveredAt(), order.getCancelledAt(), order.getCancelReason(), order.getStockState(),
                 shipments.stream().map(s -> new ShipmentView(s.getId(), s.getCourier(), s.getTrackingNo(),

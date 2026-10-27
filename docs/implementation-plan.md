@@ -24,7 +24,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Done |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Done |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Done |
-| 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | 8a in review |
+| 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | 8a done · 8b in review |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Not started |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Not started |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Not started |
@@ -321,6 +321,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `POST /shipments/settle-cod` for a batch from one courier.
 
 **Checked by:** money tables for the main cases: full COD, advance + COD, delivery charge paid in advance, collected less than expected.
+
+**As built:** `payments` holds money paid to the business directly (bKash, Nagad, Rocket, bank, cash, card, other) with a reference; the order's `advance_paid` is their sum before shipping, so `cod_amount` drops as advances come in. An advance given when creating the order becomes its first payment; PATCH no longer accepts `advancePaid`. Payments are taken in DRAFT, CONFIRMED and PACKED (advances) and DELIVERED (a shortfall), never above what is owed, and not while the courier has the parcel. Deliver takes `codCollected` (default: the shipment's `cod_expected`; at most that). `orders.amount_paid` (advances + COD collected + later payments) gives `paymentStatus` (UNPAID, PARTIAL, PAID) and `balanceDue`; a shortfall stays visible until paid. COD settlement lives on shipments (`cod_status` WITH_COURIER to SETTLED, `settled_at`) rather than as payment rows: `POST /shipments/settle-cod` (managers and owners) settles one courier's delivered shipments all or none, with rows locked so each is settled once; `GET /shipments?status=&codStatus=&courier=` lists what couriers owe or still carry. Payments cannot yet be voided (a later phase, if needed).
 
 ### 8c: Returns and partial delivery (1.5 days)
 
