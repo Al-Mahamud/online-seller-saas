@@ -246,6 +246,7 @@ class CrossTenantTests {
                     .expectStatus(201);
             assertThat(created.<String>json("$.id")).isNotEqualTo(a.customerId().toString());
             assertThat(a.owner().get("/api/v1/customers/" + a.customerId()).<String>json("$.name")).isEqualTo(a.customerName());
+        assertThat(a.owner().get("/api/v1/delivery-zones/quote?areaId=365").<String>json("$.zoneId")).isEqualTo(a.zoneId().toString());
         });
         CASES.put("GET /api/v1/customers/{id}", (a, b) -> expectNotFound(b.owner().get("/api/v1/customers/" + a.customerId())));
         CASES.put("PATCH /api/v1/customers/{id}", (a, b) -> expectNotFound(
@@ -256,6 +257,21 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/geo/districts", (a, b) -> expectNoLeak(b.owner().get("/api/v1/geo/districts"), a));
         CASES.put("GET /api/v1/geo/districts/{id}/areas", (a, b) -> expectNoLeak(
                 b.owner().get("/api/v1/geo/districts/47/areas"), a));
+
+        // Delivery zones.
+        CASES.put("GET /api/v1/delivery-zones", (a, b) -> expectNoLeak(b.owner().get("/api/v1/delivery-zones"), a));
+        CASES.put("GET /api/v1/delivery-zones/quote", (a, b) -> {
+            // B's own Savar zone answers, never A's.
+            ApiResponse quote = b.owner().get("/api/v1/delivery-zones/quote?areaId=365").expectStatus(200);
+            expectNoLeak(quote, a);
+            assertThat(quote.<String>json("$.zoneId")).isEqualTo(b.zoneId().toString());
+        });
+        CASES.put("PUT /api/v1/delivery-zones", (a, b) -> {
+            // A's zone id means nothing in B: refused like any unknown id, and A's zones stay.
+            b.owner().put("/api/v1/delivery-zones", Map.of("zones", List.of(Map.of("id", a.zoneId().toString(),
+                    "name", "Mine now", "charge", 1, "isDefault", true)))).expectError(400, "validation.failed");
+            assertThat(a.owner().get("/api/v1/delivery-zones").<List<String>>json("$[*].name")).contains(a.zoneName());
+        });
 
         CASES.put("GET /api/v1/imports/template.xlsx", (a, b) -> assertThat(
                 b.owner().download("/api/v1/imports/template.xlsx").statusCode()).isEqualTo(200));

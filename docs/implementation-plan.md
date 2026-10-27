@@ -22,7 +22,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Done |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Done |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Done |
-| 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | 6a in review |
+| 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | 6a done · 6b in review |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Not started |
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Not started |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Not started |
@@ -263,6 +263,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `GET /delivery-zones/quote?areaId=` and the public `DeliveryCharges.quote()` API used by orders (and the AI later).
 
 **Checked by:** every district matches exactly one zone; an unmatched area falls back to the default zone.
+
+**As built:** zones list districts and, more narrowly, areas (so "Dhaka city" and "Savar, Keraniganj" can differ); an address takes its area's zone, else its district's, else the default. Districts and areas are linked through `delivery_zone_districts` and `delivery_zone_areas`, whose primary keys keep each in at most one zone of a business; a partial unique index keeps one default. `PUT /delivery-zones` replaces the whole set (ids sent back are kept; names may be swapped in one change) under a per-business lock, and is audited. Zones come from a new `tenancy.BusinessCreated` event, handled in the creating transaction; businesses from before 6b have none (none existed outside tests). Staff read zones and quotes; managers and owners change them. The check runs over all 64 districts and every area.
 
 ---
 

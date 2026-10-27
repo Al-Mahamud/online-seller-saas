@@ -9,6 +9,7 @@ import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.id.Ids;
 import com.mojud.shared.phone.PhoneNumber;
 import com.mojud.shared.tenant.TenantScope;
+import com.mojud.tenancy.BusinessCreated;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.membership.Membership;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -39,12 +41,13 @@ class BusinessService {
     private final TransactionTemplate transactions;
     private final AdvisoryLocks locks;
     private final AuditTrail audit;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
     private final int maxOwnedBusinesses;
 
     BusinessService(BusinessRepository businesses, BusinessSettingsRepository settings,
             MembershipRepository memberships, MembershipDirectory directory, TransactionTemplate transactions,
-            AdvisoryLocks locks, AuditTrail audit, Clock clock,
+            AdvisoryLocks locks, AuditTrail audit, ApplicationEventPublisher events, Clock clock,
             @Value("${mojud.tenancy.max-owned-businesses}") int maxOwnedBusinesses) {
         this.businesses = businesses;
         this.settings = settings;
@@ -53,6 +56,7 @@ class BusinessService {
         this.transactions = transactions;
         this.locks = locks;
         this.audit = audit;
+        this.events = events;
         this.clock = clock;
         this.maxOwnedBusinesses = maxOwnedBusinesses;
     }
@@ -77,6 +81,7 @@ class BusinessService {
             settings.save(BusinessSettings.defaults(businessId, now));
             memberships.save(new Membership(userId, BusinessRole.OWNER, now));
             audit.record(businessId, userId, "business.created", "business", businessId, "name", business.getName());
+            events.publishEvent(new BusinessCreated(businessId, userId));
             return BusinessResponse.of(business, BusinessRole.OWNER);
         }));
     }

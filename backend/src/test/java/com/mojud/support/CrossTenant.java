@@ -30,7 +30,8 @@ public final class CrossTenant {
             UUID staffId, UUID membershipIdOfStaff, UUID inviteId, String invitedEmail, String inviteToken,
             UUID categoryId, String categoryName, UUID subcategoryId, String subcategoryName, UUID tagId, String tagName,
             UUID productId, String productName, UUID variantId, String sku, UUID fileId, UUID productImageId,
-            UUID notificationId, UUID importId, UUID customerId, String customerName, String customerPhone) {
+            UUID notificationId, UUID importId, UUID customerId, String customerName, String customerPhone,
+            UUID zoneId, String zoneName) {
 
         /** Values that must never appear in another business's answers. */
         public Set<String> markers() {
@@ -39,7 +40,7 @@ public final class CrossTenant {
                     categoryId.toString(), categoryName, subcategoryId.toString(), subcategoryName,
                     tagId.toString(), tagName, productId.toString(), productName, variantId.toString(), sku,
                     fileId.toString(), productImageId.toString(), notificationId.toString(), importId.toString(),
-                    customerId.toString(), customerName, customerPhone);
+                    customerId.toString(), customerName, customerPhone, zoneId.toString(), zoneName);
         }
     }
 
@@ -101,12 +102,18 @@ public final class CrossTenant {
         String customerPhone = "+88" + TestAccounts.newPhone();
         UUID customerId = UUID.fromString(owner.post("/api/v1/customers", Map.of("name", customerName,
                 "phone", customerPhone, "address", "House " + marker, "areaId", 9013)).expectStatus(201).json("$.id"));
+        // Its own zones: Savar alone at ৳95 (so every zone table has rows), Dhaka district, the rest.
+        String zoneName = "Zone " + marker;
+        UUID zoneId = UUID.fromString(owner.put("/api/v1/delivery-zones", Map.of("zones", List.of(
+                Map.of("name", zoneName, "charge", 9500, "areaIds", List.of(365)),
+                Map.of("name", "Inside Dhaka", "charge", 7000, "districtIds", List.of(47)),
+                Map.of("name", "Outside Dhaka", "charge", 13000, "isDefault", true)))).expectStatus(200).json("$[0].id"));
         return new Tenant(owner, ownerAccount, TestBusinesses.userId(owner), businessId, name, phone, prefix, staff,
                 staffAccount, staffId, membershipIds.of(businessId, staffId), inviteId, invitedEmail,
                 lastInviteToken(messages, invitedEmail), categoryId, categoryName, subcategoryId, subcategoryName,
                 tagId, tagName, UUID.fromString(product.json("$.id")), productName,
                 UUID.fromString(product.json("$.variants[0].id")), sku, fileId, productImageId, notificationId, importId,
-                customerId, customerName, customerPhone);
+                customerId, customerName, customerPhone, zoneId, zoneName);
     }
 
     /** Looks up a membership id; tests pass a query through the system role. */
