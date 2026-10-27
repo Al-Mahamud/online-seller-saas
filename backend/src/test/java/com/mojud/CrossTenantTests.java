@@ -278,6 +278,30 @@ class CrossTenantTests {
             expectNotFound(b.owner().post("/api/v1/orders/" + a.orderId() + "/confirm", null));
             assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<String>json("$.status")).isEqualTo("DRAFT");
         });
+        CASES.put("POST /api/v1/orders/{id}/pack", (a, b) -> expectNotFound(
+                b.owner().post("/api/v1/orders/" + a.orderId() + "/pack", null)));
+        CASES.put("POST /api/v1/orders/{id}/ship", (a, b) -> expectNotFound(
+                b.owner().post("/api/v1/orders/" + a.orderId() + "/ship", Map.of("courier", "Pathao"))));
+        CASES.put("POST /api/v1/orders/{id}/deliver", (a, b) -> {
+            expectNotFound(b.owner().post("/api/v1/orders/" + a.shippedOrderId() + "/deliver", null));
+            assertThat(a.owner().get("/api/v1/orders/" + a.shippedOrderId()).<String>json("$.status")).isEqualTo("SHIPPED");
+        });
+        // In bulk, another business's order is "not found" in its own result line.
+        CASES.put("POST /api/v1/orders/bulk/pack", (a, b) -> {
+            ApiResponse results = b.owner().post("/api/v1/orders/bulk/pack", Map.of("orderIds", List.of(a.orderId().toString())))
+                    .expectStatus(200);
+            // The line echoes the id B sent, and nothing of A's order.
+            assertThat(results.<List<String>>json("$[*].code")).containsExactly("resource.not_found");
+            assertThat(results.<List<Object>>json("$[*].numberLabel")).containsOnlyNulls();
+            assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<String>json("$.status")).isEqualTo("DRAFT");
+        });
+        CASES.put("POST /api/v1/orders/bulk/ship", (a, b) -> {
+            ApiResponse results = b.owner().post("/api/v1/orders/bulk/ship", Map.of("courier", "Pathao",
+                    "orders", List.of(Map.of("orderId", a.orderId().toString())))).expectStatus(200);
+            assertThat(results.<List<String>>json("$[*].code")).containsExactly("resource.not_found");
+            assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<String>json("$.status")).isEqualTo("DRAFT");
+        });
+        CASES.put("GET /api/v1/shipments/couriers", (a, b) -> expectNoLeak(b.owner().get("/api/v1/shipments/couriers"), a));
         CASES.put("POST /api/v1/orders/{id}/cancel", (a, b) -> {
             expectNotFound(b.owner().post("/api/v1/orders/" + a.orderId() + "/cancel", Map.of("reason", "Not mine")));
             assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<String>json("$.status")).isEqualTo("DRAFT");
@@ -365,9 +389,13 @@ class CrossTenantTests {
         assertThat(product.<String>json("$.status")).isEqualTo("ACTIVE");
         assertThat(product.<String>json("$.categoryId")).isEqualTo(a.subcategoryId().toString());
         assertThat(product.<Integer>json("$.variants[0].price")).isEqualTo(120000);
-        assertThat(product.<Integer>json("$.variants[0].onHand")).isEqualTo(3);
+        // 15 in, 12 damaged, 1 shipped (the fixture's shipped order).
+        assertThat(product.<Integer>json("$.variants[0].onHand")).isEqualTo(2);
         assertThat(a.owner().get("/api/v1/variants/" + a.variantId() + "/movements").<List<String>>json("$.items[*].type"))
-                .containsExactly("DAMAGE", "RECEIVE", "OPENING");
+                .containsExactly("SHIP", "RESERVE", "DAMAGE", "RECEIVE", "OPENING");
+        ApiResponse shipped = a.owner().get("/api/v1/orders/" + a.shippedOrderId());
+        assertThat(shipped.<String>json("$.status")).isEqualTo("SHIPPED");
+        assertThat(shipped.<String>json("$.shipments[0].courier")).isEqualTo(a.courier());
         ApiResponse notifications = a.owner().get("/api/v1/notifications").expectStatus(200);
         assertThat(notifications.<List<String>>json("$.items[*].id")).containsExactly(a.notificationId().toString());
         assertThat(notifications.<Boolean>json("$.items[0].read")).isTrue();

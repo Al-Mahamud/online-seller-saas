@@ -42,6 +42,15 @@ class OrderStock {
         return deduct ? StockState.DEDUCTED : StockState.RESERVED;
     }
 
+    /** Shipping: a reservation becomes a deduction (SHIP); stock already taken (DEDUCTED) stays as it is. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    void ship(UUID orderId, List<Totals.Line> lines, StockState state) {
+        if (state == StockState.RESERVED) {
+            stock.ship(lines.stream().map(l -> new StockService.Line(l.variantId(), l.quantity())).toList(),
+                    StockService.Reference.order(orderId));
+        }
+    }
+
     /** Cancellation: undoes what the order holds. */
     @Transactional(propagation = Propagation.MANDATORY)
     void giveBack(UUID orderId, List<Totals.Line> lines, StockState state) {

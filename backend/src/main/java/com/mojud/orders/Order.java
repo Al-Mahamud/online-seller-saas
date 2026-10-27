@@ -135,6 +135,26 @@ class Order {
         updatedAt = now;
     }
 
+    void pack(Instant now) {
+        status = OrderStatus.PACKED;
+        packedAt = now;
+        updatedAt = now;
+    }
+
+    /** Stock leaves on_hand at shipping at the latest. */
+    void ship(Instant now) {
+        status = OrderStatus.SHIPPED;
+        stockState = StockState.DEDUCTED;
+        shippedAt = now;
+        updatedAt = now;
+    }
+
+    void deliver(Instant now) {
+        status = OrderStatus.DELIVERED;
+        deliveredAt = now;
+        updatedAt = now;
+    }
+
     void cancel(String reason, Instant now) {
         status = OrderStatus.CANCELLED;
         stockState = StockState.NONE;

@@ -21,6 +21,11 @@ final class OrderViews {
             Long unitCost, long amount) {
     }
 
+    /** {@code courierCharge}, {@code codExpected}, {@code codCollected} in poisha. */
+    record ShipmentView(UUID id, String courier, String trackingNo, long courierCharge, String status, long codExpected,
+            Long codCollected, String codStatus, Instant shippedAt, Instant deliveredAt, Instant settledAt) {
+    }
+
     record Summary(UUID id, long number, String numberLabel, OrderStatus status, String customerName, String customerPhone,
             int itemCount, long total, long codAmount, Instant createdAt) {
     }
@@ -29,7 +34,7 @@ final class OrderViews {
             Delivery delivery, List<Item> items, long subtotal, long discount, long deliveryCharge, long total,
             long advancePaid, long codAmount, String note, UUID createdBy, Instant createdAt, Instant updatedAt,
             Instant confirmedAt, Instant packedAt, Instant shippedAt, Instant deliveredAt, Instant cancelledAt,
-            String cancelReason, StockState stockState, Long version) {
+            String cancelReason, StockState stockState, List<ShipmentView> shipments, Long version) {
     }
 
     private OrderViews() {
@@ -42,7 +47,8 @@ final class OrderViews {
                 order.getCreatedAt());
     }
 
-    static Detail detail(Order order, List<OrderItem> items, GeoDirectory geo, boolean showCost) {
+    static Detail detail(Order order, List<OrderItem> items, List<Shipment> shipments, GeoDirectory geo,
+            boolean showCost) {
         Order.Parties parties = order.parties();
         GeoRef district = parties.deliveryDistrictId() == null ? null : geo.district(parties.deliveryDistrictId())
                 .map(d -> new GeoRef(d.id(), d.nameEn(), d.nameBn())).orElse(null);
@@ -58,6 +64,9 @@ final class OrderViews {
                 order.getAdvancePaid(), order.getCodAmount(), order.getNote(), order.getCreatedBy(), order.getCreatedAt(),
                 order.getUpdatedAt(), order.getConfirmedAt(), order.getPackedAt(), order.getShippedAt(),
                 order.getDeliveredAt(), order.getCancelledAt(), order.getCancelReason(), order.getStockState(),
+                shipments.stream().map(s -> new ShipmentView(s.getId(), s.getCourier(), s.getTrackingNo(),
+                        s.getCourierCharge(), s.getStatus(), s.getCodExpected(), s.getCodCollected(), s.getCodStatus(),
+                        s.getShippedAt(), s.getDeliveredAt(), s.getSettledAt())).toList(),
                 order.getVersion());
     }
 }

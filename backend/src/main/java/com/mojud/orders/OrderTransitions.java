@@ -25,9 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 class OrderTransitions {
 
     static final int MAX_REASON = 500;
+    static final int MAX_COURIER = 50;
+    static final int MAX_TRACKING = 100;
     private static final Set<OrderStatus> CANCELLABLE = Set.of(OrderStatus.DRAFT, OrderStatus.CONFIRMED, OrderStatus.PACKED);
 
     private final OrderRepository orders;
+    private final ShipmentRepository shipments;
     private final OrderService service;
     private final OrderStock stock;
     private final OrderEvents events;
@@ -36,9 +39,10 @@ class OrderTransitions {
     private final AuditTrail audit;
     private final Clock clock;
 
-    OrderTransitions(OrderRepository orders, OrderService service, OrderStock stock, OrderEvents events,
+    OrderTransitions(OrderRepository orders, ShipmentRepository shipments, OrderService service, OrderStock stock, OrderEvents events,
             CustomerDirectory customers, BusinessDefaults settings, AuditTrail audit, Clock clock) {
         this.orders = orders;
+        this.shipments = shipments;
         this.service = service;
         this.stock = stock;
         this.events = events;
@@ -64,6 +68,66 @@ class OrderTransitions {
         orders.flush();
         events.record(id, OrderStatus.DRAFT, OrderStatus.CONFIRMED, me.userId(), "", now);
         audit.record(me.businessId(), me.userId(), "order.confirmed", "order", id, "number", order.getNumberLabel());
+        return service.detail(order);
+    }
+
+    /** CONFIRMED to PACKED. Its items are fixed from here (no more edits). */
+    @Transactional
+    OrderViews.Detail pack(UUID id, Long version) {
+        CurrentBusiness me = CurrentBusiness.require();
+        Order order = locked(id, version, Set.of(OrderStatus.CONFIRMED));
+        Instant now = clock.instant();
+        order.pack(now);
+        orders.flush();
+        events.record(id, OrderStatus.CONFIRMED, OrderStatus.PACKED, me.userId(), "", now);
+        audit.record(me.businessId(), me.userId(), "order.packed", "order", id, "number", order.getNumberLabel());
+        return service.detail(order);
+    }
+
+    /** What the courier took: name, tracking number (may be empty) and its charge to the business, in poisha. */
+    record Handover(String courier, String trackingNo, long courierCharge) {
+    }
+
+    /**
+     * PACKED (or CONFIRMED: packing is optional) to SHIPPED, with a shipment. Reserved stock is
+     * taken now (SHIP movements); stock taken at confirmation stays as it is. The courier is to
+     * collect the order's COD amount.
+     */
+    @Transactional
+    OrderViews.Detail ship(UUID id, Handover handover, Long version) {
+        CurrentBusiness me = CurrentBusiness.require();
+        String courier = Text.cleanName(handover.courier(), "courier", MAX_COURIER);
+        String tracking = handover.trackingNo() == null ? "" : handover.trackingNo().strip();
+        if (tracking.length() > MAX_TRACKING) {
+            throw ApiException.invalidField("trackingNo", "field.too_long");
+        }
+        if (handover.courierCharge() < 0 || handover.courierCharge() > Totals.MAX_TOTAL) {
+            throw ApiException.invalidField("courierCharge", "field.invalid_value");
+        }
+        Order order = locked(id, version, Set.of(OrderStatus.CONFIRMED, OrderStatus.PACKED));
+        OrderStatus from = order.getStatus();
+        Instant now = clock.instant();
+        stock.ship(id, service.currentLines(id), order.getStockState());
+        order.ship(now);
+        shipments.save(new Shipment(id, courier, tracking, handover.courierCharge(), order.getCodAmount(), me.userId(), now));
+        orders.flush();
+        events.record(id, from, OrderStatus.SHIPPED, me.userId(), courier + (tracking.isEmpty() ? "" : " " + tracking), now);
+        audit.record(me.businessId(), me.userId(), "order.shipped", "order", id, "number", order.getNumberLabel(),
+                "courier", courier, "trackingNo", tracking);
+        return service.detail(order);
+    }
+
+    /** SHIPPED to DELIVERED: the customer has the parcel. (What the courier collected: 8b.) */
+    @Transactional
+    OrderViews.Detail deliver(UUID id, Long version) {
+        CurrentBusiness me = CurrentBusiness.require();
+        Order order = locked(id, version, Set.of(OrderStatus.SHIPPED));
+        Instant now = clock.instant();
+        shipments.findInTransit(id).orElseThrow().delivered(now);
+        order.deliver(now);
+        orders.flush();
+        events.record(id, OrderStatus.SHIPPED, OrderStatus.DELIVERED, me.userId(), "", now);
+        audit.record(me.businessId(), me.userId(), "order.delivered", "order", id, "number", order.getNumberLabel());
         return service.detail(order);
     }
 

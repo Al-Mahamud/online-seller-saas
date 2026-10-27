@@ -23,8 +23,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Done |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Done |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Done |
-| 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | 7a done · 7b in review |
-| 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Not started |
+| 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Done |
+| 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | 8a in review |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Not started |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Not started |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Not started |
@@ -309,6 +309,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Bulk actions: pack or ship many orders at once (each order its own transaction, results reported per order).
 
 **Checked by:** stock after ship in both modes; a second ship of the same order returns 409.
+
+**As built:** shipping is allowed from CONFIRMED as well as PACKED (packing is an optional step). Stock follows the order's `stock_state`: RESERVED becomes SHIP movements; DEDUCTED moves nothing. A shipment keeps the courier (free text; suggestions are the business's own couriers, most used first, then well-known ones), tracking number (optional), the courier's charge to the business (not part of the order's total), and `cod_expected` (the order's COD amount; `cod_status` NONE when nothing is to be collected). A partial unique index allows one IN_TRANSIT shipment per order, leaving room for re-shipment in 8c. Deliver marks the shipment delivered; what the courier collected comes in 8b. Bulk pack and ship run each order in its own transaction and report each result (with a message in the reader's language); one courier for a bulk ship, with each order's tracking number and optionally its own charge.
 
 ### 8b: Payments and COD (1.5 days)
 

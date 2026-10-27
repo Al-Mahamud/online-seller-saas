@@ -78,6 +78,7 @@ class OrderService {
 
     private final OrderRepository orders;
     private final OrderItemRepository items;
+    private final ShipmentRepository shipments;
     private final OrderNumbers numbers;
     private final CatalogLookup catalog;
     private final CustomerDirectory customers;
@@ -89,11 +90,12 @@ class OrderService {
     private final AuditTrail audit;
     private final Clock clock;
 
-    OrderService(OrderRepository orders, OrderItemRepository items, OrderNumbers numbers, CatalogLookup catalog,
+    OrderService(OrderRepository orders, OrderItemRepository items, ShipmentRepository shipments, OrderNumbers numbers, CatalogLookup catalog,
             CustomerDirectory customers, DeliveryCharges charges, GeoDirectory geo, Idempotency idempotency,
             OrderEvents events, OrderStock stock, AuditTrail audit, Clock clock) {
         this.orders = orders;
         this.items = items;
+        this.shipments = shipments;
         this.numbers = numbers;
         this.catalog = catalog;
         this.customers = customers;
@@ -360,6 +362,7 @@ class OrderService {
 
     OrderViews.Detail detail(Order order) {
         boolean showCost = CurrentBusiness.require().isAtLeast(BusinessRole.MANAGER);
-        return OrderViews.detail(order, items.findByOrder(order.getId()), geo, showCost);
+        return OrderViews.detail(order, items.findByOrder(order.getId()), shipments.findByOrder(order.getId()), geo,
+                showCost);
     }
 }

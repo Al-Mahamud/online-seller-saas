@@ -10,10 +10,13 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,12 +32,20 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiresRole(BusinessRole.STAFF)
 class OrderController {
 
+    /** Couriers suggested before any are used; the business's own come first once it has shipped. */
+    static final List<String> KNOWN_COURIERS = List.of("Pathao", "Steadfast", "RedX", "Paperfly", "eCourier",
+            "Sundarban Courier", "SA Paribahan");
+
     private final OrderService orders;
     private final OrderTransitions transitions;
+    private final BulkActions bulk;
+    private final ShipmentRepository shipments;
 
-    OrderController(OrderService orders, OrderTransitions transitions) {
+    OrderController(OrderService orders, OrderTransitions transitions, BulkActions bulk, ShipmentRepository shipments) {
         this.orders = orders;
         this.transitions = transitions;
+        this.bulk = bulk;
+        this.shipments = shipments;
     }
 
     record ItemRequest(@NotNull UUID variantId, @NotNull @Min(1) @Max(10_000) Integer quantity, Long unitPrice) {
@@ -96,6 +107,60 @@ class OrderController {
     @PostMapping("/api/v1/orders/{id}/confirm")
     OrderViews.Detail confirm(@PathVariable UUID id, @RequestBody(required = false) ConfirmRequest body) {
         return transitions.confirm(id, body == null ? null : body.version());
+    }
+
+    @PostMapping("/api/v1/orders/{id}/pack")
+    OrderViews.Detail pack(@PathVariable UUID id, @RequestBody(required = false) ConfirmRequest body) {
+        return transitions.pack(id, body == null ? null : body.version());
+    }
+
+    record ShipRequest(@NotNull @Size(max = 200) String courier, @Size(max = 200) String trackingNo, Long courierCharge,
+            Long version) {
+    }
+
+    /** From PACKED, or CONFIRMED (packing is optional). {@code courierCharge}: what the courier charges the business. */
+    @PostMapping("/api/v1/orders/{id}/ship")
+    OrderViews.Detail ship(@PathVariable UUID id, @Valid @RequestBody ShipRequest body) {
+        return transitions.ship(id, new OrderTransitions.Handover(body.courier(), body.trackingNo(),
+                body.courierCharge() == null ? 0 : body.courierCharge()), body.version());
+    }
+
+    @PostMapping("/api/v1/orders/{id}/deliver")
+    OrderViews.Detail deliver(@PathVariable UUID id, @RequestBody(required = false) ConfirmRequest body) {
+        return transitions.deliver(id, body == null ? null : body.version());
+    }
+
+    record BulkPackRequest(@NotNull @Size(max = 200) List<@NotNull UUID> orderIds) {
+    }
+
+    /** Each order separately; the answer lists how each went, in the order given. */
+    @PostMapping("/api/v1/orders/bulk/pack")
+    List<BulkActions.Result> packMany(@Valid @RequestBody BulkPackRequest body) {
+        return bulk.pack(body.orderIds());
+    }
+
+    record BulkShipLine(@NotNull UUID orderId, @Size(max = 200) String trackingNo, Long courierCharge) {
+    }
+
+    record BulkShipRequest(@NotNull @Size(max = 200) String courier, Long courierCharge,
+            @NotNull @Size(max = 200) List<@Valid @NotNull BulkShipLine> orders) {
+    }
+
+    /** One courier for all; each order separately, with its own tracking number. */
+    @PostMapping("/api/v1/orders/bulk/ship")
+    List<BulkActions.Result> shipMany(@Valid @RequestBody BulkShipRequest body) {
+        return bulk.ship(body.courier(), body.courierCharge(), body.orders().stream()
+                .map(line -> new BulkActions.ShipLine(line.orderId(), line.trackingNo(), line.courierCharge())).toList());
+    }
+
+    /** Courier names for the ship form: the business's own, most used first, then well-known ones. */
+    @GetMapping("/api/v1/shipments/couriers")
+    @Transactional(readOnly = true)
+    List<String> couriers() {
+        LinkedHashMap<String, String> names = new LinkedHashMap<>();
+        shipments.findCouriers().forEach(name -> names.putIfAbsent(name.toLowerCase(Locale.ROOT), name));
+        KNOWN_COURIERS.forEach(name -> names.putIfAbsent(name.toLowerCase(Locale.ROOT), name));
+        return List.copyOf(names.values());
     }
 
     record CancelRequest(@NotNull @Size(max = 1000) String reason, Long version) {
