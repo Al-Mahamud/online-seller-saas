@@ -9,6 +9,7 @@ import com.mojud.shared.ratelimit.RateLimiter;
 import com.mojud.tenancy.CurrentBusiness;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -21,7 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * the business can fetch it back.
  */
 @Service
-class FileService {
+class FileService implements StoredFiles {
 
     record Uploaded(UUID id, int width, int height, FileLinks.Links links) {
     }
@@ -70,6 +71,14 @@ class FileService {
             throw e;
         }
         return new Uploaded(id, image.width(), image.height(), FileLinks.of(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<StoredFiles.Content> small(UUID fileId) {
+        return uploads.findById(fileId)
+                .flatMap(upload -> storage.load(upload.key("small"))
+                        .map(bytes -> new StoredFiles.Content(bytes, upload.getContentType())));
     }
 
     /** @param size "large" or "small" */

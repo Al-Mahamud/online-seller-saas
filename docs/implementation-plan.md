@@ -24,7 +24,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Done |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Done |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Done |
-| 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | 8a, 8b done · 8c in review |
+| 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | 8a-8c done · 8d in review |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Not started |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Not started |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Not started |
@@ -343,6 +343,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `GET /orders/{id}/slip` and `GET /orders/print?ids=` return print-ready HTML (Bangla or English, business logo, COD amount in large type), for the browser to print or save as PDF.
 
 **Checked by:** snapshot test of the HTML in both languages.
+
+**As built:** server-rendered HTML (no template engine), one A5 page per order: business name, phone, address and logo (embedded as a data URI, so a saved PDF keeps it), order number and date, the cash to collect in large type (or "paid in full: collect nothing"), delivery details with area and district in the page's language, courier and tracking number, items with SKU, the money, the note, and the business's invoice footer. Bangla pages use Bangla digits; amounts use lakh grouping in both languages (12,34,567). `lang=bn|en` overrides the reader's language; `autoprint=true` adds the one script that opens the print dialog. These answers carry their own Content-Security-Policy (inline styles, data: images, that script by hash, framing by the same origin only) instead of the API's `default-src 'none'; sandbox`. Snapshots live in `src/test/resources/snapshots` (missing ones are written and the test fails until they are read and committed; `-DupdateSnapshots=true` rewrites them); they were also checked rendered in headless Chrome.
 
 ---
 

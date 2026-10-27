@@ -306,6 +306,10 @@ class CrossTenantTests {
                     Map.of("kind", "FAILED_DELIVERY", "reason", "Not mine")));
             assertThat(a.owner().get("/api/v1/orders/" + a.shippedOrderId()).<String>json("$.status")).isEqualTo("SHIPPED");
         });
+        CASES.put("GET /api/v1/orders/{id}/slip", (a, b) -> assertThat(
+                b.owner().download("/api/v1/orders/" + a.shippedOrderId() + "/slip").statusCode()).isEqualTo(404));
+        CASES.put("GET /api/v1/orders/print", (a, b) -> assertThat(
+                b.owner().download("/api/v1/orders/print?ids=" + a.orderId()).statusCode()).isEqualTo(404));
         CASES.put("POST /api/v1/orders/{id}/payments", (a, b) -> {
             expectNotFound(b.owner().post("/api/v1/orders/" + a.orderId() + "/payments", Map.of("method", "CASH", "amount", 100)));
             assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<Integer>json("$.amountPaid")).isEqualTo(5000);
