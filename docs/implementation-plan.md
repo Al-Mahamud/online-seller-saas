@@ -22,8 +22,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Done |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Done |
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Done |
-| 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | 6a done · 6b in review |
-| 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Not started |
+| 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Done |
+| 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | 7a in review |
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Not started |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Not started |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Not started |
@@ -281,6 +281,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `Idempotency-Key` header support (shared filter, also used by stock adjustments and payments).
 
 **Checked by:** totals ignore client numbers; the same idempotency key returns the first response; 50 parallel creates get 50 distinct numbers.
+
+**As built:** `idempotency_keys` and the `Idempotency` helper came with 4a; orders use them. Numbers come from `order_counters` (owned by orders, as V7 intended) with an upsert that returns the previous value, so parallel orders queue on the row and a rollback returns its number; labels are "#1001" or the business's prefix ("RK-1001"), fixed when the order is made. Orders copy the customer (name, phone) and the delivery details (name, phone, address, district, area); each delivery field left out comes from the customer. A new customer by phone is found or made through the public `customers.CustomerDirectory`; items come from `catalog.CatalogLookup.variants` (name, option label, SKU, price, cost; archived products refused); an item may carry its own price. The delivery charge is the zone's unless given; a draft edit that moves the place re-quotes it. The database repeats the money arithmetic in CHECKs. Staff do not see unit costs. Lists filter by status, Dhaka days, phone (customer's or delivery, written any way) and number ("1001", "#1001", "RK-1001"). Delivery addresses are optional on drafts; 7b requires them to confirm. Customers' order counts are updated from 7b (on confirmation).
 
 ### 7b: Confirm, reserve and cancel (2.5 days)
 

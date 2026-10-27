@@ -17,6 +17,14 @@ class BusinessSettingsDefaults implements BusinessDefaults {
 
     @Override
     @Transactional(readOnly = true)
+    public String orderNumberPrefix() {
+        return settings.findById(TenantScope.current().orElseThrow())
+                .map(BusinessSettings::getOrderNumberPrefix)
+                .orElseThrow(ApiException::notFound);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public int lowStockDefault() {
         return settings.findById(TenantScope.current().orElseThrow())
                 .map(BusinessSettings::getLowStockDefault)

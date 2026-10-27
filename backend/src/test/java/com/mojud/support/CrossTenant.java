@@ -31,7 +31,7 @@ public final class CrossTenant {
             UUID categoryId, String categoryName, UUID subcategoryId, String subcategoryName, UUID tagId, String tagName,
             UUID productId, String productName, UUID variantId, String sku, UUID fileId, UUID productImageId,
             UUID notificationId, UUID importId, UUID customerId, String customerName, String customerPhone,
-            UUID zoneId, String zoneName) {
+            UUID zoneId, String zoneName, UUID orderId) {
 
         /** Values that must never appear in another business's answers. */
         public Set<String> markers() {
@@ -40,7 +40,7 @@ public final class CrossTenant {
                     categoryId.toString(), categoryName, subcategoryId.toString(), subcategoryName,
                     tagId.toString(), tagName, productId.toString(), productName, variantId.toString(), sku,
                     fileId.toString(), productImageId.toString(), notificationId.toString(), importId.toString(),
-                    customerId.toString(), customerName, customerPhone, zoneId.toString(), zoneName);
+                    customerId.toString(), customerName, customerPhone, zoneId.toString(), zoneName, orderId.toString());
         }
     }
 
@@ -108,12 +108,15 @@ public final class CrossTenant {
                 Map.of("name", zoneName, "charge", 9500, "areaIds", List.of(365)),
                 Map.of("name", "Inside Dhaka", "charge", 7000, "districtIds", List.of(47)),
                 Map.of("name", "Outside Dhaka", "charge", 13000, "isDefault", true)))).expectStatus(200).json("$[0].id"));
+        UUID orderId = UUID.fromString(owner.post("/api/v1/orders", Map.of("customerId", customerId.toString(),
+                "items", List.of(Map.of("variantId", product.<String>json("$.variants[0].id"), "quantity", 1)),
+                "note", "Order " + marker)).expectStatus(201).json("$.id"));
         return new Tenant(owner, ownerAccount, TestBusinesses.userId(owner), businessId, name, phone, prefix, staff,
                 staffAccount, staffId, membershipIds.of(businessId, staffId), inviteId, invitedEmail,
                 lastInviteToken(messages, invitedEmail), categoryId, categoryName, subcategoryId, subcategoryName,
                 tagId, tagName, UUID.fromString(product.json("$.id")), productName,
                 UUID.fromString(product.json("$.variants[0].id")), sku, fileId, productImageId, notificationId, importId,
-                customerId, customerName, customerPhone, zoneId, zoneName);
+                customerId, customerName, customerPhone, zoneId, zoneName, orderId);
     }
 
     /** Looks up a membership id; tests pass a query through the system role. */

@@ -4,9 +4,12 @@ import com.mojud.shared.tenant.TenantScope;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -47,6 +50,28 @@ class JdbcCatalogLookup implements CatalogLookup {
                 .params(TenantScope.current().orElseThrow(), upper)
                 .query(String.class)
                 .list());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, VariantInfo> variants(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return jdbc.sql("""
+                        select v.id, p.id, p.name,
+                               coalesce((select string_agg(v.attributes ->> o.name, ' / ' order by o.position)
+                                         from product_options o where o.product_id = p.id and v.attributes ->> o.name is not null), ''),
+                               v.sku, v.price, v.cost_price, v.status = 'ACTIVE' and p.status = 'ACTIVE'
+                        from product_variants v join products p on p.id = v.product_id
+                        where v.business_id = ? and v.id = any (?)
+                        """)
+                .params(TenantScope.current().orElseThrow(), ids.toArray(UUID[]::new))
+                .query((row, n) -> new VariantInfo(row.getObject(1, UUID.class), row.getObject(2, UUID.class),
+                        row.getString(3), row.getString(4), row.getString(5), row.getLong(6),
+                        row.getObject(7) == null ? null : row.getLong(7), row.getBoolean(8)))
+                .list().stream()
+                .collect(Collectors.toMap(VariantInfo::variantId, Function.identity()));
     }
 
     @Override

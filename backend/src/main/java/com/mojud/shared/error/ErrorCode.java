@@ -94,6 +94,10 @@ public enum ErrorCode {
     /** Another customer has this phone number; {@code customerId} names them. */
     CUSTOMER_PHONE_TAKEN("customer.phone_taken", HttpStatus.CONFLICT),
 
+    // Orders.
+    /** The order's status no longer allows this change (only drafts are edited, before 7b). */
+    ORDER_NOT_EDITABLE("order.not_editable", HttpStatus.CONFLICT),
+
     // Imports.
     /** Not an .xlsx or a UTF-8 .csv (an old .xls, a CSV in another encoding, a damaged file). */
     IMPORT_UNREADABLE("import.unreadable", HttpStatus.BAD_REQUEST),

@@ -29,7 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * every way of writing it ("01712-345678", "+8801712345678", Bangla digits) is the same number.
  */
 @Service
-class CustomerService {
+class CustomerService implements CustomerDirectory {
 
     static final int MAX_NAME = 100;
     static final int MAX_ADDRESS = 500;
@@ -100,9 +100,32 @@ class CustomerService {
         return PhoneNumber.tryParse(phone).flatMap(number -> customers.findByPhone(number.e164())).map(this::view);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Snapshot> find(UUID id) {
+        return customers.findById(id).map(CustomerService::snapshot);
+    }
+
+    @Override
+    @Transactional
+    public Snapshot findOrCreate(String name, String phone, String address, Integer districtId, Integer areaId) {
+        String e164 = PhoneNumber.fromInput(phone, "phone").e164();
+        Optional<Customer> existing = customers.findByPhone(e164);
+        if (existing.isPresent()) {
+            return snapshot(existing.get());
+        }
+        View created = create(new Details(name, e164, null, address, districtId, areaId, null));
+        return find(created.id()).orElseThrow();
+    }
+
+    private static Snapshot snapshot(Customer customer) {
+        return new Snapshot(customer.getId(), customer.getName(), customer.getPhone(), customer.getAddress(),
+                customer.getDistrictId(), customer.getAreaId());
+    }
+
     @Transactional(readOnly = true)
     View get(UUID id) {
-        return view(find(id));
+        return view(load(id));
     }
 
     /** @throws ApiException {@code customer.phone_taken} with the existing {@code customerId} */
@@ -131,7 +154,7 @@ class CustomerService {
         String address = text(changes.address(), "address", MAX_ADDRESS);
         String note = text(changes.note(), "note", MAX_NOTE);
         return saving(() -> {
-            Customer customer = find(id);
+            Customer customer = load(id);
             if (changes.version() != null && !Objects.equals(changes.version(), customer.getVersion())) {
                 throw new ApiException(ErrorCode.CONCURRENT_MODIFICATION);
             }
@@ -224,7 +247,7 @@ class CustomerService {
         return Constraints.translating(transactions, Map.of("uq_customers_phone", ErrorCode.CUSTOMER_PHONE_TAKEN), work);
     }
 
-    private Customer find(UUID id) {
+    private Customer load(UUID id) {
         return customers.findById(id).orElseThrow(ApiException::notFound);
     }
 

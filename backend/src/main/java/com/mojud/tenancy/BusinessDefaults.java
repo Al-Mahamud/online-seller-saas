@@ -8,4 +8,7 @@ public interface BusinessDefaults {
 
     /** The alert level for variants that have none of their own. */
     int lowStockDefault();
+
+    /** Put before order numbers: "RK-" makes order 1001 "RK-1001"; empty shows "#1001". */
+    String orderNumberPrefix();
 }

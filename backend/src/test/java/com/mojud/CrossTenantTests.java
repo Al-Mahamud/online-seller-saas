@@ -247,6 +247,7 @@ class CrossTenantTests {
             assertThat(created.<String>json("$.id")).isNotEqualTo(a.customerId().toString());
             assertThat(a.owner().get("/api/v1/customers/" + a.customerId()).<String>json("$.name")).isEqualTo(a.customerName());
         assertThat(a.owner().get("/api/v1/delivery-zones/quote?areaId=365").<String>json("$.zoneId")).isEqualTo(a.zoneId().toString());
+        assertThat(a.owner().get("/api/v1/orders/" + a.orderId()).<String>json("$.note")).startsWith("Order ");
         });
         CASES.put("GET /api/v1/customers/{id}", (a, b) -> expectNotFound(b.owner().get("/api/v1/customers/" + a.customerId())));
         CASES.put("PATCH /api/v1/customers/{id}", (a, b) -> expectNotFound(
@@ -257,6 +258,24 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/geo/districts", (a, b) -> expectNoLeak(b.owner().get("/api/v1/geo/districts"), a));
         CASES.put("GET /api/v1/geo/districts/{id}/areas", (a, b) -> expectNoLeak(
                 b.owner().get("/api/v1/geo/districts/47/areas"), a));
+
+        // Orders.
+        CASES.put("POST /api/v1/orders", (a, b) -> {
+            // A's customer and A's variant mean nothing in B: refused like unknown ids.
+            b.owner().post("/api/v1/orders", Map.of("customerId", a.customerId().toString(), "items",
+                    List.of(Map.of("variantId", b.variantId().toString(), "quantity", 1)))).expectError(400, "validation.failed");
+            b.owner().post("/api/v1/orders", Map.of("customerId", b.customerId().toString(), "items",
+                    List.of(Map.of("variantId", a.variantId().toString(), "quantity", 1)))).expectError(400, "validation.failed");
+            expectNoLeak(b.owner().post("/api/v1/orders", Map.of("customerId", b.customerId().toString(), "items",
+                    List.of(Map.of("variantId", b.variantId().toString(), "quantity", 1)))).expectStatus(201), a);
+        });
+        CASES.put("GET /api/v1/orders", (a, b) -> {
+            expectNoLeak(b.owner().get("/api/v1/orders"), a);
+            expectNoLeak(b.owner().get("/api/v1/orders?number=1001"), a);
+        });
+        CASES.put("GET /api/v1/orders/{id}", (a, b) -> expectNotFound(b.owner().get("/api/v1/orders/" + a.orderId())));
+        CASES.put("PATCH /api/v1/orders/{id}", (a, b) -> expectNotFound(
+                b.owner().patch("/api/v1/orders/" + a.orderId(), Map.of("note", "Taken over"))));
 
         // Delivery zones.
         CASES.put("GET /api/v1/delivery-zones", (a, b) -> expectNoLeak(b.owner().get("/api/v1/delivery-zones"), a));
