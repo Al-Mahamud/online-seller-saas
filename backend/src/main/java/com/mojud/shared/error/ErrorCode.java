@@ -90,6 +90,10 @@ public enum ErrorCode {
     /** A change the stock cannot take, such as releasing more than is reserved. */
     STOCK_INVALID_CHANGE("stock.invalid_change", HttpStatus.CONFLICT),
 
+    // Customers.
+    /** Another customer has this phone number; {@code customerId} names them. */
+    CUSTOMER_PHONE_TAKEN("customer.phone_taken", HttpStatus.CONFLICT),
+
     // Imports.
     /** Not an .xlsx or a UTF-8 .csv (an old .xls, a CSV in another encoding, a damaged file). */
     IMPORT_UNREADABLE("import.unreadable", HttpStatus.BAD_REQUEST),

@@ -233,6 +233,30 @@ class CrossTenantTests {
         });
         CASES.put("GET /api/v1/imports/{id}/errors.csv", (a, b) -> assertThat(
                 b.owner().download("/api/v1/imports/" + a.importId() + "/errors.csv").statusCode()).isEqualTo(404));
+        // Customers. Phone numbers are unique per business: B may have A's customer's number too.
+        CASES.put("GET /api/v1/customers", (a, b) -> {
+            expectNoLeak(b.owner().get("/api/v1/customers"), a);
+            expectNoLeak(b.owner().get("/api/v1/customers?q=" + a.customerName().replace(" ", "%20")), a);
+            expectNoLeak(b.owner().get("/api/v1/customers?q=" + a.customerPhone().substring(4)), a);
+            expectNoLeak(b.owner().get("/api/v1/customers?phone=" + a.customerPhone().replace("+", "%2B")), a);
+        });
+        // B's own customer echoes the number B typed; what matters is that it is B's, and A's is untouched.
+        CASES.put("POST /api/v1/customers", (a, b) -> {
+            ApiResponse created = b.owner().post("/api/v1/customers", Map.of("name", "B's buyer", "phone", a.customerPhone()))
+                    .expectStatus(201);
+            assertThat(created.<String>json("$.id")).isNotEqualTo(a.customerId().toString());
+            assertThat(a.owner().get("/api/v1/customers/" + a.customerId()).<String>json("$.name")).isEqualTo(a.customerName());
+        });
+        CASES.put("GET /api/v1/customers/{id}", (a, b) -> expectNotFound(b.owner().get("/api/v1/customers/" + a.customerId())));
+        CASES.put("PATCH /api/v1/customers/{id}", (a, b) -> expectNotFound(
+                b.owner().patch("/api/v1/customers/" + a.customerId(), Map.of("name", "Taken over"))));
+
+        // Geography: the same for everyone, nothing of a business in it.
+        CASES.put("GET /api/v1/geo/divisions", (a, b) -> expectNoLeak(b.owner().get("/api/v1/geo/divisions"), a));
+        CASES.put("GET /api/v1/geo/districts", (a, b) -> expectNoLeak(b.owner().get("/api/v1/geo/districts"), a));
+        CASES.put("GET /api/v1/geo/districts/{id}/areas", (a, b) -> expectNoLeak(
+                b.owner().get("/api/v1/geo/districts/47/areas"), a));
+
         CASES.put("GET /api/v1/imports/template.xlsx", (a, b) -> assertThat(
                 b.owner().download("/api/v1/imports/template.xlsx").statusCode()).isEqualTo(200));
 
@@ -307,6 +331,9 @@ class CrossTenantTests {
         assertThat(notifications.<Integer>json("$.unread")).isZero();
         assertThat(a.owner().get("/api/v1/imports/" + a.importId() + "/preview").<String>json("$.rows[0].name"))
                 .startsWith("Imported ");
+        assertThat(a.owner().get("/api/v1/customers/" + a.customerId()).<String>json("$.name")).isEqualTo(a.customerName());
+        assertThat(a.owner().get("/api/v1/customers?phone=" + a.customerPhone().replace("+", "%2B")).<String>json("$.items[0].id"))
+                .isEqualTo(a.customerId().toString());
         assertThat(product.<String>json("$.variants[0].status")).isEqualTo("ACTIVE");
         assertThat(product.<List<String>>json("$.images[*].id")).containsExactly(a.productImageId().toString());
         assertThat(a.owner().get("/api/v1/business").<String>json("$.logo.small")).contains(a.fileId().toString());

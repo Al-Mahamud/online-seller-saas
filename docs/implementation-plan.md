@@ -21,8 +21,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 2 Tenancy | 2a businesses and tenant context · 2b staff and roles · 2c cross-tenant suite and audit log | 5 | Done |
 | 3 Catalog | 3a categories and tags · 3b products and variants · 3c files, images, search | 5 | Done |
 | 4 Inventory | 4a stock ledger and adjustments · 4b low-stock alerts and reconciliation | 3 | Done |
-| 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | 5a done · 5b in review |
-| 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Not started |
+| 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Done |
+| 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | 6a in review |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Not started |
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Not started |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Not started |
@@ -253,6 +253,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `customers`: unique phone per business; search by phone or name; `GET /customers/{id}/orders` added in 7a.
 
 **Checked by:** "01712-345678", "+8801712345678" and "8801712345678" match the same customer.
+
+**As built:** geo data from github.com/nuhil/bangladesh-geocode (MIT; commit and licence notice in V18): 8 divisions, 64 districts, 494 upazilas, with the dataset's ids. The dataset has only Dhaka's rural upazilas, so the 50 Dhaka Metropolitan Police thanas are added as areas of Dhaka district (kind METRO_THANA, ids 9001-9050); their Bangla spellings are ours and worth a native check. "Coxsbazar" is corrected to "Cox's Bazar". Geo tables are read-only for the app and held in memory (`delivery.GeoDirectory`, public); `GET /geo/divisions`, `/geo/districts?divisionId=`, `/geo/districts/{id}/areas` need sign-in only. Customers: unique E.164 phone per business (a clash answers 409 `customer.phone_taken` with the existing `customerId`); `GET /customers?phone=` finds the one customer for a number written any way (order form); `?q=` searches part of a name (with small typos) or part of a number (any digits, Bangla too); an area brings its district, and a composite foreign key keeps the area in the district. Any member may read and edit customers; deleting comes with account-data work.
 
 ### 6b: Delivery zones (1 day)
 

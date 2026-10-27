@@ -15,10 +15,6 @@ interface ProductRepository extends JpaRepository<Product, UUID> {
      * passes a position after everything (see ProductService). A top-level category also finds
      * products in its subcategories.
      */
-    /** Products on sale with this name, ignoring case. */
-    @Query("select p from Product p where lower(p.name) = lower(:name) and p.status = com.mojud.catalog.product.ProductStatus.ACTIVE")
-    List<Product> findActiveByName(String name);
-
     @Query("""
             select p from Product p
             where p.status = :status
@@ -28,6 +24,10 @@ interface ProductRepository extends JpaRepository<Product, UUID> {
               and (p.createdAt < :afterAt or (p.createdAt = :afterAt and p.id < :afterId))
             order by p.createdAt desc, p.id desc""")
     List<Product> findPage(ProductStatus status, UUID categoryId, UUID tagId, Instant afterAt, UUID afterId, Limit limit);
+
+    /** Products on sale with this name, ignoring case. */
+    @Query("select p from Product p where lower(p.name) = lower(:name) and p.status = com.mojud.catalog.product.ProductStatus.ACTIVE")
+    List<Product> findActiveByName(String name);
 
     /**
      * Products whose name or an SKU contains {@code pattern} (a LIKE pattern, ignoring case), or
