@@ -136,7 +136,8 @@ class LifecycleTests {
 
     @Test
     void aSuspendedBusinessReachesOnlyBilling() {
-        systemDatabase.jdbc().sql("update subscriptions set status = 'SUSPENDED' where business_id = ?").param(business).update();
+        systemDatabase.jdbc().sql("update subscriptions set suspended_from = status, status = 'SUSPENDED' where business_id = ?")
+                .param(business).update();
 
         owner.get("/api/v1/products").expectError(402, "subscription.suspended");
         owner.get("/api/v1/billing").expectStatus(200);

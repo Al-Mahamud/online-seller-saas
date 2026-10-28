@@ -1,5 +1,6 @@
 package com.mojud.billing.system;
 
+import com.mojud.audit.AdminAudit;
 import com.mojud.identity.AuthenticatedUser;
 import com.mojud.shared.csv.CsvDownload;
 import com.mojud.shared.csv.CsvWriter;
@@ -44,11 +45,13 @@ class BillingAdminController {
 
     private final SystemDatabase database;
     private final PaymentConfirmations confirmations;
+    private final AdminAudit audit;
     private final Clock clock;
 
-    BillingAdminController(SystemDatabase database, PaymentConfirmations confirmations, Clock clock) {
+    BillingAdminController(SystemDatabase database, PaymentConfirmations confirmations, AdminAudit audit, Clock clock) {
         this.database = database;
         this.confirmations = confirmations;
+        this.audit = audit;
         this.clock = clock;
     }
 
@@ -73,6 +76,7 @@ class BillingAdminController {
         UUID business = database.jdbc().sql("select business_id from invoices where id = ?").param(id)
                 .query(UUID.class).optional().orElseThrow(ApiException::notFound);
         confirmations.markBankTransfer(business, id, body.reference().strip(), admin.id());
+        audit.record(admin.id(), "invoice.marked_paid", "invoice", id.toString(), business, "reference", body.reference().strip());
     }
 
     /** One Dhaka month of the ledger (default this one), every business, for the accountant. Money in taka. */

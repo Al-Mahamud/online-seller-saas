@@ -32,6 +32,11 @@ class Plans {
         this.json = json;
     }
 
+    /** After an administrator edits a plan. */
+    void reload() {
+        plans = null;
+    }
+
     List<Plan> all() {
         List<Plan> loaded = plans;
         if (loaded == null) {

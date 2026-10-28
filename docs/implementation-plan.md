@@ -27,8 +27,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Done |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Done |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Done |
-| 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | 11a done · 11b in review |
-| 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | Not started |
+| 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Done |
+| 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | 12a in review |
 | 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | Not started |
 | **Total** | **33 commits** | **≈ 51 days** | |
 
@@ -441,6 +441,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `GET /admin/businesses?q=`, business detail (owner, plan, status, usage, invoices), suspend/unsuspend, extend trial, change plan, mark invoice paid, edit plans and limits.
 
 **Checked by:** non-admins get 403 on every admin endpoint; every admin action has an audit row.
+
+**As built:** the platform admin flag (`users.is_platform_admin`, read at sign-in) existed; `/api/v1/admin/**` needs it. Each module answers for its own data and `admin` composes: `tenancy.BusinessDirectory` (search by name part or owner phone/email, detail with owner and members; system role) and `billing.BillingAdministration` (subscription summaries; a business's overview with usage and invoices, read as that business; suspend, unsuspend, extend trial, set plan, edit plans). Suspension sets the subscription SUSPENDED (billing only, 10b) and remembers the status it interrupted (`suspended_from`), restored on unsuspend; tenancy's own business status is not used for it, since that would lock the owner out of billing too. Extending a trial works on the trial plan (trialing, or read-only after it), up to 90 days at a time; setting a plan gives it until a date without payment. Plan edits go through the system role (granted UPDATE on plan columns) and refresh the cached plans; the trial is never offered. Every admin action, including marking a bank transfer paid, writes an `admin_audit` row (admin, action, target, business, details, IP) right after it succeeded; the log is the system role's own (separate connection), readable at `GET /admin/audit?businessId=`. The 403 check walks every registered `/api/v1/admin/**` route, so new admin endpoints are covered automatically.
 
 ### 12b: Metrics and data rights (1 day)
 

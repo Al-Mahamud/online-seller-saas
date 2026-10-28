@@ -337,6 +337,23 @@ class CrossTenantTests {
                     .expectStatus(403);
             assertThat(a.owner().get("/api/v1/billing/invoices/" + a.invoiceId()).<String>json("$.status")).isEqualTo("OPEN");
         });
+        CASES.put("GET /api/v1/admin/businesses", (a, b) -> b.owner().get("/api/v1/admin/businesses").expectStatus(403));
+        CASES.put("GET /api/v1/admin/businesses/{id}", (a, b) ->
+                b.owner().get("/api/v1/admin/businesses/" + a.businessId()).expectStatus(403));
+        CASES.put("POST /api/v1/admin/businesses/{id}/suspend", (a, b) -> {
+            b.owner().post("/api/v1/admin/businesses/" + a.businessId() + "/suspend", Map.of("reason", "x")).expectStatus(403);
+            assertThat(a.owner().get("/api/v1/billing").<String>json("$.status")).isEqualTo("TRIALING");
+        });
+        CASES.put("POST /api/v1/admin/businesses/{id}/unsuspend", (a, b) ->
+                b.owner().post("/api/v1/admin/businesses/" + a.businessId() + "/unsuspend", null).expectStatus(403));
+        CASES.put("POST /api/v1/admin/businesses/{id}/extend-trial", (a, b) ->
+                b.owner().post("/api/v1/admin/businesses/" + b.businessId() + "/extend-trial", Map.of("days", 30)).expectStatus(403));
+        CASES.put("PUT /api/v1/admin/businesses/{id}/plan", (a, b) -> b.owner().put("/api/v1/admin/businesses/" + b.businessId()
+                + "/plan", Map.of("planCode", "PRO", "periodEnd", "2099-01-01T00:00:00Z")).expectStatus(403));
+        CASES.put("GET /api/v1/admin/plans", (a, b) -> b.owner().get("/api/v1/admin/plans").expectStatus(403));
+        CASES.put("PUT /api/v1/admin/plans/{code}", (a, b) -> b.owner().put("/api/v1/admin/plans/PRO", Map.of("priceMonthly", 1,
+                "isPublic", true, "exports", true)).expectStatus(403));
+        CASES.put("GET /api/v1/admin/audit", (a, b) -> b.owner().get("/api/v1/admin/audit").expectStatus(403));
         CASES.put("GET /api/v1/admin/billing/ledger.csv", (a, b) -> b.owner().get("/api/v1/admin/billing/ledger.csv").expectStatus(403));
         CASES.put("GET /api/v1/billing/invoices/{id}", (a, b) -> expectNotFound(
                 b.owner().get("/api/v1/billing/invoices/" + a.invoiceId())));

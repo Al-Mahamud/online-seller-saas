@@ -107,6 +107,12 @@ public enum ErrorCode {
     BILLING_USE_UPGRADE("billing.use_upgrade", HttpStatus.CONFLICT),
     /** The invoice is already paid (or void): it cannot be paid again. */
     BILLING_INVOICE_NOT_OPEN("billing.invoice_not_open", HttpStatus.CONFLICT),
+    /** Extending a trial: the business is no longer on its trial plan. */
+    BILLING_NOT_ON_TRIAL("billing.not_on_trial", HttpStatus.CONFLICT),
+
+    // Platform administration.
+    /** The business is already in the state asked for (suspending a suspended business). */
+    ADMIN_NO_CHANGE("admin.no_change", HttpStatus.CONFLICT),
 
     // Customers.
     /** Another customer has this phone number; {@code customerId} names them. */
