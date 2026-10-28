@@ -90,6 +90,10 @@ public enum ErrorCode {
     /** A change the stock cannot take, such as releasing more than is reserved. */
     STOCK_INVALID_CHANGE("stock.invalid_change", HttpStatus.CONFLICT),
 
+    // Billing.
+    /** Over the plan's limit; {@code metric} and {@code limit} say which. Nothing already there is hidden. */
+    PLAN_LIMIT_REACHED("plan.limit_reached", HttpStatus.PAYMENT_REQUIRED),
+
     // Customers.
     /** Another customer has this phone number; {@code customerId} names them. */
     CUSTOMER_PHONE_TAKEN("customer.phone_taken", HttpStatus.CONFLICT),

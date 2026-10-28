@@ -97,6 +97,7 @@ class ProductService {
     private final ProductImageRepository images;
     private final StockService stock;
     private final StockQueries stockLevels;
+    private final VariantQuota quota;
     private final UserDirectory users;
     private final TransactionTemplate transactions;
     private final AdvisoryLocks locks;
@@ -106,7 +107,7 @@ class ProductService {
     ProductService(ProductRepository products, ProductOptionRepository options, ProductVariantRepository variants,
             ProductTagRepository productTags, ProductImageRepository images, StockService stock,
             StockQueries stockLevels, UserDirectory users, TransactionTemplate transactions,
-            AdvisoryLocks locks, AuditTrail audit, Clock clock) {
+            AdvisoryLocks locks, AuditTrail audit, Clock clock, VariantQuota quota) {
         this.products = products;
         this.options = options;
         this.variants = variants;
@@ -114,6 +115,7 @@ class ProductService {
         this.images = images;
         this.stock = stock;
         this.stockLevels = stockLevels;
+        this.quota = quota;
         this.users = users;
         this.transactions = transactions;
         this.locks = locks;
@@ -185,7 +187,7 @@ class ProductService {
         if (requestedSku != null && !grid.isEmpty()) {
             throw ApiException.invalidField("sku", "field.sku_invalid");
         }
-        return writing(true, () -> {
+        return growing(() -> {
             Instant now = clock.instant();
             Product product = products.save(new Product(name, description, command.categoryId(), now));
             for (int i = 0; i < grid.size(); i++) {
@@ -241,7 +243,7 @@ class ProductService {
 
     /** Archived products leave the default list and cannot be ordered (7a); nothing is deleted. */
     ProductViews.Detail changeStatus(UUID productId, ProductStatus status) {
-        return writing(false, () -> {
+        return growing(() -> {
             Product product = find(productId);
             product.changeStatus(status, clock.instant());
             products.saveAndFlush(product);
@@ -268,7 +270,7 @@ class ProductService {
     ProductViews.Detail replaceOptions(UUID productId, List<OptionInput> inputs, Long price, Long costPrice,
             Long version) {
         List<VariantGrid.Option> grid = cleanOptions(inputs);
-        return writing(true, () -> {
+        return growing(() -> {
             Product product = find(productId);
             requireVersion(product.getVersion(), version);
             Instant now = clock.instant();
@@ -493,7 +495,7 @@ class ProductService {
      * the last active variant cannot be archived: archive the product instead.
      */
     ProductViews.Variant changeVariantStatus(UUID variantId, ProductStatus status) {
-        return writing(false, () -> {
+        return growing(() -> {
             ProductVariant variant = findVariant(variantId);
             if (status == ProductStatus.ACTIVE && !fitsOptions(variant)) {
                 throw new ApiException(ErrorCode.VARIANT_NOT_IN_OPTIONS);
@@ -528,6 +530,17 @@ class ProductService {
     // Helpers.
 
     /** One transaction; SKU-changing writes first take the business's SKU lock. */
+    /**
+     * A change that may put more variants on sale: under the SKU lock (so such changes count in
+     * turn), and refused when it takes the business over its plan's variant limit.
+     */
+    private <T> T growing(Supplier<T> work) {
+        return writing(true, () -> quota.guarded(work, () -> {
+            products.flush();
+            variants.flush();
+        }));
+    }
+
     private <T> T writing(boolean changesSkus, Supplier<T> work) {
         return Constraints.translating(transactions, CONSTRAINT_ERRORS, () -> {
             if (changesSkus) {

@@ -1,5 +1,6 @@
 package com.mojud.orders;
 
+import com.mojud.billing.Entitlements;
 import com.mojud.shared.csv.CsvDownload;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.time.DhakaTime;
@@ -22,9 +23,11 @@ class OrderExportController {
     private static final LocalDate EARLIEST = LocalDate.of(2000, 1, 1);
 
     private final OrderExport export;
+    private final Entitlements entitlements;
     private final Clock clock;
 
-    OrderExportController(OrderExport export, Clock clock) {
+    OrderExportController(OrderExport export, Clock clock, Entitlements entitlements) {
+        this.entitlements = entitlements;
         this.export = export;
         this.clock = clock;
     }
@@ -38,6 +41,7 @@ class OrderExportController {
         if (start.isAfter(end)) {
             throw ApiException.invalidField("from", "field.report_range");
         }
+        entitlements.requireExports();
         export.write(CsvDownload.start(response, "orders", clock), start, end, LocaleContextHolder.getLocale());
     }
 }

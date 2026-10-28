@@ -1,5 +1,7 @@
 package com.mojud.orders;
 
+import com.mojud.billing.Entitlements;
+import com.mojud.billing.Metric;
 import com.mojud.catalog.CatalogLimits;
 import com.mojud.catalog.CatalogLookup;
 import com.mojud.customers.CustomerDirectory;
@@ -78,6 +80,7 @@ class OrderService {
     }
 
     private final OrderRepository orders;
+    private final Entitlements entitlements;
     private final OrderItemRepository items;
     private final ShipmentRepository shipments;
     private final PaymentRepository payments;
@@ -96,7 +99,8 @@ class OrderService {
     OrderService(OrderRepository orders, OrderItemRepository items, ShipmentRepository shipments, PaymentRepository payments,
             OrderReturns returns, OrderNumbers numbers, CatalogLookup catalog,
             CustomerDirectory customers, DeliveryCharges charges, GeoDirectory geo, Idempotency idempotency,
-            OrderEvents events, OrderStock stock, AuditTrail audit, Clock clock) {
+            OrderEvents events, OrderStock stock, AuditTrail audit, Clock clock, Entitlements entitlements) {
+        this.entitlements = entitlements;
         this.orders = orders;
         this.items = items;
         this.shipments = shipments;
@@ -126,6 +130,8 @@ class OrderService {
                     : charges.quote(parties.deliveryAreaId(), parties.deliveryDistrictId()).charge();
             Totals totals = Totals.of(lines, amount(draft.discount(), "discount"), deliveryCharge,
                     amount(draft.advancePaid(), "advancePaid"));
+            // Counted once per order: a resend with the same key replays the answer and is not counted.
+            entitlements.consume(Metric.ORDERS_PER_MONTH);
             OrderNumbers.Number number = numbers.next();
             Instant now = clock.instant();
             Order order = orders.save(new Order(number.value(), number.label(), parties, totals, note(draft.note()),

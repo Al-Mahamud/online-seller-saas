@@ -32,10 +32,12 @@ class Dashboard {
     }
 
     private final OrderReports orders;
+    private final SalesReports reports;
     private final CatalogReports catalog;
     private final Clock clock;
 
-    Dashboard(OrderReports orders, CatalogReports catalog, Clock clock) {
+    Dashboard(OrderReports orders, CatalogReports catalog, Clock clock, SalesReports reports) {
+        this.reports = reports;
         this.orders = orders;
         this.catalog = catalog;
         this.clock = clock;
@@ -49,6 +51,7 @@ class Dashboard {
         if (day.isAfter(today)) {
             throw ApiException.invalidField("date", "field.invalid_value");
         }
+        reports.requireReachable(day);
         OrderReports.Day figures = orders.day(day);
         boolean seesProfit = CurrentBusiness.require().isAtLeast(BusinessRole.MANAGER);
         return new Today(day, new Confirmed(figures.confirmedOrders(), figures.confirmedValue()), figures.cancelledOrders(),

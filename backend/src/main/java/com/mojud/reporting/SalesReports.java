@@ -1,8 +1,11 @@
 package com.mojud.reporting;
 
+import com.mojud.billing.Entitlements;
+import com.mojud.billing.Metric;
 import com.mojud.catalog.CatalogReports;
 import com.mojud.orders.OrderReports;
 import com.mojud.shared.error.ApiException;
+import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.time.DhakaTime;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -52,11 +55,13 @@ class SalesReports {
     }
 
     private final OrderReports orders;
+    private final Entitlements entitlements;
     private final CatalogReports catalog;
     private final MessageSource messages;
     private final Clock clock;
 
-    SalesReports(OrderReports orders, CatalogReports catalog, MessageSource messages, Clock clock) {
+    SalesReports(OrderReports orders, CatalogReports catalog, MessageSource messages, Clock clock, Entitlements entitlements) {
+        this.entitlements = entitlements;
         this.orders = orders;
         this.catalog = catalog;
         this.messages = messages;
@@ -116,6 +121,17 @@ class SalesReports {
         if (ChronoUnit.DAYS.between(start, end) + 1 > MAX_DAYS) {
             throw ApiException.invalidField("from", "field.report_range");
         }
+        requireReachable(start);
         return new Range(start, end);
+    }
+
+    /** The plan's report_days: how far back reports may look (Starter: 90 days, including today). */
+    void requireReachable(LocalDate day) {
+        entitlements.limit(Metric.REPORT_DAYS).ifPresent(days -> {
+            if (day.isBefore(DhakaTime.today(clock).minusDays(days - 1))) {
+                throw new ApiException(ErrorCode.PLAN_LIMIT_REACHED).withDetail("metric", Metric.REPORT_DAYS.key())
+                        .withDetail("limit", days);
+            }
+        });
     }
 }

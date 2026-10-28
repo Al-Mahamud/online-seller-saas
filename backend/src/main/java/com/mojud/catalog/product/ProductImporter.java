@@ -30,15 +30,17 @@ class ProductImporter implements CatalogImport {
     private final ProductVariantRepository variants;
     private final CategoryPaths categories;
     private final AdvisoryLocks locks;
+    private final VariantQuota quota;
     private final Clock clock;
 
     ProductImporter(ProductRepository products, ProductOptionRepository options, ProductVariantRepository variants,
-            CategoryPaths categories, AdvisoryLocks locks, Clock clock) {
+            CategoryPaths categories, AdvisoryLocks locks, VariantQuota quota, Clock clock) {
         this.products = products;
         this.options = options;
         this.variants = variants;
         this.categories = categories;
         this.locks = locks;
+        this.quota = quota;
         this.clock = clock;
     }
 
@@ -49,10 +51,14 @@ class ProductImporter implements CatalogImport {
         UUID categoryId = rows.category() == null ? null : categories.resolve(rows.category());
         locks.lockForTransaction("skus:" + TenantScope.current().orElseThrow());
         Instant now = clock.instant();
-        Product existing = find(rows);
-        List<Result> results = existing == null ? create(rows, categoryId, now) : update(existing, rows, categoryId, now);
-        variants.flush();
-        return results;
+        // New variants count against the plan's limit, like products made in the app.
+        return quota.guarded(() -> {
+            Product existing = find(rows);
+            return existing == null ? create(rows, categoryId, now) : update(existing, rows, categoryId, now);
+        }, () -> {
+            products.flush();
+            variants.flush();
+        });
     }
 
     /** The product owning any of the SKUs, else the one on sale with this name, else none. */

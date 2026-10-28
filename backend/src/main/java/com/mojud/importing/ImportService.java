@@ -1,5 +1,7 @@
 package com.mojud.importing;
 
+import com.mojud.billing.Entitlements;
+import com.mojud.billing.Metric;
 import com.mojud.catalog.CatalogLimits;
 import com.mojud.catalog.CatalogLookup;
 import com.mojud.shared.async.AfterCommitTasks;
@@ -82,6 +84,7 @@ class ImportService {
     }
 
     private final SheetReader reader;
+    private final Entitlements entitlements;
     private final ImportRunner runner;
     private final AfterCommitTasks afterCommit;
     private final CatalogLookup catalog;
@@ -95,7 +98,8 @@ class ImportService {
 
     ImportService(SheetReader reader, ImportRunner runner, AfterCommitTasks afterCommit, CatalogLookup catalog, DataSource dataSource, JsonMapper json, MessageSource messages,
             TransactionTemplate transactions, Clock clock, @Value("${mojud.imports.per-business.max}") int perBusinessMax,
-            @Value("${mojud.imports.per-business.window}") Duration perBusinessWindow) {
+            @Value("${mojud.imports.per-business.window}") Duration perBusinessWindow, Entitlements entitlements) {
+        this.entitlements = entitlements;
         this.reader = reader;
         this.runner = runner;
         this.afterCommit = afterCommit;
@@ -174,9 +178,11 @@ class ImportService {
             throw new ApiException(ErrorCode.IMPORT_NOT_EDITABLE);
         }
         check(id, job.headerRow(), job.mapping());
-        if (load(id, false).totals().valid() == 0) {
+        int valid = load(id, false).totals().valid();
+        if (valid == 0) {
             throw new ApiException(ErrorCode.IMPORT_NOTHING_VALID);
         }
+        entitlements.requireWithin(Metric.IMPORT_ROWS, valid);
         jdbc.sql("update import_jobs set status = 'QUEUED', committed_by = ?, queued_at = ?, updated_at = ? where id = ?")
                 .params(me.userId(), Timestamp.from(clock.instant()), Timestamp.from(clock.instant()), id)
                 .update();

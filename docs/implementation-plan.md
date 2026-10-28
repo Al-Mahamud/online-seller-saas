@@ -25,8 +25,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Done |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Done |
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Done |
-| 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | 9a done · 9b in review |
-| 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Not started |
+| 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Done |
+| 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | 10a in review |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Not started |
 | 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | Not started |
 | 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | Not started |
@@ -384,6 +384,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `GET /billing` (plan, status, usage), `GET /plans`.
 
 **Checked by:** each limit hit exactly at its value; parallel creates at the limit never pass it; existing data stays readable over the limit.
+
+**As built:** `plans` (read-only for the app) hold limits as JSON with a null for unlimited, plus an `exports` flag (Pro and the trial: "full + export"). Every new business gets a subscription in its creating transaction (from `tenancy.BusinessCreated`): a 14-day TRIAL (Pro limits) when its owner has not had one, keyed by the owner's *verified* phone (an unverified one could be someone else's) or else their account (`trial_claims`); otherwise it starts READ_ONLY (enforced in 10b). `billing.Entitlements` (public) answers limits in the transaction of the change; over a limit: 402 `plan.limit_reached` with `metric` and `limit`. Variants count those on sale (active variants of active products): a catalog change (create, options, restoring a product or variant, import) is refused only when it leaves more on sale than before and more than the limit, so archiving makes room and a business over its limit keeps everything; these changes run under the catalog's per-business lock. Orders per month: a conditional `UPDATE usage_counters` at order creation (an idempotent resend is not counted again). Staff seats: staff and managers plus open invites, owner excluded, checked at invite and at accept under a per-business seat lock; tenancy asks through `tenancy.SeatPolicy`, which billing implements, so tenancy does not depend on billing. Import rows checked at commit (unlimited on every plan for now). Report days (Starter 90) bound reports and the dashboard's date. `GET /billing` (managers and owners: plan, status, trial end, usage), `GET /plans` (public plans). Live counts reach billing through `billing.UsageSource` (the catalog counts variants) and `tenancy.TeamSize`.
 
 ### 10b: Lifecycle and read-only mode (1.5 days)
 

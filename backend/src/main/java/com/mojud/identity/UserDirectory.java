@@ -46,6 +46,12 @@ public class UserDirectory {
                 .collect(Collectors.toMap(UserSummary::id, Function.identity()));
     }
 
+    /** The user's phone (E.164) if they have proved it with a code; an unverified number could be anyone's. */
+    @Transactional(readOnly = true)
+    public Optional<String> verifiedPhone(UUID userId) {
+        return users.findById(userId).map(user -> user.getPhone().e164()).filter(phone -> hasVerified(userId, phone));
+    }
+
     @Transactional(readOnly = true)
     public Optional<String> name(UUID userId) {
         return users.findById(userId).map(User::getName);

@@ -13,6 +13,7 @@ import com.mojud.shared.ratelimit.RateLimiter;
 import com.mojud.shared.sms.SmsSender;
 import com.mojud.shared.tenant.TenantScope;
 import com.mojud.tenancy.BusinessRole;
+import com.mojud.tenancy.SeatPolicy;
 import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.business.BusinessNames;
 import com.mojud.tenancy.membership.Membership;
@@ -58,6 +59,8 @@ class InviteService {
     private final ObjectProvider<SmsSender> sms;
     private final ObjectProvider<EmailSender> email;
     private final AfterCommitTasks afterCommit;
+    private final SeatPolicy seats;
+    private final TeamCounts team;
     private final MessageSource messages;
     private final TransactionTemplate transactions;
     private final TransactionTemplate readOnly;
@@ -75,7 +78,7 @@ class InviteService {
             @Value("${mojud.tenancy.invites.ttl}") Duration ttl,
             @Value("${mojud.tenancy.invites.per-business.max}") int perBusinessMax,
             @Value("${mojud.tenancy.invites.per-business.window}") Duration perBusinessWindow,
-            @Value("${mojud.web.base-url}") String webBaseUrl) {
+            @Value("${mojud.web.base-url}") String webBaseUrl, SeatPolicy seats, TeamCounts team) {
         this.invites = invites;
         this.memberships = memberships;
         this.directory = directory;
@@ -84,6 +87,8 @@ class InviteService {
         this.sms = sms;
         this.email = email;
         this.afterCommit = afterCommit;
+        this.seats = seats;
+        this.team = team;
         this.messages = messages;
         this.transactions = new TransactionTemplate(transactionManager);
         this.readOnly = new TransactionTemplate(transactionManager);
@@ -113,12 +118,14 @@ class InviteService {
         if (isEmail ? email.getIfAvailable() == null : sms.getIfAvailable() == null) {
             throw new ApiException(ErrorCode.INVITE_CHANNEL_UNAVAILABLE);
         }
-        // Invites to one address take turns, so two at once cannot both find no open invite.
+        // Seat changes take turns (then invites to one address), so two at once cannot both find a free seat.
+        locks.lockForTransaction("seats:" + business.businessId());
         locks.lockForTransaction("invite:" + business.businessId() + ":" + destination);
         Optional<UUID> existingUser = users.findByVerifiedContact(destination);
         if (existingUser.flatMap(memberships::findByUserId).filter(Membership::isActive).isPresent()) {
             throw new ApiException(ErrorCode.STAFF_ALREADY_MEMBER);
         }
+        seats.requireSeats(team.members() + team.openInvites(destination) + 1);
         // Counted only for an invite that will really be sent.
         invitesPerBusiness.acquire(business.businessId().toString());
 
@@ -178,12 +185,14 @@ class InviteService {
             if (!users.hasVerified(userId, invite.getDestination())) {
                 throw new ApiException(ErrorCode.INVITE_WRONG_ACCOUNT, InviteTokens.mask(invite.getDestination()));
             }
-            // One person's joins take turns (two invites, by phone and by email, accepted at once).
+            // Seat changes take turns; then one person's joins (two invites, by phone and by email, at once).
+            locks.lockForTransaction("seats:" + businessId);
             locks.lockForTransaction("membership:" + businessId + ":" + userId);
             Optional<Membership> existing = memberships.findByUserId(userId);
             if (existing.filter(Membership::isActive).isPresent()) {
                 throw new ApiException(ErrorCode.STAFF_ALREADY_MEMBER);
             }
+            seats.requireSeats(team.members() + 1);
             existing.ifPresentOrElse(
                     former -> former.rejoin(invite.getRole(), now),
                     () -> memberships.save(new Membership(userId, invite.getRole(), now)));
