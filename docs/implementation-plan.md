@@ -27,7 +27,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Done |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Done |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Done |
-| 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | 11a in review |
+| 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | 11a done · 11b in review |
 | 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | Not started |
 | 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | Not started |
 | **Total** | **33 commits** | **≈ 51 days** | |
@@ -427,6 +427,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Email/in-app receipt event.
 
 **Checked by:** proration on fixed dates (day 1, mid-month, last day); ledger total equals paid invoices.
+
+**As built:** `POST /billing/upgrade {planCode}` (owner, a running paid period, a dearer plan): `billing.Proration` charges (new − old price for the period as paid, a year at the yearly price) × days left ÷ days in the period, in Dhaka days, rounded up to whole taka, plus VAT; the plan switches when that UPGRADE invoice is paid and the period end stays. A downgrade waiting for the renewal (10b) takes effect when the period ends: the GRACE that follows is on the cheaper plan, so its renewal is for that plan. Checkout takes `payBy: BANK_TRANSFER`: an OPEN invoice with the transfer instructions (`mojud.billing.bank-transfer.instructions`) and no gateway; a platform admin marks it paid (`POST /api/v1/admin/billing/invoices/{id}/mark-paid {reference}`), which records a MANUAL attempt and goes through the same `markPaid` as a validated gateway payment: subscription change, invoice PAID, a `billing_ledger` PAYMENT row (append-only, one per invoice), audit, owner notification and `InvoicePaid` (the receipt event; email comes with 13a). `GET /billing/invoices`, `GET /billing/invoices/{id}/print?lang=` (Mojud's invoice as HTML, Bangla or English, VAT shown; seller details in `mojud.billing.seller.*`, placeholders). Admin: `GET /api/v1/admin/billing/invoices?status=` and `GET /api/v1/admin/billing/ledger.csv?month=` (every business, for the accountant). Taka formatting (lakh grouping, Bangla digits) moved to `shared.money.Taka` for slips and invoices. Refunds and voiding invoices are not built yet.
 
 ---
 

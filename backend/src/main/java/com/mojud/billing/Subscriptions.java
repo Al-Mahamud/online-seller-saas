@@ -30,8 +30,8 @@ class Subscriptions {
 
     static final Duration TRIAL = Duration.ofDays(14);
 
-    record Subscription(String planCode, String status, Instant trialEndsAt, Instant currentPeriodEnd,
-            String pendingPlanCode) {
+    record Subscription(String planCode, String status, Instant trialEndsAt, Instant currentPeriodStart,
+            Instant currentPeriodEnd, String pendingPlanCode) {
     }
 
     private final JdbcClient jdbc;
@@ -129,17 +129,28 @@ class Subscriptions {
         return new Period(start, end);
     }
 
+    /** A paid upgrade: the plan changes now; the period (and its end) stays. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    void upgrade(String planCode) {
+        UUID business = TenantScope.current().orElseThrow();
+        String from = jdbc.sql("select plan_code from subscriptions where business_id = ? for update").param(business)
+                .query(String.class).single();
+        jdbc.sql("update subscriptions set plan_code = ?, pending_plan_code = null, updated_at = ?, version = version + 1 where business_id = ?")
+                .params(planCode, Timestamp.from(clock.instant()), business).update();
+        audit.record(business, null, "subscription.upgraded", "business", business, "from", from, "to", planCode);
+    }
+
     /** The business of the TenantScope's. */
     @Transactional(readOnly = true)
     Subscription current() {
         UUID business = TenantScope.current().orElseThrow();
         Optional<Subscription> found = jdbc.sql("""
-                        select plan_code, status, trial_ends_at, current_period_end, pending_plan_code
+                        select plan_code, status, trial_ends_at, current_period_start, current_period_end, pending_plan_code
                         from subscriptions where business_id = ?
                         """)
                 .param(business)
                 .query((rs, n) -> new Subscription(rs.getString(1), rs.getString(2), instant(rs.getTimestamp(3)),
-                        instant(rs.getTimestamp(4)), rs.getString(5)))
+                        instant(rs.getTimestamp(4)), instant(rs.getTimestamp(5)), rs.getString(6)))
                 .optional();
         return found.orElseThrow(() -> new IllegalStateException("Business " + business + " has no subscription"));
     }

@@ -9,7 +9,14 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
+import com.mojud.tenancy.BusinessProfile;
+import java.nio.charset.StandardCharsets;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -49,15 +56,19 @@ class BillingController {
     private final List<UsageSource> sources;
     private final TeamSize team;
     private final Invoices invoices;
+    private final InvoicePages pages;
+    private final BusinessProfile profiles;
 
     BillingController(Subscriptions subscriptions, Plans plans, Entitlements entitlements, List<UsageSource> sources,
-            TeamSize team, Invoices invoices) {
+            TeamSize team, Invoices invoices, InvoicePages pages, BusinessProfile profiles) {
         this.subscriptions = subscriptions;
         this.plans = plans;
         this.entitlements = entitlements;
         this.sources = sources;
         this.team = team;
         this.invoices = invoices;
+        this.pages = pages;
+        this.profiles = profiles;
     }
 
     @GetMapping("/api/v1/billing")
@@ -92,7 +103,8 @@ class BillingController {
         return billing();
     }
 
-    record CheckoutRequest(@NotNull String planCode, @NotNull Integer months) {
+    /** {@code payBy}: SSLCOMMERZ (default) or BANK_TRANSFER (paid when an admin sees it arrive). */
+    record CheckoutRequest(@NotNull String planCode, @NotNull Integer months, Invoices.PayBy payBy) {
     }
 
     /**
@@ -104,7 +116,39 @@ class BillingController {
     @RequiresRole(BusinessRole.OWNER)
     @ResponseStatus(HttpStatus.CREATED)
     Invoices.Checkout checkout(@Valid @RequestBody CheckoutRequest body) {
-        return invoices.checkout(body.planCode(), body.months());
+        return invoices.checkout(body.planCode(), body.months(), body.payBy() == null ? Invoices.PayBy.SSLCOMMERZ : body.payBy());
+    }
+
+    record UpgradeRequest(@NotNull String planCode, Invoices.PayBy payBy) {
+    }
+
+    /** A dearer plan for the rest of the running period, prorated; the plan changes when paid. */
+    @PostMapping("/api/v1/billing/upgrade")
+    @RequiresRole(BusinessRole.OWNER)
+    @ResponseStatus(HttpStatus.CREATED)
+    Invoices.Checkout upgrade(@Valid @RequestBody UpgradeRequest body) {
+        return invoices.upgrade(body.planCode(), body.payBy() == null ? Invoices.PayBy.SSLCOMMERZ : body.payBy());
+    }
+
+    @GetMapping("/api/v1/billing/invoices")
+    @RequiresRole(BusinessRole.MANAGER)
+    @Transactional(readOnly = true)
+    List<Invoices.InvoiceView> invoices() {
+        return invoices.list();
+    }
+
+    /** The invoice as a page to print or save as PDF; {@code lang} bn or en (default: the reader's). */
+    @GetMapping("/api/v1/billing/invoices/{id}/print")
+    @RequiresRole(BusinessRole.MANAGER)
+    @Transactional(readOnly = true)
+    ResponseEntity<String> print(@PathVariable UUID id, @RequestParam(required = false) String lang) {
+        boolean bangla = lang != null && !lang.isBlank() ? lang.equalsIgnoreCase("bn")
+                : LocaleContextHolder.getLocale().getLanguage().equals("bn");
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "html", StandardCharsets.UTF_8))
+                .cacheControl(CacheControl.noStore())
+                .header("Content-Security-Policy", InvoicePages.CONTENT_SECURITY_POLICY)
+                .body(pages.render(invoices.get(id), profiles.current(), bangla));
     }
 
     @GetMapping("/api/v1/billing/invoices/{id}")

@@ -96,6 +96,14 @@ mojud:
       base-url: ${SSLCOMMERZ_BASE_URL:https://sandbox.sslcommerz.com}
       store-id: ${SSLCOMMERZ_STORE_ID:}
       store-password: ${SSLCOMMERZ_STORE_PASSWORD:}
+    # Printed on Mojud's invoices to businesses (placeholders until the company's details are final).
+    seller:
+      name: Mojud
+      address: Dhaka, Bangladesh
+      bin: ""
+    bank-transfer:
+      # Shown when an owner chooses to pay by bank transfer; an admin marks the invoice paid on arrival.
+      instructions: "Pay by bank transfer to Mojud (account details to be added). Write the invoice number as the reference."
     data-deletion:
       # Deleting the data of businesses read-only for 90 days: off until the wording is approved.
       enabled: false

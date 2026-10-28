@@ -2,6 +2,7 @@ package com.mojud.orders;
 
 import com.mojud.files.StoredFiles;
 import com.mojud.shared.error.ApiException;
+import com.mojud.shared.money.Taka;
 import com.mojud.shared.phone.PhoneNumber;
 import com.mojud.shared.time.DhakaTime;
 import com.mojud.tenancy.BusinessProfile;
@@ -11,7 +12,6 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DecimalStyle;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
@@ -207,36 +207,12 @@ class PackingSlips {
         }
 
         String money(long poisha) {
-            return "৳" + digits(taka(poisha));
+            return "৳" + digits(Taka.lakh(poisha));
         }
 
         String digits(String text) {
-            if (!bangla) {
-                return text;
-            }
-            StringBuilder out = new StringBuilder(text.length());
-            for (char c : text.toCharArray()) {
-                out.append(c >= '0' && c <= '9' ? (char) ('০' + (c - '0')) : c);
-            }
-            return out.toString();
+            return bangla ? Taka.banglaDigits(text) : text;
         }
-    }
-
-    /** Taka with lakh grouping, as written in Bangladesh: 12,34,567 and 2,570.50. */
-    static String taka(long poisha) {
-        String whole = Long.toString(poisha / 100);
-        long rest = poisha % 100;
-        // The last three digits, then pairs: 1,23,45,678.
-        List<String> groups = new ArrayList<>();
-        int end = whole.length();
-        int size = 3;
-        while (end > 0) {
-            groups.add(0, whole.substring(Math.max(0, end - size), end));
-            end -= size;
-            size = 2;
-        }
-        String grouped = String.join(",", groups);
-        return rest == 0 ? grouped : grouped + "." + (rest < 10 ? "0" : "") + rest;
     }
 
     private static String e(String text) {

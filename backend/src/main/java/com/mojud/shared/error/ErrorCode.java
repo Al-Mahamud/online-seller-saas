@@ -105,6 +105,8 @@ public enum ErrorCode {
     BILLING_GATEWAY_ERROR("billing.gateway_error", HttpStatus.BAD_GATEWAY),
     /** While a paid period runs, a different plan is an upgrade (11b) or a downgrade at renewal. */
     BILLING_USE_UPGRADE("billing.use_upgrade", HttpStatus.CONFLICT),
+    /** The invoice is already paid (or void): it cannot be paid again. */
+    BILLING_INVOICE_NOT_OPEN("billing.invoice_not_open", HttpStatus.CONFLICT),
 
     // Customers.
     /** Another customer has this phone number; {@code customerId} names them. */

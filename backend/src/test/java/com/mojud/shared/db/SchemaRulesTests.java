@@ -79,6 +79,12 @@ class SchemaRulesTests {
         TenantScope.run(tenant.businessId(), () -> JdbcClient.create(dataSource)
                 .sql("insert into rls_probe (id, business_id, note) values (?, ?, 'schema rules')")
                 .params(Ids.newId(), tenant.businessId()).update());
+        // Ledger rows come from paid invoices (gateway or admin); one for the fixture's open invoice.
+        systemDatabase.jdbc().sql("""
+                        insert into billing_ledger (id, business_id, invoice_id, type, amount, vat_amount, method, reference, created_at)
+                        values (?, ?, ?, 'ADJUSTMENT', 0, 0, 'BANK_TRANSFER', 'schema rules', now())
+                        """)
+                .params(Ids.newId(), tenant.businessId(), tenant.invoiceId()).update();
         List<String> tables = systemDatabase.jdbc().sql("""
                         select distinct c.relname
                         from pg_class c

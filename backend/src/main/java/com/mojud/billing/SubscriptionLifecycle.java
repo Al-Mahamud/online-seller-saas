@@ -95,7 +95,12 @@ class SubscriptionLifecycle implements SubscriptionAdvancer {
             case "ACTIVE" -> {
                 if (row.periodEnd() != null && !now.isBefore(row.periodEnd())) {
                     Instant graceEnds = row.periodEnd().plus(GRACE);
-                    jdbc.sql("update subscriptions set status = 'GRACE', grace_ends_at = ?, updated_at = ? where business_id = ?")
+                    // A downgrade waiting for the renewal takes effect now: the renewal is for that plan.
+                    jdbc.sql("""
+                                    update subscriptions set status = 'GRACE', grace_ends_at = ?, updated_at = ?,
+                                           plan_code = coalesce(pending_plan_code, plan_code), pending_plan_code = null
+                                    where business_id = ?
+                                    """)
                             .params(Timestamp.from(graceEnds), Timestamp.from(now), business).update();
                     changed(business, "ACTIVE", "GRACE");
                     grace(graceEnds, today);

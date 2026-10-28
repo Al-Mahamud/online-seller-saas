@@ -325,6 +325,19 @@ class CrossTenantTests {
         });
         CASES.put("POST /api/v1/billing/checkout", (a, b) -> expectNoLeak(b.owner().post("/api/v1/billing/checkout",
                 Map.of("planCode", "PRO", "months", 1)).expectStatus(201), a));
+        CASES.put("POST /api/v1/billing/upgrade", (a, b) -> b.owner().post("/api/v1/billing/upgrade",
+                Map.of("planCode", "PRO")).expectError(409, "billing.payment_needed"));
+        CASES.put("GET /api/v1/billing/invoices", (a, b) -> expectNoLeak(b.owner().get("/api/v1/billing/invoices"), a));
+        CASES.put("GET /api/v1/billing/invoices/{id}/print", (a, b) -> assertThat(
+                b.owner().download("/api/v1/billing/invoices/" + a.invoiceId() + "/print").statusCode()).isEqualTo(404));
+        // Platform administration: owners of businesses never reach it.
+        CASES.put("GET /api/v1/admin/billing/invoices", (a, b) -> b.owner().get("/api/v1/admin/billing/invoices").expectStatus(403));
+        CASES.put("POST /api/v1/admin/billing/invoices/{id}/mark-paid", (a, b) -> {
+            b.owner().post("/api/v1/admin/billing/invoices/" + a.invoiceId() + "/mark-paid", Map.of("reference", "X"))
+                    .expectStatus(403);
+            assertThat(a.owner().get("/api/v1/billing/invoices/" + a.invoiceId()).<String>json("$.status")).isEqualTo("OPEN");
+        });
+        CASES.put("GET /api/v1/admin/billing/ledger.csv", (a, b) -> b.owner().get("/api/v1/admin/billing/ledger.csv").expectStatus(403));
         CASES.put("GET /api/v1/billing/invoices/{id}", (a, b) -> expectNotFound(
                 b.owner().get("/api/v1/billing/invoices/" + a.invoiceId())));
         // Anyone can post to the IPN endpoint: a forged "VALID" for A's payment fails validation.
