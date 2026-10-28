@@ -25,7 +25,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Done |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Done |
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Done |
-| 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | 9a in review |
+| 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | 9a done · 9b in review |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Not started |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Not started |
 | 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | Not started |
@@ -367,6 +367,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - CSV exports of orders, products (with stock) and customers, streamed.
 
 **Checked by:** report numbers equal a hand calculation on the fixture; exports open correctly in Excel with Bangla text (UTF-8 BOM).
+
+**As built:** `GET /reports/sales?from=&to=&groupBy=day|product|category` (any member; days default to the last 30, at most 366, none in the future; every day of the range is listed). Days give orders, items kept, revenue (goods after discount and returns) and delivery charged; products and categories give items kept at their order prices (order discounts are not split over items), with the category from the catalog (`CatalogReports.categoryPaths`) since orders do not read catalog tables. `GET /reports/profit` (managers and owners): revenue, cost of goods kept, write-offs, gross profit; delivery charged less courier charges (all shipments, failed ones too) as the delivery margin; net profit; items without a cost price counted. CSV exports (managers and owners) live in the module owning the data: `/exports/orders.csv?from=&to=` (orders), `/exports/products.csv` (catalog), `/exports/customers.csv` (customers); `shared.csv.CsvWriter` writes UTF-8 with BOM and CRLF, quotes as needed, defuses formula-like text with an apostrophe, and money as taka with two decimals; phones as "01712-345678" so Excel keeps the leading zero. Rows are read in batches (fetch size 500) and written as they come. The products export uses the import template's columns in the reader's language, and imports back unchanged. Plan-based report ranges arrive with billing (10a). Not opened in real Excel here (none on this machine): the format is checked byte by byte.
 
 ---
 

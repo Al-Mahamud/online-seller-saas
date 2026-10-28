@@ -62,6 +62,12 @@ public record PhoneNumber(String e164) {
     }
 
     /** The way people write it in Bangladesh: {@code 01712345678}. */
+    /** "01712-345678": as written in Bangladesh, and kept as text by spreadsheets (no lost leading zero). */
+    public String display() {
+        String national = national();
+        return national.substring(0, 5) + "-" + national.substring(5);
+    }
+
     public String national() {
         return e164.substring(3);
     }

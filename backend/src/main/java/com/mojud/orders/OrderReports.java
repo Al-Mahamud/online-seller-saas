@@ -3,6 +3,7 @@ package com.mojud.orders;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Report figures from orders (implementation-plan.md 9a), for the reporting module, in the
@@ -29,4 +30,32 @@ public interface OrderReports {
     }
 
     Day day(LocalDate date);
+
+    /**
+     * Sales of one Dhaka day: orders confirmed that day and not cancelled. {@code quantity}: items
+     * kept (ordered less returned); {@code revenue}: goods after discount and returns;
+     * {@code deliveryCharged}: delivery charges customers still owe (none on a failed delivery).
+     */
+    record DaySales(LocalDate day, int orders, int quantity, long revenue, long deliveryCharged) {
+    }
+
+    /** One variant's sales over a range: items kept, at their order prices (before order discounts). */
+    record VariantSales(UUID variantId, String productName, String variantLabel, int quantity, long value) {
+    }
+
+    /**
+     * Profit over a range of Dhaka days (orders confirmed then, not cancelled). Goods: revenue less
+     * the cost of goods kept and of goods written off after coming back. Delivery: what customers
+     * pay for it less what couriers charged (every shipment, failed ones too).
+     */
+    record ProfitReport(int orders, long revenue, long costOfGoods, long writeOffs, long grossProfit, long deliveryCharged,
+            long courierCharges, long deliveryMargin, long netProfit, int itemsWithoutCost) {
+    }
+
+    /** Days in order, each day of the range (days without sales are zero). */
+    List<DaySales> salesByDay(LocalDate from, LocalDate to);
+
+    List<VariantSales> salesByVariant(LocalDate from, LocalDate to);
+
+    ProfitReport profit(LocalDate from, LocalDate to);
 }

@@ -1,6 +1,5 @@
 package com.mojud.catalog.product;
 
-import com.mojud.catalog.CatalogReports;
 import com.mojud.inventory.StockChanged;
 import com.mojud.inventory.StockLevel;
 import com.mojud.inventory.StockQueries;
@@ -28,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
  * ({@link StockChanged}) and knows nothing of products.
  */
 @Component
-class LowStock implements CatalogReports {
+class LowStock {
 
     /** One row of the "running low" list. */
     record Item(UUID productId, String productName, UUID variantId, String label, String sku, int available,
@@ -93,12 +92,6 @@ class LowStock implements CatalogReports {
                         "stock.low:" + variant.getId() + ":" + DhakaTime.today(clock));
             }
         }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public int lowStockCount() {
-        return list().size();
     }
 
     /** Sellable variants at or below their alert level, emptiest first. */

@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -22,7 +23,7 @@ class JdbcOrderReports implements OrderReports {
     /** Orders confirmed in [from, to) and not cancelled. */
     private static final String DAY_ORDERS = """
             day_orders as (
-                select id, total, subtotal, discount, return_credit from orders
+                select id, total, subtotal, discount, delivery_charge, return_credit, confirmed_at from orders
                 where business_id = :business and confirmed_at >= :from and confirmed_at < :to and status <> 'CANCELLED'
             ),
             returned as (
@@ -122,5 +123,106 @@ class JdbcOrderReports implements OrderReports {
         return new Day(date, totals.orders(), totals.value(), activity.cancelled(), byStatus, activity.shipped(),
                 activity.delivered(), activity.inTransit(), activity.withCourier(), top,
                 new Profit(totals.revenue(), totals.cost(), totals.revenue() - totals.cost(), totals.costMissing()));
+    }
+
+    /** What the customer still owes for goods (after discount and returns), as SQL on day_orders. */
+    private static final String GOODS_KEPT = "(subtotal - discount) - least(return_credit, subtotal - discount)";
+    /** The delivery charge the customer still owes: what they owe less the goods (none on a failed delivery). */
+    private static final String DELIVERY_KEPT = "greatest(0, (total - return_credit) - (" + GOODS_KEPT + "))";
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DaySales> salesByDay(LocalDate from, LocalDate to) {
+        UUID business = TenantScope.current().orElseThrow();
+        Map<LocalDate, DaySales> byDay = new TreeMap<>();
+        for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
+            byDay.put(day, new DaySales(day, 0, 0, 0, 0));
+        }
+        jdbc.sql(("with " + DAY_ORDERS + """
+                        , kept as (
+                            select i.order_id, sum(i.quantity - coalesce(r.quantity, 0)) as quantity
+                            from order_items i left join returned r on r.order_item_id = i.id
+                            where i.business_id = :business and i.order_id in (select id from day_orders)
+                            group by i.order_id
+                        )
+                        select (o.confirmed_at at time zone 'Asia/Dhaka')::date, count(*), coalesce(sum(k.quantity), 0),
+                               sum(%s), sum(%s)
+                        from day_orders o left join kept k on k.order_id = o.id
+                        group by 1
+                        """).formatted(GOODS_KEPT, DELIVERY_KEPT))
+                .param("business", business).param("from", start(from)).param("to", start(to.plusDays(1)))
+                .query((rs, n) -> {
+                    LocalDate day = rs.getObject(1, LocalDate.class);
+                    return byDay.put(day, new DaySales(day, rs.getInt(2), rs.getInt(3), rs.getLong(4), rs.getLong(5)));
+                })
+                .list();
+        return List.copyOf(byDay.values());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VariantSales> salesByVariant(LocalDate from, LocalDate to) {
+        return jdbc.sql("with " + DAY_ORDERS + """
+                        select i.variant_id, min(i.product_name), min(i.variant_label),
+                               sum(i.quantity - coalesce(r.quantity, 0)),
+                               sum((i.quantity - coalesce(r.quantity, 0)) * i.unit_price)
+                        from order_items i left join returned r on r.order_item_id = i.id
+                        where i.business_id = :business and i.order_id in (select id from day_orders)
+                        group by i.variant_id
+                        having sum(i.quantity - coalesce(r.quantity, 0)) > 0
+                        order by 5 desc, 2, 3
+                        """)
+                .param("business", TenantScope.current().orElseThrow())
+                .param("from", start(from)).param("to", start(to.plusDays(1)))
+                .query((rs, n) -> new VariantSales(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                        rs.getInt(4), rs.getLong(5)))
+                .list();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProfitReport profit(LocalDate from, LocalDate to) {
+        return jdbc.sql(("with " + DAY_ORDERS + """
+                        , written_off as (
+                            select ri.order_item_id, sum(ri.quantity) as quantity
+                            from return_items ri join returns r on r.id = ri.return_id
+                            where r.business_id = :business and r.order_id in (select id from day_orders)
+                              and ri.disposition = 'WRITE_OFF'
+                            group by ri.order_item_id
+                        )
+                        select (select count(*) from day_orders),
+                               (select coalesce(sum(%s), 0) from day_orders),
+                               (select coalesce(sum(%s), 0) from day_orders),
+                               -- Goods kept: ordered less everything that came back.
+                               (select coalesce(sum((i.quantity - coalesce(r.quantity, 0)) * i.unit_cost), 0)
+                                from order_items i left join returned r on r.order_item_id = i.id
+                                where i.business_id = :business and i.order_id in (select id from day_orders)
+                                  and i.unit_cost is not null),
+                               (select coalesce(sum(w.quantity * i.unit_cost), 0)
+                                from order_items i join written_off w on w.order_item_id = i.id
+                                where i.business_id = :business and i.unit_cost is not null),
+                               (select coalesce(sum(s.courier_charge), 0) from shipments s
+                                where s.business_id = :business and s.order_id in (select id from day_orders)),
+                               (select count(*) from order_items i
+                                where i.business_id = :business and i.order_id in (select id from day_orders)
+                                  and i.unit_cost is null)
+                        """).formatted(GOODS_KEPT, DELIVERY_KEPT))
+                .param("business", TenantScope.current().orElseThrow())
+                .param("from", start(from)).param("to", start(to.plusDays(1)))
+                .query((rs, n) -> {
+                    long revenue = rs.getLong(2);
+                    long delivery = rs.getLong(3);
+                    long cogs = rs.getLong(4);
+                    long writeOffs = rs.getLong(5);
+                    long courier = rs.getLong(6);
+                    long gross = revenue - cogs - writeOffs;
+                    return new ProfitReport(rs.getInt(1), revenue, cogs, writeOffs, gross, delivery, courier,
+                            delivery - courier, gross + delivery - courier, rs.getInt(7));
+                })
+                .single();
+    }
+
+    private static Timestamp start(LocalDate day) {
+        return Timestamp.from(DhakaTime.startOf(day));
     }
 }

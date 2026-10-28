@@ -308,6 +308,14 @@ class CrossTenantTests {
         });
         // Reports: B's dashboard holds only B's figures (A's products never appear among top products).
         CASES.put("GET /api/v1/dashboard/today", (a, b) -> expectNoLeak(b.owner().get("/api/v1/dashboard/today"), a));
+        CASES.put("GET /api/v1/reports/sales", (a, b) -> {
+            expectNoLeak(b.owner().get("/api/v1/reports/sales?groupBy=product"), a);
+            expectNoLeak(b.owner().get("/api/v1/reports/sales?groupBy=category"), a);
+        });
+        CASES.put("GET /api/v1/reports/profit", (a, b) -> expectNoLeak(b.owner().get("/api/v1/reports/profit"), a));
+        CASES.put("GET /api/v1/exports/orders.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/orders.csv"), a));
+        CASES.put("GET /api/v1/exports/products.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/products.csv"), a));
+        CASES.put("GET /api/v1/exports/customers.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/customers.csv"), a));
         CASES.put("GET /api/v1/orders/{id}/slip", (a, b) -> assertThat(
                 b.owner().download("/api/v1/orders/" + a.shippedOrderId() + "/slip").statusCode()).isEqualTo(404));
         CASES.put("GET /api/v1/orders/print", (a, b) -> assertThat(
