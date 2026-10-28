@@ -1,6 +1,8 @@
 package com.mojud.billing;
 
+import com.mojud.shared.error.ApiException;
 import com.mojud.tenancy.BusinessRole;
+import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.RequiresRole;
 import com.mojud.tenancy.TeamSize;
 import java.time.Instant;
@@ -8,7 +10,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The business's plan and usage (managers and owners), and the plans on offer (anyone signed in). */
@@ -61,6 +67,22 @@ class BillingController {
         usage.put(Metric.STAFF_SEATS.key(), new Usage(team.staffSeatsUsed(), plan.limit(Metric.STAFF_SEATS)));
         return new Billing(PlanView.of(plan), subscription.status(), subscription.trialEndsAt(),
                 subscription.currentPeriodEnd(), subscription.pendingPlanCode(), usage);
+    }
+
+    record ChooseRequest(@NotNull String planCode) {
+    }
+
+    /**
+     * The owner picks a plan: a cheaper one from the next renewal, or back to the current one.
+     * Paying for a plan (upgrades, ending a trial) comes with payments (Phase 11): 409 for now.
+     */
+    @PutMapping("/api/v1/billing/plan")
+    @RequiresRole(BusinessRole.OWNER)
+    Billing choose(@Valid @RequestBody ChooseRequest body) {
+        Plans.Plan target = plans.all().stream().filter(p -> p.isPublic() && p.code().equals(body.planCode())).findFirst()
+                .orElseThrow(() -> ApiException.invalidField("planCode", "field.invalid_value"));
+        subscriptions.choose(target, plans.get(subscriptions.current().planCode()), CurrentBusiness.require().userId());
+        return billing();
     }
 
     /** The plans a business can choose (not the trial). */

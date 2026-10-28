@@ -93,6 +93,12 @@ public enum ErrorCode {
     // Billing.
     /** Over the plan's limit; {@code metric} and {@code limit} say which. Nothing already there is hidden. */
     PLAN_LIMIT_REACHED("plan.limit_reached", HttpStatus.PAYMENT_REQUIRED),
+    /** The trial ended or the plan went unpaid: read, export and pay only. */
+    SUBSCRIPTION_READ_ONLY("subscription.read_only", HttpStatus.PAYMENT_REQUIRED),
+    /** Suspended by an administrator: billing only. */
+    SUBSCRIPTION_SUSPENDED("subscription.suspended", HttpStatus.PAYMENT_REQUIRED),
+    /** The change needs a payment (a dearer plan, or a plan after the trial). */
+    BILLING_PAYMENT_NEEDED("billing.payment_needed", HttpStatus.CONFLICT),
 
     // Customers.
     /** Another customer has this phone number; {@code customerId} names them. */

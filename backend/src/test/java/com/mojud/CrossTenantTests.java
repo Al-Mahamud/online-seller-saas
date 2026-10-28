@@ -318,6 +318,11 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/exports/customers.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/customers.csv"), a));
         // Billing: B's plan and usage are B's own.
         CASES.put("GET /api/v1/billing", (a, b) -> expectNoLeak(b.owner().get("/api/v1/billing"), a));
+        CASES.put("PUT /api/v1/billing/plan", (a, b) -> {
+            // B's choice is about B; on a trial it needs a payment first.
+            b.owner().put("/api/v1/billing/plan", Map.of("planCode", "STARTER")).expectError(409, "billing.payment_needed");
+            assertThat(a.owner().get("/api/v1/billing").<Object>json("$.pendingPlanCode")).isNull();
+        });
         CASES.put("GET /api/v1/plans", (a, b) -> expectNoLeak(b.owner().get("/api/v1/plans"), a));
         CASES.put("GET /api/v1/orders/{id}/slip", (a, b) -> assertThat(
                 b.owner().download("/api/v1/orders/" + a.shippedOrderId() + "/slip").statusCode()).isEqualTo(404));

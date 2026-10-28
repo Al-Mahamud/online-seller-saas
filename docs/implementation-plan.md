@@ -26,7 +26,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Done |
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Done |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Done |
-| 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | 10a in review |
+| 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | 10a done · 10b in review |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Not started |
 | 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | Not started |
 | 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | Not started |
@@ -397,6 +397,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Data-deletion job for READ_ONLY over 90 days, shipped **disabled**.
 
 **Checked by:** a test clock moved through trial → grace → read-only, checking allowed and blocked calls at each step.
+
+**As built:** the daily job (`billing.system.SubscriptionJobs`, 09:00 Dhaka) finds subscriptions with the system role and moves each as its own business (`billing.SubscriptionLifecycle`, row locked): an ended trial goes straight to READ_ONLY (nothing was paid, so no grace); an ended paid period goes to GRACE for 7 days with a daily reminder, then READ_ONLY. Reminders 7, 3 and 1 day before a trial or period ends; warnings 60 and 85 days into READ_ONLY. All are in-app notifications to the owner (email in 13a), at most one of each a day, so a second run the same day changes nothing; changes are audited as `subscription.changed`. The read-only guard (`billing.SubscriptionGuard`, an interceptor after tenancy's role check) applies to the business's own endpoints (those with `@RequiresRole`): READ_ONLY refuses every write with 402 `subscription.read_only`; SUSPENDED refuses everything with 402 `subscription.suspended`; billing and notifications stay open; sign-in, profile, switching or creating businesses and accepting invites are not business endpoints and are unaffected; exports are reads. `PUT /billing/plan` (owner): a cheaper plan waits for the renewal (`pending_plan_code`, applied by renewal in Phase 11), the current plan cancels a waiting change, anything needing payment answers 409 `billing.payment_needed` until Phase 11. The 90-day data deletion job ships disabled (`mojud.billing.data-deletion.enabled`) and, until account deletion exists (12), only lists the businesses due. An owner's second business (no trial) starts READ_ONLY.
 
 ---
 

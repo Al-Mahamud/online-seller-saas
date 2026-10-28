@@ -1,6 +1,9 @@
 package com.mojud.billing;
 
 import com.mojud.identity.UserDirectory;
+import com.mojud.shared.audit.AuditTrail;
+import com.mojud.shared.error.ApiException;
+import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.tenant.TenantScope;
 import com.mojud.tenancy.BusinessCreated;
 import java.sql.Timestamp;
@@ -32,11 +35,13 @@ class Subscriptions {
 
     private final JdbcClient jdbc;
     private final UserDirectory users;
+    private final AuditTrail audit;
     private final Clock clock;
 
-    Subscriptions(DataSource dataSource, UserDirectory users, Clock clock) {
+    Subscriptions(DataSource dataSource, UserDirectory users, AuditTrail audit, Clock clock) {
         this.jdbc = JdbcClient.create(dataSource);
         this.users = users;
+        this.audit = audit;
         this.clock = clock;
     }
 
@@ -54,12 +59,33 @@ class Subscriptions {
                 .params(claim, event.businessId(), Timestamp.from(now))
                 .update() == 1;
         jdbc.sql("""
-                        insert into subscriptions (business_id, plan_code, status, trial_ends_at, created_at, updated_at, version)
-                        values (?, 'TRIAL', ?, ?, ?, ?, 0)
+                        insert into subscriptions (business_id, plan_code, status, trial_ends_at, read_only_since, created_at,
+                                                   updated_at, version)
+                        values (?, 'TRIAL', ?, ?, ?, ?, ?, 0)
                         """)
                 .params(event.businessId(), trial ? "TRIALING" : "READ_ONLY", Timestamp.from(trial ? now.plus(TRIAL) : now),
-                        Timestamp.from(now), Timestamp.from(now))
+                        trial ? null : Timestamp.from(now), Timestamp.from(now), Timestamp.from(now))
                 .update();
+    }
+
+    /**
+     * A plan change asked for by the owner. A cheaper plan waits for the renewal (pending); the
+     * current plan cancels a waiting change; anything that needs paying (a dearer plan, or any plan
+     * from a trial or read-only) waits for payments (Phase 11).
+     */
+    @Transactional
+    void choose(Plans.Plan target, Plans.Plan current, UUID ownerId) {
+        UUID business = TenantScope.current().orElseThrow();
+        String status = jdbc.sql("select status from subscriptions where business_id = ? for update")
+                .param(business).query(String.class).single();
+        boolean paid = status.equals("ACTIVE") || status.equals("GRACE");
+        if (!paid || target.priceMonthly() > current.priceMonthly()) {
+            throw new ApiException(ErrorCode.BILLING_PAYMENT_NEEDED);
+        }
+        String pending = target.code().equals(current.code()) ? null : target.code();
+        jdbc.sql("update subscriptions set pending_plan_code = ?, updated_at = ? where business_id = ?")
+                .params(pending, Timestamp.from(clock.instant()), business).update();
+        audit.record(business, ownerId, "subscription.plan_scheduled", "business", business, "plan", pending);
     }
 
     /** The business of the TenantScope's. */

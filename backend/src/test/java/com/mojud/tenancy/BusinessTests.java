@@ -59,6 +59,9 @@ class BusinessTests {
         ApiClient client = signedIn();
         UUID first = TestBusinesses.create(client, "First Shop");
         UUID second = TestBusinesses.create(client, "Second Shop");
+        // An owner's second business has no trial (one per owner, 10a): as if it were paid for.
+        systemDatabase.jdbc().sql("update subscriptions set status = 'ACTIVE', read_only_since = null where business_id = ?")
+                .param(second).update();
 
         assertThat(client.get("/api/v1/business").<String>json("$.name")).isEqualTo("Second Shop");
         client.patch("/api/v1/business/settings", Map.of("stockCommitPoint", "CONFIRM", "lowStockDefault", 12))
