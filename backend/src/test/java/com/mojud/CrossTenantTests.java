@@ -306,6 +306,8 @@ class CrossTenantTests {
                     Map.of("kind", "FAILED_DELIVERY", "reason", "Not mine")));
             assertThat(a.owner().get("/api/v1/orders/" + a.shippedOrderId()).<String>json("$.status")).isEqualTo("SHIPPED");
         });
+        // Reports: B's dashboard holds only B's figures (A's products never appear among top products).
+        CASES.put("GET /api/v1/dashboard/today", (a, b) -> expectNoLeak(b.owner().get("/api/v1/dashboard/today"), a));
         CASES.put("GET /api/v1/orders/{id}/slip", (a, b) -> assertThat(
                 b.owner().download("/api/v1/orders/" + a.shippedOrderId() + "/slip").statusCode()).isEqualTo(404));
         CASES.put("GET /api/v1/orders/print", (a, b) -> assertThat(

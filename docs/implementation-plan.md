@@ -24,8 +24,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 5 Import | 5a upload, mapping, preview · 5b commit and error report | 4 | Done |
 | 6 Customers and delivery | 6a geo data and customers · 6b delivery zones | 2 | Done |
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Done |
-| 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | 8a-8c done · 8d in review |
-| 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Not started |
+| 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Done |
+| 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | 9a in review |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Not started |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Not started |
 | 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | Not started |
@@ -357,6 +357,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `GET /dashboard/today`: orders and sales value confirmed today, orders by status, shipped today, delivered today, COD with courier and expected, low-stock count, top 5 products today. Profit figures only for owner and manager.
 
 **Checked by:** a fixture day with known numbers, including returns and cancellations.
+
+**As built:** `orders.OrderReports` and `catalog.CatalogReports` (public) answer their own figures; `reporting.Dashboard` combines them for `GET /dashboard/today?date=` (a past Dhaka day may be asked for). Definitions: *confirmed* = orders confirmed that day and not cancelled, valued at what the customer owes after returns (a failed delivery counts ৳0); *byStatus* = open orders (DRAFT to SHIPPED) however old, finished ones (DELIVERED, RETURNED, CANCELLED) finished that day; *shipped* counts shipments (re-ships too); *COD* is where couriers' cash is now (on the road, collected and not paid out), not tied to the day; *top products* by quantity kept (ordered less returned), grouped by the product name on the order; *profit* (managers and owners) = goods after discount and returns, less cost (restocked items' cost comes back, written-off items stay a loss), with `costMissing` when an item has no cost price. Inventory had no figure of its own here: low stock is the catalog's count.
 
 ### 9b: Sales, profit and exports (1.5 days)
 
