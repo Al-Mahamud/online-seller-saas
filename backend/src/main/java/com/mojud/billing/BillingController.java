@@ -8,6 +8,11 @@ import com.mojud.tenancy.TeamSize;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import java.util.Map;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
@@ -43,14 +48,16 @@ class BillingController {
     private final Entitlements entitlements;
     private final List<UsageSource> sources;
     private final TeamSize team;
+    private final Invoices invoices;
 
     BillingController(Subscriptions subscriptions, Plans plans, Entitlements entitlements, List<UsageSource> sources,
-            TeamSize team) {
+            TeamSize team, Invoices invoices) {
         this.subscriptions = subscriptions;
         this.plans = plans;
         this.entitlements = entitlements;
         this.sources = sources;
         this.team = team;
+        this.invoices = invoices;
     }
 
     @GetMapping("/api/v1/billing")
@@ -83,6 +90,28 @@ class BillingController {
                 .orElseThrow(() -> ApiException.invalidField("planCode", "field.invalid_value"));
         subscriptions.choose(target, plans.get(subscriptions.current().planCode()), CurrentBusiness.require().userId());
         return billing();
+    }
+
+    record CheckoutRequest(@NotNull String planCode, @NotNull Integer months) {
+    }
+
+    /**
+     * Pays for {@code months} (1, 6 or 12) of a plan through SSLCommerz: returns the gateway's page
+     * to send the browser to. The invoice is paid only when the gateway confirms it; meanwhile the
+     * web app polls {@code GET /billing/invoices/{id}}.
+     */
+    @PostMapping("/api/v1/billing/checkout")
+    @RequiresRole(BusinessRole.OWNER)
+    @ResponseStatus(HttpStatus.CREATED)
+    Invoices.Checkout checkout(@Valid @RequestBody CheckoutRequest body) {
+        return invoices.checkout(body.planCode(), body.months());
+    }
+
+    @GetMapping("/api/v1/billing/invoices/{id}")
+    @RequiresRole(BusinessRole.MANAGER)
+    @Transactional(readOnly = true)
+    Invoices.InvoiceView invoice(@PathVariable UUID id) {
+        return invoices.get(id);
     }
 
     /** The plans a business can choose (not the trial). */

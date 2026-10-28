@@ -58,7 +58,9 @@ class SecurityConfig {
                         .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy", PERMISSIONS_POLICY))
                         .addHeaderWriter(new StaticHeadersWriter("Content-Security-Policy",
                                 "default-src 'none'; frame-ancestors 'none'; sandbox")))
-                .csrf(csrf -> csrf.spa())
+                // Payment gateways call /api/v1/public/gateway/** with no session or token; those
+                // callbacks are verified with the gateway itself instead.
+                .csrf(csrf -> csrf.spa().ignoringRequestMatchers("/api/v1/public/gateway/**"))
                 .cors(cors -> {
                 })
                 .formLogin(AbstractHttpConfigurer::disable)

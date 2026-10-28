@@ -12,6 +12,14 @@ springdoc:
     enabled: true
 
 mojud:
+  web:
+    api-base-url: http://localhost:${local.server.port}
+  billing:
+    # The fake gateway in test sources (support/FakeSslCommerz), on the app's own port.
+    sslcommerz:
+      base-url: http://localhost:${local.server.port}/api/v1/public/gateway/fake-sslcommerz
+      store-id: test-store
+      store-password: test-password
   storage:
     # A fresh folder per test run.
     local-root: ${java.io.tmpdir}/mojud-test-storage/${random.uuid}

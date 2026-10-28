@@ -88,12 +88,25 @@ mojud:
   files:
     # Each upload is stored twice; this keeps one business from filling the disk.
     uploads-per-business: { max: 300, window: 1d }
+  billing:
+    # VAT on invoices, as a fraction (0.05 is 5%); 0 until the accountant answers (backend-plan.md §9).
+    vat-rate: 0
+    sslcommerz:
+      # The sandbox until going live (https://securepay.sslcommerz.com).
+      base-url: ${SSLCOMMERZ_BASE_URL:https://sandbox.sslcommerz.com}
+      store-id: ${SSLCOMMERZ_STORE_ID:}
+      store-password: ${SSLCOMMERZ_STORE_PASSWORD:}
+    data-deletion:
+      # Deleting the data of businesses read-only for 90 days: off until the wording is approved.
+      enabled: false
   imports:
     # Each upload is read and checked in full; this bounds the work one business can cause.
     per-business: { max: 50, window: 1d }
   web:
     # Where the web app lives; invite links point here.
     base-url: ${WEB_BASE_URL:http://localhost:5173}
+    # Where this API is reached from outside: payment gateways call back here.
+    api-base-url: ${API_BASE_URL:http://localhost:8080}
   db:
     system:
       url: ${spring.datasource.url}

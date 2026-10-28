@@ -14,7 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
  * {@code /dev/otp}, and a clock tests can move ({@link TestClock}).
  */
 @TestConfiguration(proxyBeanMethods = false)
-@Import(DevOtpController.class)
+@Import({DevOtpController.class, FakeSslCommerz.class})
 public class DevSupportConfig {
 
     /** Preferred over the logging senders, which stay configured. */

@@ -99,6 +99,12 @@ public enum ErrorCode {
     SUBSCRIPTION_SUSPENDED("subscription.suspended", HttpStatus.PAYMENT_REQUIRED),
     /** The change needs a payment (a dearer plan, or a plan after the trial). */
     BILLING_PAYMENT_NEEDED("billing.payment_needed", HttpStatus.CONFLICT),
+    /** Card payments are not set up yet (no gateway credentials). */
+    BILLING_GATEWAY_UNAVAILABLE("billing.gateway_unavailable", HttpStatus.SERVICE_UNAVAILABLE),
+    /** The payment gateway did not start the payment. */
+    BILLING_GATEWAY_ERROR("billing.gateway_error", HttpStatus.BAD_GATEWAY),
+    /** While a paid period runs, a different plan is an upgrade (11b) or a downgrade at renewal. */
+    BILLING_USE_UPGRADE("billing.use_upgrade", HttpStatus.CONFLICT),
 
     // Customers.
     /** Another customer has this phone number; {@code customerId} names them. */

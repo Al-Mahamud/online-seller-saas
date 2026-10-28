@@ -26,8 +26,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 7 Orders | 7a drafts, totals, numbering · 7b confirm, reserve, cancel | 5 | Done |
 | 8 Fulfilment | 8a pack, ship, deliver · 8b payments and COD · 8c returns · 8d packing slip | 5 | Done |
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Done |
-| 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | 10a done · 10b in review |
-| 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Not started |
+| 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Done |
+| 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | 11a in review |
 | 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | Not started |
 | 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | Not started |
 | **Total** | **33 commits** | **≈ 51 days** | |
@@ -415,6 +415,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Pending-payment check job every 15 minutes.
 
 **Checked by:** tests with a fake SSLCommerz server: a valid payment extends the period; a replayed IPN changes nothing; a wrong amount is refused; a forged IPN fails validation. One manual end-to-end run against the real sandbox once you add credentials.
+
+**As built:** `POST /billing/checkout {planCode, months: 1|6|12}` (owner) commits an OPEN invoice (`MJ-000001`, price × months, a year for ten months, plus `mojud.billing.vat-rate`, 0) and a PENDING `payment_attempts` row with a fresh `tran_id`, then calls the session API and returns `GatewayPageURL`; a refusal marks the attempt FAILED and answers 502 `billing.gateway_error`; with no credentials, 503 `billing.gateway_unavailable`. While a paid period runs, checkout extends the same plan only (another plan: 409 `billing.use_upgrade`, 11b). `billing.gateway.SslCommerzClient` reads its settings on each call (`mojud.billing.sslcommerz.*`, credentials from `SSLCOMMERZ_STORE_ID` / `SSLCOMMERZ_STORE_PASSWORD`, sandbox by default). Callbacks live under `/api/v1/public/gateway/` (no session, no CSRF token): each is stored raw in `gateway_callbacks` (system role only) first; the IPN finds the attempt by `tran_id` (system role), asks the Validation API about the `val_id`, and applies the answer as the business: invoice row locked, early return if already PAID, a mismatch (status, `tran_id`, currency BDT, amount) marks the attempt INVALID; otherwise attempt PAID, subscription extended (`Subscriptions.extend`: after a running period or a running trial, else from now; ACTIVE; grace, read-only and a waiting downgrade cleared), invoice PAID with its period, audit, owner notification and an `InvoicePaid` event. The browser's success/fail/cancel return only stores the call and redirects (303) to the web app (`/billing/return?result=&invoice=`), which polls `GET /billing/invoices/{id}`. `billing.system.PendingPayments` (every 15 minutes) queries attempts pending over 30 minutes and gives up after 2 days. Ledger rows and receipts come with 11b. **Not yet run against the real sandbox:** waiting for store credentials.
 
 ### 11b: Upgrades, manual payments and ledger (2 days)
 

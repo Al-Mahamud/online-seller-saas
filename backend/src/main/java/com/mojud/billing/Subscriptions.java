@@ -5,6 +5,7 @@ import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.tenant.TenantScope;
+import com.mojud.shared.time.DhakaTime;
 import com.mojud.tenancy.BusinessCreated;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -86,6 +87,46 @@ class Subscriptions {
         jdbc.sql("update subscriptions set pending_plan_code = ?, updated_at = ? where business_id = ?")
                 .params(pending, Timestamp.from(clock.instant()), business).update();
         audit.record(business, ownerId, "subscription.plan_scheduled", "business", business, "plan", pending);
+    }
+
+    record Period(Instant start, Instant end) {
+    }
+
+    /**
+     * A paid invoice for {@code months} of {@code planCode}: the subscription becomes ACTIVE on that
+     * plan. The new period follows a period still running, or a trial still running (its days are
+     * not lost); otherwise it starts now. A waiting downgrade is settled by what was paid for.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    Period extend(String planCode, int months) {
+        UUID business = TenantScope.current().orElseThrow();
+        Instant now = clock.instant();
+        record Row(String status, Instant trialEndsAt, Instant periodEnd) {
+        }
+        Row row = jdbc.sql("select status, trial_ends_at, current_period_end from subscriptions where business_id = ? for update")
+                .param(business)
+                .query((rs, n) -> new Row(rs.getString(1), instant(rs.getTimestamp(2)), instant(rs.getTimestamp(3))))
+                .single();
+        Instant start = now;
+        boolean extending = row.status().equals("ACTIVE") && row.periodEnd() != null && row.periodEnd().isAfter(now);
+        if (extending) {
+            start = row.periodEnd();
+        } else if (row.status().equals("TRIALING") && row.trialEndsAt() != null && row.trialEndsAt().isAfter(now)) {
+            start = row.trialEndsAt();
+        }
+        Instant end = start.atZone(DhakaTime.ZONE).plusMonths(months).toInstant();
+        jdbc.sql("""
+                        update subscriptions set plan_code = ?, status = 'ACTIVE',
+                               current_period_start = case when ? then current_period_start else ? end,
+                               current_period_end = ?, grace_ends_at = null, read_only_since = null,
+                               pending_plan_code = null, updated_at = ?, version = version + 1
+                        where business_id = ?
+                        """)
+                .params(planCode, extending, Timestamp.from(start), Timestamp.from(end), Timestamp.from(now), business)
+                .update();
+        audit.record(business, null, "subscription.changed", "business", business, "from", row.status(), "to", "ACTIVE",
+                "plan", planCode, "until", end);
+        return new Period(start, end);
     }
 
     /** The business of the TenantScope's. */

@@ -323,6 +323,19 @@ class CrossTenantTests {
             b.owner().put("/api/v1/billing/plan", Map.of("planCode", "STARTER")).expectError(409, "billing.payment_needed");
             assertThat(a.owner().get("/api/v1/billing").<Object>json("$.pendingPlanCode")).isNull();
         });
+        CASES.put("POST /api/v1/billing/checkout", (a, b) -> expectNoLeak(b.owner().post("/api/v1/billing/checkout",
+                Map.of("planCode", "PRO", "months", 1)).expectStatus(201), a));
+        CASES.put("GET /api/v1/billing/invoices/{id}", (a, b) -> expectNotFound(
+                b.owner().get("/api/v1/billing/invoices/" + a.invoiceId())));
+        // Anyone can post to the IPN endpoint: a forged "VALID" for A's payment fails validation.
+        CASES.put("POST /api/v1/public/gateway/sslcommerz/ipn", (a, b) -> {
+            b.owner().postForm("/api/v1/public/gateway/sslcommerz/ipn", Map.of("status", "VALID", "tran_id", a.tranId(),
+                    "val_id", "FORGED-" + a.tranId(), "amount", "990.00", "currency", "BDT")).expectStatus(200);
+            assertThat(a.owner().get("/api/v1/billing/invoices/" + a.invoiceId()).<String>json("$.status")).isEqualTo("OPEN");
+            assertThat(a.owner().get("/api/v1/billing").<String>json("$.status")).isEqualTo("TRIALING");
+        });
+        CASES.put("GET /api/v1/public/gateway/sslcommerz/return/{result}", notBusinessData("only redirects the browser"));
+        CASES.put("POST /api/v1/public/gateway/sslcommerz/return/{result}", notBusinessData("only redirects the browser"));
         CASES.put("GET /api/v1/plans", (a, b) -> expectNoLeak(b.owner().get("/api/v1/plans"), a));
         CASES.put("GET /api/v1/orders/{id}/slip", (a, b) -> assertThat(
                 b.owner().download("/api/v1/orders/" + a.shippedOrderId() + "/slip").statusCode()).isEqualTo(404));
@@ -369,6 +382,10 @@ class CrossTenantTests {
 
         // Test sources only.
         CASES.put("GET /dev/otp", notBusinessData("exists only in test sources and local runs"));
+        CASES.put("POST /api/v1/public/gateway/fake-sslcommerz/gwprocess/v4/api.php", notBusinessData("the fake gateway"));
+        CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/validator/api/validationserverAPI.php", notBusinessData("the fake gateway"));
+        CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/validator/api/merchantTransIDvalidationAPI.php",
+                notBusinessData("the fake gateway"));
     }
 
     @LocalServerPort

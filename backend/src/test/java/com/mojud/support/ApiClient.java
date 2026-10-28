@@ -6,12 +6,15 @@ import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.net.HttpCookie;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -45,6 +48,27 @@ public final class ApiClient {
 
     public ApiResponse post(String path, Object body) {
         return send("POST", path, body, true);
+    }
+
+    /** A form POST with no session cookie or CSRF token, as a payment gateway calls us. */
+    public ApiResponse postForm(String path, Map<String, String> fields) {
+        String body = fields.entrySet().stream()
+                .map(e -> URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8) + "="
+                        + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
+                .collect(Collectors.joining("&"));
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .build();
+        try {
+            HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+            return new ApiResponse(response.statusCode(), response.body(), response.headers());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
     }
 
     /** A POST with extra headers for this request only, such as an Idempotency-Key. */
@@ -82,9 +106,9 @@ public final class ApiClient {
         java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
         body.writeBytes(("--" + boundary + "\r\n"
                 + "Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName + "\"\r\n"
-                + "Content-Type: application/octet-stream\r\n\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                + "Content-Type: application/octet-stream\r\n\r\n").getBytes(StandardCharsets.UTF_8));
         body.writeBytes(content);
-        body.writeBytes(("\r\n--" + boundary + "--\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        body.writeBytes(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()))
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary)
