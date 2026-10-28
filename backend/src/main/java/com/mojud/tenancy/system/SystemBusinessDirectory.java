@@ -7,6 +7,7 @@ import com.mojud.shared.phone.PhoneNumber;
 import com.mojud.tenancy.BusinessDirectory;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -69,6 +70,17 @@ class SystemBusinessDirectory implements BusinessDirectory {
     public Optional<BusinessSummary> find(UUID businessId) {
         return database.jdbc().sql(SELECT + "where b.id = ?").param(businessId).query(this::row).optional()
                 .map(row -> summaries(List.of(row)).get(0));
+    }
+
+    @Override
+    public long businesses() {
+        return database.jdbc().sql("select count(*) from businesses").query(Long.class).single();
+    }
+
+    @Override
+    public long createdSince(Instant since) {
+        return database.jdbc().sql("select count(*) from businesses where created_at >= ?").param(Timestamp.from(since))
+                .query(Long.class).single();
     }
 
     private Row row(ResultSet rs, int n) throws SQLException {

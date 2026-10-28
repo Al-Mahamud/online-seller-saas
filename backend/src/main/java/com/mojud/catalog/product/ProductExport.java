@@ -1,5 +1,6 @@
 package com.mojud.catalog.product;
 
+import com.mojud.catalog.CatalogData;
 import com.mojud.inventory.StockLevel;
 import com.mojud.inventory.StockQueries;
 import com.mojud.shared.csv.CsvWriter;
@@ -24,7 +25,7 @@ import tools.jackson.databind.json.JsonMapper;
  * again (an unchanged export imports as "nothing changed"); reserved, available and status follow.
  */
 @Component
-class ProductExport {
+class ProductExport implements CatalogData {
 
     static final int BATCH = 500;
 
@@ -43,6 +44,12 @@ class ProductExport {
         this.stock = stock;
         this.messages = messages;
         this.json = json;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void writeProductsCsv(OutputStream out, Locale locale) {
+        write(out, locale);
     }
 
     @Transactional(readOnly = true)

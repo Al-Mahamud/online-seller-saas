@@ -32,6 +32,16 @@ public interface BillingAdministration {
             Map<String, Integer> limits, boolean exports) {
     }
 
+    /**
+     * {@code paying}: on a paid plan now (ACTIVE or GRACE); {@code trialsEnded}: businesses whose
+     * trial has ended (paying or not), for conversion; {@code mrr}: the paying businesses' monthly
+     * prices, in poisha.
+     */
+    record Metrics(long trialing, long paying, long readOnly, long suspended, long trialsEnded, long everPaid, long mrr) {
+    }
+
+    Metrics metrics();
+
     Map<UUID, SubscriptionSummary> subscriptions(Collection<UUID> businessIds);
 
     Overview overview(UUID businessId);

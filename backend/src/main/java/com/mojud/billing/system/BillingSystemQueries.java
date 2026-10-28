@@ -38,6 +38,24 @@ public class BillingSystemQueries {
         return rows;
     }
 
+    /** [trialing, paying, readOnly, suspended, trialsEnded, everPaid, mrr] */
+    public long[] metrics(Instant now) {
+        return database.jdbc().sql("""
+                        select count(*) filter (where s.status = 'TRIALING'),
+                               count(*) filter (where s.status in ('ACTIVE', 'GRACE') and s.plan_code <> 'TRIAL'),
+                               count(*) filter (where s.status = 'READ_ONLY'),
+                               count(*) filter (where s.status = 'SUSPENDED'),
+                               count(*) filter (where s.trial_ends_at <= ? or s.plan_code <> 'TRIAL'),
+                               (select count(distinct business_id) from invoices where status = 'PAID'),
+                               coalesce(sum(p.price_monthly) filter (where s.status in ('ACTIVE', 'GRACE') and s.plan_code <> 'TRIAL'), 0)
+                        from subscriptions s join plans p on p.code = s.plan_code
+                        """)
+                .param(Timestamp.from(now))
+                .query((rs, n) -> new long[] {rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getLong(5),
+                        rs.getLong(6), rs.getLong(7)})
+                .single();
+    }
+
     public void updatePlan(String code, String nameEn, String nameBn, long priceMonthly, boolean isPublic, String limitsJson) {
         database.jdbc().sql("""
                         update plans set name_en = ?, name_bn = ?, price_monthly = ?, is_public = ?, limits = ?::jsonb

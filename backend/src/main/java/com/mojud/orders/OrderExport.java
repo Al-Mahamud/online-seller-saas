@@ -7,6 +7,7 @@ import com.mojud.shared.tenant.TenantScope;
 import com.mojud.shared.time.DhakaTime;
 import java.io.OutputStream;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -22,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  * and written as they come, so a large export never sits in memory. Money in taka.
  */
 @Component
-class OrderExport {
+class OrderExport implements OrderData {
 
     static final List<String> COLUMNS = List.of("number", "date", "status", "paymentStatus", "customer", "customerPhone",
             "deliveryName", "deliveryPhone", "address", "area", "district", "items", "subtotal", "discount", "deliveryCharge",
@@ -32,12 +33,20 @@ class OrderExport {
     private final JdbcTemplate jdbc;
     private final GeoDirectory geo;
     private final MessageSource messages;
+    private final Clock clock;
 
-    OrderExport(DataSource dataSource, GeoDirectory geo, MessageSource messages) {
+    OrderExport(DataSource dataSource, GeoDirectory geo, MessageSource messages, Clock clock) {
         this.jdbc = new JdbcTemplate(dataSource);
         this.jdbc.setFetchSize(500);
         this.geo = geo;
         this.messages = messages;
+        this.clock = clock;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void writeOrdersCsv(OutputStream out, Locale locale) {
+        write(out, LocalDate.of(2000, 1, 1), DhakaTime.today(clock), locale);
     }
 
     /** Orders made in [from, to] (Dhaka days), oldest first. */

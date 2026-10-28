@@ -23,4 +23,8 @@ public interface BusinessDirectory {
     List<BusinessSummary> search(String q, int limit);
 
     Optional<BusinessSummary> find(UUID businessId);
+
+    long businesses();
+
+    long createdSince(Instant since);
 }

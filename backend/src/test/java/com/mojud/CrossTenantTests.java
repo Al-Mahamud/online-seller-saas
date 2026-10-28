@@ -353,6 +353,24 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/admin/plans", (a, b) -> b.owner().get("/api/v1/admin/plans").expectStatus(403));
         CASES.put("PUT /api/v1/admin/plans/{code}", (a, b) -> b.owner().put("/api/v1/admin/plans/PRO", Map.of("priceMonthly", 1,
                 "isPublic", true, "exports", true)).expectStatus(403));
+        CASES.put("GET /api/v1/admin/metrics", (a, b) -> b.owner().get("/api/v1/admin/metrics").expectStatus(403));
+        // Data rights: B's export holds B's data only (read inside the zip); deletion is B's own.
+        CASES.put("GET /api/v1/business/export", (a, b) -> {
+            String text = unzipped(b.owner().download("/api/v1/business/export").body());
+            assertThat(text).contains("orders.csv", "products.csv", "customers.csv");
+            for (String marker : a.markers()) {
+                assertThat(text).as("export leaks %s", marker).doesNotContain(marker);
+            }
+        });
+        CASES.put("POST /api/v1/business/deletion", (a, b) -> {
+            b.owner().post("/api/v1/business/deletion", Map.of("password", "wrong password")).expectError(400, "account.wrong_password");
+            assertThat(a.owner().get("/api/v1/business").<Object>json("$.deletionDueAt")).isNull();
+        });
+        CASES.put("DELETE /api/v1/business/deletion", (a, b) -> b.owner().delete("/api/v1/business/deletion").expectStatus(404));
+        CASES.put("DELETE /api/v1/customers/{id}", (a, b) -> {
+            expectNotFound(b.owner().delete("/api/v1/customers/" + a.customerId()));
+            a.owner().get("/api/v1/customers/" + a.customerId()).expectStatus(200);
+        });
         CASES.put("GET /api/v1/admin/audit", (a, b) -> b.owner().get("/api/v1/admin/audit").expectStatus(403));
         CASES.put("GET /api/v1/admin/billing/ledger.csv", (a, b) -> b.owner().get("/api/v1/admin/billing/ledger.csv").expectStatus(403));
         CASES.put("GET /api/v1/billing/invoices/{id}", (a, b) -> expectNotFound(
@@ -416,6 +434,20 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/validator/api/validationserverAPI.php", notBusinessData("the fake gateway"));
         CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/validator/api/merchantTransIDvalidationAPI.php",
                 notBusinessData("the fake gateway"));
+    }
+
+    /** Every entry of a zip, as "name" then its text. */
+    static String unzipped(byte[] zip) {
+        StringBuilder text = new StringBuilder();
+        try (java.util.zip.ZipInputStream in = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip))) {
+            for (java.util.zip.ZipEntry entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
+                text.append(entry.getName()).append('\n').append(new String(in.readAllBytes(),
+                        java.nio.charset.StandardCharsets.UTF_8)).append('\n');
+            }
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
+        return text.toString();
     }
 
     @LocalServerPort

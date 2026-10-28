@@ -5,6 +5,7 @@ import com.github.kagkarlsson.scheduler.task.helper.Tasks;
 import com.github.kagkarlsson.scheduler.task.schedule.Schedules;
 import com.mojud.shared.db.system.SystemDatabase;
 import com.mojud.shared.time.DhakaTime;
+import com.mojud.tenancy.BusinessDeletion;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
@@ -28,13 +29,15 @@ public class SubscriptionJobs {
 
     private final SystemDatabase database;
     private final SubscriptionAdvancer advancer;
+    private final BusinessDeletion deletion;
     private final Clock clock;
     private final boolean deletionEnabled;
 
-    SubscriptionJobs(SystemDatabase database, SubscriptionAdvancer advancer, Clock clock,
+    SubscriptionJobs(SystemDatabase database, SubscriptionAdvancer advancer, BusinessDeletion deletion, Clock clock,
             @Value("${mojud.billing.data-deletion.enabled:false}") boolean deletionEnabled) {
         this.database = database;
         this.advancer = advancer;
+        this.deletion = deletion;
         this.clock = clock;
         this.deletionEnabled = deletionEnabled;
     }
@@ -57,9 +60,9 @@ public class SubscriptionJobs {
     }
 
     /**
-     * Businesses READ_ONLY for over 90 days, whose data is to be deleted. Shipped disabled
-     * ({@code mojud.billing.data-deletion.enabled}); and until account deletion exists (Phase 12) it
-     * only reports them, even when enabled.
+     * Businesses READ_ONLY for over 90 days, whose data is deleted. Shipped disabled
+     * ({@code mojud.billing.data-deletion.enabled}) until the warnings' wording is approved: then it
+     * only lists them.
      */
     public List<UUID> dataDeletion() {
         List<UUID> due = database.jdbc().sql("select business_id from subscriptions where status = 'READ_ONLY' and read_only_since < ?")
@@ -67,8 +70,14 @@ public class SubscriptionJobs {
                 .query(UUID.class).list();
         if (!deletionEnabled) {
             log.info("Data deletion is disabled; {} business(es) are past 90 days read-only", due.size());
-        } else {
-            log.warn("Data deletion enabled, but deleting arrives with account deletion (Phase 12); would delete {}", due);
+            return due;
+        }
+        for (UUID business : due) {
+            try {
+                deletion.deleteNow(business);
+            } catch (RuntimeException e) {
+                log.error("Deleting read-only business {} failed", business, e);
+            }
         }
         return due;
     }

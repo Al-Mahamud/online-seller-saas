@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,6 +42,14 @@ class CustomerController {
             return new CursorPage<>(customers.byPhone(phone).map(List::of).orElse(List.of()), null);
         }
         return customers.list(q, cursor, limit);
+    }
+
+    /** Deletes the customer (managers and owners): refused while they have orders in progress. */
+    @DeleteMapping("/api/v1/customers/{id}")
+    @RequiresRole(BusinessRole.MANAGER)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void delete(@PathVariable UUID id) {
+        customers.delete(id);
     }
 
     @GetMapping("/api/v1/customers/{id}")

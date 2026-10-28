@@ -17,7 +17,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * What a business may do in its subscription status (backend-plan.md §8), for the business's own
  * endpoints (those with {@link RequiresRole}), after tenancy has checked the role. READ_ONLY: read,
  * export and pay; every other change is 402 {@code subscription.read_only}. SUSPENDED: billing only.
- * Billing and notifications stay open, so a business can always see its plan, pay and read why. Endpoints that
+ * Billing, notifications, the data export and deleting the business stay open: a business can always
+ * pay, read why, and take or delete its data. Endpoints that
  * are not the business's (sign-in, profile, switching or creating businesses, accepting invites)
  * are not affected.
  */
@@ -26,7 +27,8 @@ class SubscriptionGuard implements HandlerInterceptor {
 
     private static final Set<String> READS = Set.of("GET", "HEAD", "OPTIONS");
     /** Always open: billing (to pay) and the owner's own notifications (to read reminders and mark them read). */
-    private static final List<String> OPEN = List.of("/api/v1/billing", "/api/v1/notifications");
+    private static final List<String> OPEN = List.of("/api/v1/billing", "/api/v1/notifications", "/api/v1/business/deletion",
+            "/api/v1/business/export");
 
     private final Subscriptions subscriptions;
 

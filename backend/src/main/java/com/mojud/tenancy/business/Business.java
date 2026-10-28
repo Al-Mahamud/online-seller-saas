@@ -31,6 +31,9 @@ class Business {
 
     private UUID logoFileId;
 
+    /** Set while a deletion asked for by the owner waits out its undo window. */
+    private Instant deletionDueAt;
+
     @Enumerated(EnumType.STRING)
     private BusinessStatus status;
 
@@ -71,6 +74,10 @@ class Business {
     void changeLogo(UUID fileId, Instant now) {
         logoFileId = fileId;
         updatedAt = now;
+    }
+
+    Instant getDeletionDueAt() {
+        return deletionDueAt;
     }
 
     UUID getLogoFileId() {

@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Customers as CSV (implementation-plan.md 9b), oldest first, read and written in batches. */
 @Component
-class CustomerExport {
+class CustomerExport implements CustomerData {
 
     static final List<String> COLUMNS = List.of("name", "phone", "altPhone", "address", "area", "district", "orders",
             "lastOrder", "note", "since");
@@ -33,6 +33,12 @@ class CustomerExport {
         this.jdbc.setFetchSize(500);
         this.geo = geo;
         this.messages = messages;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void writeCustomersCsv(OutputStream out, Locale locale) {
+        write(out, locale);
     }
 
     @Transactional(readOnly = true)

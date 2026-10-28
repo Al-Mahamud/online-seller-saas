@@ -59,6 +59,12 @@ class BillingAdmin implements BillingAdministration {
     }
 
     @Override
+    public Metrics metrics() {
+        long[] m = system.metrics(clock.instant());
+        return new Metrics(m[0], m[1], m[2], m[3], m[4], m[5], m[6]);
+    }
+
+    @Override
     public Map<UUID, SubscriptionSummary> subscriptions(Collection<UUID> businessIds) {
         return system.subscriptions(businessIds).entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey,
                 e -> new SubscriptionSummary(e.getValue().planCode(), e.getValue().status(), e.getValue().trialEndsAt(),

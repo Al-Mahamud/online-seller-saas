@@ -28,7 +28,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Done |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Done |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Done |
-| 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | 12a in review |
+| 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | 12a done · 12b in review |
 | 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | Not started |
 | **Total** | **33 commits** | **≈ 51 days** | |
 
@@ -451,6 +451,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Owner data export (`GET /business/export`, zip of CSVs) and business deletion with a 7-day undo; customer deletion.
 
 **Checked by:** export contains only the owner's business; a deleted business is gone from every table after the undo window (test clock).
+
+**As built:** `GET /admin/metrics` composes counts each module publishes (`identity.UserMetrics`, `tenancy.BusinessDirectory`, `billing.BillingAdministration.metrics`, `audit.ActivityMetrics`): users and sign-ups (7 and 30 days), businesses, trialing, paying (ACTIVE or GRACE on a paid plan), read-only, suspended, ever paid, conversion (paying ÷ businesses whose trial has ended), MRR (paying businesses' monthly prices) and weekly active businesses (a member changed something, per the audit log). `GET /business/export` (owner, in reporting): a zip of orders.csv, products.csv and customers.csv written by the owning modules (`OrderData`, `CatalogData`, `CustomerData`), with no plan limit, open to read-only businesses. Business deletion is `POST /business/deletion {password}` (owner) and `DELETE /business/deletion` to cancel (paths under /business/deletion so a read-only business can use them); the daily job (03:30) calls `mojud_delete_business` (V31): a SECURITY DEFINER function owned by the schema owner (append-only tables refuse DELETE to the app and system roles), run as that business (forced RLS), deleting from every table with a business_id, children first, then the business; the owner's account stays, the trial claim and admin log entries stay detached (`ON DELETE SET NULL`). The 90-day read-only deletion (10b) uses it when enabled (still off). Uploaded files on disk are not removed yet (with the S3 adapter, 13b). Invoices and the billing ledger are deleted with the business, as planned; **check with the accountant whether they must be kept**. Customer deletion (`DELETE /customers/{id}`, managers and owners): refused while an order is in progress; finished orders keep their sale but get "Deleted customer", a placeholder phone and no address (the district stays), and lose the link (`ON DELETE SET NULL (customer_id)`).
 
 ---
 

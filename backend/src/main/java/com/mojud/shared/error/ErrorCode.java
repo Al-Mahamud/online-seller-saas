@@ -110,6 +110,11 @@ public enum ErrorCode {
     /** Extending a trial: the business is no longer on its trial plan. */
     BILLING_NOT_ON_TRIAL("billing.not_on_trial", HttpStatus.CONFLICT),
 
+    /** The owner already asked for this business to be deleted. */
+    BUSINESS_DELETION_PENDING("business.deletion_pending", HttpStatus.CONFLICT),
+    /** A customer with an order still in progress cannot be deleted. */
+    CUSTOMER_HAS_OPEN_ORDERS("customer.has_open_orders", HttpStatus.CONFLICT),
+
     // Platform administration.
     /** The business is already in the state asked for (suspending a suspended business). */
     ADMIN_NO_CHANGE("admin.no_change", HttpStatus.CONFLICT),

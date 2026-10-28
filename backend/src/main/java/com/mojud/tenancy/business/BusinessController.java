@@ -1,5 +1,6 @@
 package com.mojud.tenancy.business;
 
+import java.time.Instant;
 import com.mojud.identity.AuthenticatedUser;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
@@ -36,8 +37,10 @@ import org.springframework.web.bind.annotation.RestController;
 class BusinessController {
 
     private final BusinessService businesses;
+    private final DeletionRequests deletions;
 
-    BusinessController(BusinessService businesses) {
+    BusinessController(BusinessService businesses, DeletionRequests deletions) {
+        this.deletions = deletions;
         this.businesses = businesses;
     }
 
@@ -109,6 +112,30 @@ class BusinessController {
     @RequiresRole(BusinessRole.MANAGER)
     BusinessResponse removeLogo() {
         return businesses.changeLogo(null);
+    }
+
+    record DeletionRequest(@NotBlank @Size(max = 200) String password) {
+    }
+
+    record DeletionScheduled(Instant deletionDueAt) {
+    }
+
+    /**
+     * Deletes the business and all its data in 7 days (the owner's password confirms it); cancel
+     * before then with {@code DELETE /business/deletion}. The owner's account stays.
+     */
+    @PostMapping("/api/v1/business/deletion")
+    @RequiresRole(BusinessRole.OWNER)
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    DeletionScheduled requestDeletion(@Valid @RequestBody DeletionRequest body, HttpServletRequest request) {
+        return new DeletionScheduled(deletions.request(body.password(), request.getRemoteAddr()));
+    }
+
+    @DeleteMapping("/api/v1/business/deletion")
+    @RequiresRole(BusinessRole.OWNER)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void cancelDeletion() {
+        deletions.cancel();
     }
 
     @GetMapping("/api/v1/business/settings")

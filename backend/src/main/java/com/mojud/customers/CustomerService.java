@@ -1,6 +1,7 @@
 package com.mojud.customers;
 
 import com.mojud.delivery.GeoDirectory;
+import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.db.Constraints;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
@@ -19,6 +20,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -63,12 +65,17 @@ class CustomerService implements CustomerDirectory {
     }
 
     private final CustomerRepository customers;
+    private final ApplicationEventPublisher events;
+    private final AuditTrail audit;
     private final GeoDirectory geo;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
-    CustomerService(CustomerRepository customers, GeoDirectory geo, TransactionTemplate transactions, Clock clock) {
+    CustomerService(CustomerRepository customers, GeoDirectory geo, TransactionTemplate transactions, Clock clock,
+            ApplicationEventPublisher events, AuditTrail audit) {
         this.customers = customers;
+        this.events = events;
+        this.audit = audit;
         this.geo = geo;
         this.transactions = transactions;
         this.clock = clock;
@@ -129,6 +136,21 @@ class CustomerService implements CustomerDirectory {
     @Transactional(propagation = Propagation.MANDATORY)
     public void confirmedOrderCancelled(UUID customerId) {
         customers.removeOrder(customerId);
+    }
+
+    /**
+     * Deletes a customer for good (a privacy request). Orders still in progress refuse it; finished
+     * orders keep their sales but lose the customer's name, phone and address (the orders module
+     * does that on {@link CustomerDeleting}).
+     */
+    @Transactional
+    void delete(UUID id) {
+        Customer customer = load(id);
+        events.publishEvent(new CustomerDeleting(customer.getId()));
+        customers.delete(customer);
+        customers.flush();
+        CurrentBusiness me = CurrentBusiness.require();
+        audit.record(me.businessId(), me.userId(), "customer.deleted", "customer", id);
     }
 
     private static Snapshot snapshot(Customer customer) {
