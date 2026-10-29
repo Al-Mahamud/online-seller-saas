@@ -2,6 +2,7 @@ package com.mojud.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.mojud.files.storage.FileStorage;
 import com.mojud.shared.db.system.SystemDatabase;
 import com.mojud.shared.id.Ids;
 import com.mojud.support.ApiClient;
@@ -51,6 +52,9 @@ class DataRightsTests {
     @Autowired
     TestClock clock;
 
+    @Autowired
+    FileStorage storage;
+
     @AfterEach
     void resetClock() {
         clock.reset();
@@ -90,6 +94,10 @@ class DataRightsTests {
                         """)
                 .params(Ids.newId(), business, tenant.invoiceId()).update();
         Map<String, Long> before = rowsOf(business);
+        // Files live outside the database, under keys starting with the business id.
+        storage.store(business + "/marker/a.txt", new byte[] {1});
+        UUID other = tenant().businessId();
+        storage.store(other + "/marker/a.txt", new byte[] {2});
         assertThat(before.values().stream().filter(n -> n > 0).count()).as("tables with this business's rows").isGreaterThan(30);
 
         tenant.owner().post("/api/v1/business/deletion", Map.of("password", "wrong")).expectError(400, "account.wrong_password");
@@ -119,6 +127,8 @@ class DataRightsTests {
         assertThat(deletions.run()).contains(business);
 
         assertThat(rowsOf(business)).allSatisfy((table, rows) -> assertThat(rows).as(table).isZero());
+        assertThat(storage.load(business + "/marker/a.txt")).isEmpty();
+        assertThat(storage.load(other + "/marker/a.txt")).isPresent();
         assertThat(systemDatabase.jdbc().sql("select count(*) from businesses where id = ?").param(business)
                 .query(Long.class).single()).isZero();
         // The owner's account stays, and so does their used trial (detached).

@@ -4,7 +4,7 @@ import java.util.UUID;
 
 /**
  * Deletes a business and everything it owns, at once (the owner's deletion after its undo window,
- * or a read-only business past 90 days). The owner's account stays.
+ * or a read-only business past 90 days), its files included. The owner's account stays.
  */
 public interface BusinessDeletion {
 

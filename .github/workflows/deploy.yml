@@ -1,0 +1,173 @@
+# The server setup end to end on a runner (implementation-plan.md 13b): the image starts behind
+# Caddy with HTTPS on deploy/compose.yml; a backup is made, encrypted, restored into a new
+# database and compared table by table with the original; the app then runs on the restored copy.
+# On every change to deploy/ or the backend, and monthly as the restore drill. The second job
+# restores the latest real backup from R2 when its secrets are set (README.md, "Restore drill").
+name: Deploy check
+
+on:
+  push:
+    branches: [main]
+    paths: ["deploy/**", "backend/**", ".github/workflows/deploy.yml"]
+  pull_request:
+    paths: ["deploy/**", "backend/**", ".github/workflows/deploy.yml"]
+  schedule:
+    - cron: "0 3 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: deploy
+    env:
+      CI_BACKUPS: ${{ runner.temp }}/backups
+      CI_BACKUP_KEY: ${{ runner.temp }}/backup-key.txt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Check the shell scripts
+        run: shellcheck db/init.sh backup/*.sh
+      - name: Build the image into Docker
+        working-directory: backend
+        run: >-
+          ./mvnw -B -q -DskipTests package jib:dockerBuild -Djib.from.platforms=linux/amd64
+          -Djib.to.image=mojud-backend:ci -Dapp.version=${{ github.sha }}
+      - name: Settings for a throwaway server
+        run: |
+          sudo apt-get install -y -q age > /dev/null
+          mkdir -p "$CI_BACKUPS" && chmod 777 "$CI_BACKUPS"
+          age-keygen -o "$CI_BACKUP_KEY" 2> /dev/null && chmod 644 "$CI_BACKUP_KEY"
+          cat > .env <<SETTINGS
+          APP_DOMAIN=localhost
+          ACME_EMAIL=ci@example.com
+          APP_IMAGE=mojud-backend:ci
+          POSTGRES_PASSWORD=$(openssl rand -hex 24)
+          DB_OWNER_PASSWORD=$(openssl rand -hex 24)
+          DB_APP_PASSWORD=$(openssl rand -hex 24)
+          DB_SYSTEM_PASSWORD=$(openssl rand -hex 24)
+          ENCRYPTION_KEY=$(openssl rand -base64 32)
+          EMAIL_PROVIDER=none
+          STORAGE_PROVIDER=local
+          AGE_RECIPIENT=$(age-keygen -y "$CI_BACKUP_KEY")
+          BACKUP_REMOTE=/backups
+          SETTINGS
+      - name: Start the server
+        run: docker compose -f compose.yml -f ci/compose.ci.yml up -d --build --wait
+      - name: The app answers over HTTPS
+        run: |
+          for i in $(seq 1 60); do
+            curl -ksf https://localhost/healthz | grep '"status":"UP"' > /dev/null && break
+            sleep 3
+          done
+          curl -ksf https://localhost/healthz | grep '"status":"UP"'
+          curl -ksf https://localhost/api/v1/auth/options
+          curl -ksfI https://localhost/api/v1/auth/options | grep -i '^content-security-policy'
+          curl -ksf https://localhost/ | grep 'Mojud' > /dev/null
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/)" = 308
+          docker compose -f compose.yml -f ci/compose.ci.yml logs app > "$RUNNER_TEMP/app.log"
+          grep 'No SENTRY_DSN' "$RUNNER_TEMP/app.log" > /dev/null
+      - name: Back up, restore into a new database, compare
+        run: |
+          dc="docker compose -f compose.yml -f ci/compose.ci.yml"
+          $dc exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d mojud < ci/seed.sql
+          # Stopped, so its jobs do not change rows between the fingerprint and the backup.
+          $dc stop app
+          $dc exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d mojud -tA < ci/fingerprint.sql > "$RUNNER_TEMP/before.txt"
+          $dc exec -T backup backup.sh
+          test "$(ls "$CI_BACKUPS" | wc -l)" = 1
+          if grep -a 'drill-owner@example.com' "$CI_BACKUPS"/* > /dev/null; then
+            echo "The backup is not encrypted" >&2
+            exit 1
+          fi
+          $dc exec -T backup restore.sh latest /run/backup-key.txt mojud_restore
+          $dc exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d mojud_restore -tA < ci/fingerprint.sql > "$RUNNER_TEMP/after.txt"
+          diff "$RUNNER_TEMP/before.txt" "$RUNNER_TEMP/after.txt"
+          grep -E '^(businesses|users)\|1\|' "$RUNNER_TEMP/after.txt"
+          echo "$(wc -l < "$RUNNER_TEMP/after.txt") tables identical after restore"
+      - name: The app runs on the restored database
+        run: |
+          dc="docker compose -f compose.yml -f ci/compose.ci.yml"
+          $dc exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "ALTER DATABASE mojud RENAME TO mojud_before_restore" -c "ALTER DATABASE mojud_restore RENAME TO mojud"
+          $dc start app
+          for i in $(seq 1 60); do
+            curl -ksf https://localhost/healthz | grep '"status":"UP"' > /dev/null && break
+            sleep 3
+          done
+          curl -ksf https://localhost/healthz | grep '"status":"UP"'
+      - name: Logs
+        if: failure()
+        run: docker compose -f compose.yml -f ci/compose.ci.yml logs --no-color | tail -n 300
+      - name: Stop
+        if: always()
+        run: docker compose -f compose.yml -f ci/compose.ci.yml down -v
+
+  latest-backup:
+    # The real thing, monthly: the newest backup in R2 restores. Skipped until its secrets are set.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: deploy
+    env:
+      HAS_SECRETS: ${{ secrets.BACKUP_AGE_IDENTITY != '' && secrets.BACKUP_S3_ENDPOINT != '' }}
+      CI_BACKUPS: ${{ runner.temp }}/unused
+      CI_BACKUP_KEY: ${{ runner.temp }}/backup-key.txt
+    steps:
+      - uses: actions/checkout@v4
+      - name: Secrets
+        id: secrets
+        run: |
+          if [ "$HAS_SECRETS" != true ]; then
+            echo "No BACKUP_AGE_IDENTITY / BACKUP_S3_* secrets: skipped (README.md, Restore drill)"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Restore the newest backup
+        if: steps.secrets.outputs.skip != 'true'
+        env:
+          BACKUP_AGE_IDENTITY: ${{ secrets.BACKUP_AGE_IDENTITY }}
+          BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_REMOTE: ${{ vars.BACKUP_REMOTE || 'r2:mojud-backups/db' }}
+        run: |
+          mkdir -p "$CI_BACKUPS"
+          umask 077 && printf '%s\n' "$BACKUP_AGE_IDENTITY" > "$CI_BACKUP_KEY" && chmod 644 "$CI_BACKUP_KEY"
+          cat > .env <<SETTINGS
+          APP_DOMAIN=localhost
+          ACME_EMAIL=ci@example.com
+          POSTGRES_PASSWORD=$(openssl rand -hex 24)
+          DB_OWNER_PASSWORD=$(openssl rand -hex 24)
+          DB_APP_PASSWORD=$(openssl rand -hex 24)
+          DB_SYSTEM_PASSWORD=$(openssl rand -hex 24)
+          ENCRYPTION_KEY=unused
+          AGE_RECIPIENT=$(grep -o 'age1[0-9a-z]*' "$CI_BACKUP_KEY" | head -n 1 || echo unused)
+          BACKUP_REMOTE=$BACKUP_REMOTE
+          BACKUP_S3_ENDPOINT=$BACKUP_S3_ENDPOINT
+          BACKUP_S3_ACCESS_KEY_ID=$BACKUP_S3_ACCESS_KEY_ID
+          BACKUP_S3_SECRET_ACCESS_KEY=$BACKUP_S3_SECRET_ACCESS_KEY
+          SETTINGS
+          dc="docker compose -f compose.yml -f ci/compose.ci.yml"
+          $dc up -d --build --wait db backup
+          newest=$($dc exec -T backup rclone lsf --include 'mojud-*.dump.age' "$BACKUP_REMOTE" | sort | tail -n 1)
+          echo "Newest backup: $newest"
+          stamp=$(echo "$newest" | sed -E 's/mojud-([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})Z.*/\1 \2:\3:\4/')
+          age_hours=$(( ( $(date -u +%s) - $(date -u -d "$stamp" +%s) ) / 3600 ))
+          echo "It is $age_hours hours old"
+          test "$age_hours" -le 30
+          $dc exec -T backup restore.sh "$newest" /run/backup-key.txt mojud_restore
+          test "$($dc exec -T db psql -U postgres -d mojud_restore -tAc 'select count(*) from users')" -gt 0
+      - name: Stop
+        if: always() && steps.secrets.outputs.skip != 'true'
+        run: docker compose -f compose.yml -f ci/compose.ci.yml down -v

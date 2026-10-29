@@ -1,0 +1,31 @@
+# HTTPS in front of the app (deploy/compose.yml). Caddy gets and renews the certificate for
+# APP_DOMAIN from Let's Encrypt by itself, and sends http:// visitors to https://.
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	# Imports are up to 10 MB (the app checks each kind of upload itself).
+	request_body {
+		max_size 12MB
+	}
+
+	# The API and its health check go to the app; the app's own headers (CSP, HSTS, ...) apply.
+	@api path /api/* /healthz /healthz/*
+	handle @api {
+		reverse_proxy app:8080
+	}
+
+	# Everything else is the web app: its files, and index.html for its own routes.
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+		header Strict-Transport-Security "max-age=31536000"
+	}
+
+	header -Server
+	log
+}

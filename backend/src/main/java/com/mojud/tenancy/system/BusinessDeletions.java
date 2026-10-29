@@ -5,6 +5,7 @@ import com.github.kagkarlsson.scheduler.task.helper.Tasks;
 import com.github.kagkarlsson.scheduler.task.schedule.Schedules;
 import com.mojud.shared.db.system.SystemDatabase;
 import com.mojud.shared.time.DhakaTime;
+import com.mojud.tenancy.BusinessDeleted;
 import com.mojud.tenancy.BusinessDeletion;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -12,12 +13,14 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 /**
  * Deleting businesses (implementation-plan.md 12b) through mojud_delete_business (V31), which
- * empties every table with a business_id, children first, as the schema owner. Daily at 03:30
+ * empties every table with a business_id, children first, as the schema owner; then
+ * {@link BusinessDeleted} (its files go). Daily at 03:30
  * Dhaka, the businesses whose undo window has passed.
  */
 @Component
@@ -26,10 +29,12 @@ public class BusinessDeletions implements BusinessDeletion {
     private static final Logger log = LoggerFactory.getLogger(BusinessDeletions.class);
 
     private final SystemDatabase database;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    BusinessDeletions(SystemDatabase database, Clock clock) {
+    BusinessDeletions(SystemDatabase database, ApplicationEventPublisher events, Clock clock) {
         this.database = database;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -37,6 +42,7 @@ public class BusinessDeletions implements BusinessDeletion {
     public int deleteNow(UUID businessId) {
         int rows = database.jdbc().sql("select mojud_delete_business(?)").param(businessId).query(Integer.class).single();
         log.info("Business {} deleted ({} rows)", businessId, rows);
+        events.publishEvent(new BusinessDeleted(businessId));
         return rows;
     }
 

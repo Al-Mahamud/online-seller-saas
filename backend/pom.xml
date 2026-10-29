@@ -26,6 +26,11 @@
         <db-scheduler.version>16.12.0</db-scheduler.version>
         <embedded-postgres.version>2.2.2</embedded-postgres.version>
         <greenmail.version>2.1.15</greenmail.version>
+        <awssdk.version>2.57.6</awssdk.version>
+        <sentry.version>8.62.0</sentry.version>
+        <jib.version>3.5.2</jib.version>
+        <!-- The commit an image is built from; CI passes it (-Dapp.version=...). -->
+        <app.version>dev</app.version>
         <embedded-postgres-binaries.version>18.6.0</embedded-postgres-binaries.version>
         <bouncycastle.version>1.86</bouncycastle.version>
         <twelvemonkeys.version>3.15.3</twelvemonkeys.version>
@@ -37,6 +42,13 @@
                 <groupId>org.springframework.modulith</groupId>
                 <artifactId>spring-modulith-bom</artifactId>
                 <version>${spring-modulith.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -58,6 +70,40 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- Files on Cloudflare R2 (any S3 API), with the JDK's HTTP client instead of Netty and Apache. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache5-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+        </dependency>
+        <!-- Errors to Sentry, when SENTRY_DSN is set (implementation-plan.md 13b). -->
+        <dependency>
+            <groupId>io.sentry</groupId>
+            <artifactId>sentry-spring-boot-4-starter</artifactId>
+            <version>${sentry.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.sentry</groupId>
+            <artifactId>sentry-logback</artifactId>
+            <version>${sentry.version}</version>
         </dependency>
         <!-- Email by SMTP (implementation-plan.md 13a); any provider (Brevo, Amazon SES, ...). -->
         <dependency>
@@ -180,6 +226,56 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!--
+                The server image (implementation-plan.md 13b), built without Docker: CI pushes it to
+                GitHub's registry (jib:build); jib:dockerBuild loads it into a local Docker instead.
+                Runs as an unprivileged user and keeps nothing on disk (files are on R2).
+            -->
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>${jib.version}</version>
+                <configuration>
+                    <from>
+                        <image>eclipse-temurin:17-jre</image>
+                        <platforms>
+                            <platform>
+                                <architecture>amd64</architecture>
+                                <os>linux</os>
+                            </platform>
+                            <platform>
+                                <architecture>arm64</architecture>
+                                <os>linux</os>
+                            </platform>
+                        </platforms>
+                    </from>
+                    <to>
+                        <image>ghcr.io/al-mahamud/mojud-backend</image>
+                        <tags>
+                            <tag>${app.version}</tag>
+                        </tags>
+                    </to>
+                    <container>
+                        <ports>
+                            <port>8080</port>
+                        </ports>
+                        <user>65532:65532</user>
+                        <jvmFlags>
+                            <jvmFlag>-XX:MaxRAMPercentage=75</jvmFlag>
+                            <jvmFlag>-XX:+ExitOnOutOfMemoryError</jvmFlag>
+                        </jvmFlags>
+                        <environment>
+                            <SPRING_PROFILES_ACTIVE>prod</SPRING_PROFILES_ACTIVE>
+                            <APP_VERSION>${app.version}</APP_VERSION>
+                        </environment>
+                        <labels>
+                            <org.opencontainers.image.source>https://github.com/Al-Mahamud/online-seller-saas</org.opencontainers.image.source>
+                            <org.opencontainers.image.revision>${app.version}</org.opencontainers.image.revision>
+                        </labels>
+                        <creationTime>USE_CURRENT_TIMESTAMP</creationTime>
+                    </container>
+                </configuration>
             </plugin>
         </plugins>
     </build>

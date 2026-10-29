@@ -29,7 +29,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Done |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Done |
 | 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | Done |
-| 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | 13a in review |
+| 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | 13a done · 13b in review (no server yet) |
 | **Total** | **33 commits** | **≈ 51 days** | |
 
 Days are full-time; double them for part-time.
@@ -477,6 +477,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - Sentry, uptime check on `/healthz`.
 
 **Checked by:** restore drill passes in CI; staging server runs the image (needs a VPS from you at this point).
+
+**As built (without a server, as agreed):** `prod` profile (behind Caddy: forwarded headers, graceful shutdown, JSON logs, files on R2) with `ProductionChecks` refusing to start on missing passwords or `ENCRYPTION_KEY`, non-https addresses, or a `log` email/SMS provider (warnings for no email, SSLCommerz or Sentry). `files.storage.S3FileStorage` (R2 or any S3 API; tested against an S3 server in the test, R2 itself on a server) and deleted businesses' files removed (`tenancy.BusinessDeleted` → `files.BusinessFiles`). Jib image (`ghcr.io/al-mahamud/mojud-backend`, amd64 and arm64, non-root, pushed by CI on main with the commit and `latest`). `deploy/`: `compose.yml` (db, app, caddy, backup; each service gets only its settings), `Caddyfile`, `db/init.sh` (roles from the same `roles.sql` the tests use; `DeployFilesTests` keeps the copies, compose and `.env.example` in step with what the app reads), `backup/` (pg_dump → age to a public key → rclone to R2 nightly, kept 30 days, optional heartbeat ping; `restore.sh` into a new database only), README with setup, updates, restore and drill. CI `deploy.yml`: on every change and monthly, the image runs behind Caddy with HTTPS, is checked, backed up, restored into a new database, compared table by table, and run on the restored copy; a second job restores the newest real backup from R2 once its secrets exist. Sentry (`SENTRY_DSN`; error logs become events, no personal data). Uptime: `uptime.yml` on `HEALTHZ_URL`. Still to do with a server: run it there, real R2, email and certificate.
 
 ### 13c: Security review and load test (1 day)
 

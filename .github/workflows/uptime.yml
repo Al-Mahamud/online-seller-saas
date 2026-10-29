@@ -1,0 +1,28 @@
+# A basic uptime check (implementation-plan.md 13b): every 10 minutes, the server's /healthz must
+# answer UP. Set the repository variable HEALTHZ_URL (https://<APP_DOMAIN>/healthz) to turn it on;
+# GitHub emails a failed run. A dedicated monitor (UptimeRobot, Better Stack) alerts faster.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  healthz:
+    if: vars.HEALTHZ_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: The server is up
+        env:
+          HEALTHZ_URL: ${{ vars.HEALTHZ_URL }}
+        run: |
+          for attempt in 1 2 3; do
+            curl -fsS --max-time 10 "$HEALTHZ_URL" | grep -q '"status":"UP"' && exit 0
+            sleep 20
+          done
+          echo "$HEALTHZ_URL is not answering UP" >&2
+          exit 1

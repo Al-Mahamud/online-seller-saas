@@ -1,0 +1,10 @@
+# CI only (.github/workflows/deploy.yml), on top of compose.yml: images go to a scratch folder
+# (there is no bucket), backups to a folder, and the drill can read the backup key.
+services:
+  app:
+    tmpfs:
+      - /data/storage:mode=1777
+  backup:
+    volumes:
+      - ${CI_BACKUPS:?}:/backups
+      - ${CI_BACKUP_KEY:?}:/run/backup-key.txt:ro

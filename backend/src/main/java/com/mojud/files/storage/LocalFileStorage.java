@@ -6,17 +6,17 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Comparator;
 import java.util.Optional;
-import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** Files under {@code mojud.storage.local-root}/{key}. Keys are made by the server, never by clients. */
+/** Files under {@code mojud.storage.local-root}/{key}: local runs, tests, and a server without a bucket. */
 @Component
+@ConditionalOnProperty(name = "mojud.storage.provider", havingValue = "local", matchIfMissing = true)
 class LocalFileStorage implements FileStorage {
-
-    /** Lower-case segments with dashes, one file extension, no "..", no leading slash. */
-    private static final Pattern KEY = Pattern.compile("[a-z0-9-]+(/[a-z0-9-]+)*\\.[a-z0-9]+");
 
     private final Path root;
 
@@ -58,11 +58,27 @@ class LocalFileStorage implements FileStorage {
         }
     }
 
-    private Path resolve(String key) {
-        if (!KEY.matcher(key).matches()) {
-            throw new IllegalArgumentException("Invalid storage key: " + key);
+    @Override
+    public void deleteAll(String prefix) {
+        Path folder = inside(root.resolve(FileStorage.checkPrefix(prefix)).normalize(), prefix);
+        if (!Files.isDirectory(folder)) {
+            return;
         }
-        Path path = root.resolve(key).normalize();
+        try (Stream<Path> paths = Files.walk(folder)) {
+            // Deepest first, so each folder is empty when its turn comes.
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not delete " + prefix, e);
+        }
+    }
+
+    private Path resolve(String key) {
+        return inside(root.resolve(FileStorage.checkKey(key)).normalize(), key);
+    }
+
+    private Path inside(Path path, String key) {
         if (!path.startsWith(root)) {
             throw new IllegalArgumentException("Storage key escapes the storage root: " + key);
         }
