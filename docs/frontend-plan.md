@@ -15,8 +15,8 @@ The product plan already chose React, TypeScript, Vite and TanStack Query, mobil
 
 | Area | Choice | Why |
 |---|---|---|
-| Build | Vite, React 19, TypeScript (strict), pnpm, Node 22 | The product plan's stack. Node 22 is already on this machine. |
-| Components | **Mantine 8** (core, form, dates, notifications, modals, charts) | Complete and accessible components out of the box (forms, date pickers, tables, dialogs, toasts). For one part-time developer that beats assembling shadcn/ui pieces. Themeable to the mockup. |
+| Build | Vite 8, React 19, TypeScript 5.9 (strict), npm, Node 22 | The product plan's stack. npm comes with Node, so nothing else to install (the system's corepack is too old for current pnpm). TypeScript 7 waits until the API type generator supports it. |
+| Components | **shadcn/ui** (Radix underneath) with **Tailwind CSS 4**; forms with react-hook-form and zod, tables with TanStack Table, toasts with sonner, icons from Lucide | Chosen on Oct 30, 2026 over Mantine: the components' source lives in the project (`src/components/ui`), fully styled to the mockup, and Tailwind is a widely known skill. The cost, about a week over all phases, is assembling the pieces Mantine would have included. Buttons are 44 px tall by default. |
 | Routing | **TanStack Router** | Type-checked routes, and list filters kept in the URL (shareable, survive a refresh), so `/orders?status=CONFIRMED` is typed end to end. |
 | Server data | TanStack Query | Caching, retries, and refetching when the seller comes back to the tab. |
 | API client | `openapi-typescript` + `openapi-fetch`, generated from the backend's OpenAPI document | Every request and response is typed from the server's own description. A backend test keeps a copy of that description in `frontend/` and fails when it changes (F0), so the client is regenerated with every API change. |
@@ -25,7 +25,7 @@ The product plan already chose React, TypeScript, Vite and TanStack Query, mobil
 | On phones | Bottom tabs (Today, Orders, Products, More), a floating "+" for the main action, and a business switcher in the header, as in the mockup | One-handed use. On a laptop the same tabs become a sidebar. |
 | Installable | A PWA: home-screen icon, opens full screen, app shell cached | It feels like an app without an app store. Data always comes live from the server: stock must never be shown from an old copy. |
 | Printing | The backend's own HTML pages (packing slips, invoices), opened in a new tab | Already built and tested, with correct Bangla shaping (Phase 8d). |
-| Charts | `@mantine/charts` | Same look, no second chart library. |
+| Charts | shadcn/ui's chart (Recharts) | Styled by the same tokens. |
 | Two-step QR code | `qrcode`, drawn in the browser | The secret is never sent to anyone else to draw. |
 | Errors | `@sentry/react`, only when a DSN is set at build time | The same Sentry as the backend. |
 | Checks | Biome (lint and format), Vitest and Testing Library (units), **Playwright** (end to end, against the real backend) | End-to-end tests run the app against the backend with its throwaway database, reading sign-up codes from the test-only `/dev/otp`. Nothing is mocked where the API decides. |
@@ -60,6 +60,10 @@ Playwright runs an accessibility scan (axe) on every screen.
     - `rate_limited` → wait and say for how long (`Retry-After`);
     - field errors → under the field.
 - **Idempotency:** creating an order, recording a payment and stock changes send an `Idempotency-Key`, so a double tap or a retry on a bad connection never makes two.
+- **Types from the server:** the generated types say exactly what arrives.
+  - Schemas are named after the class that holds them: `ProductCreateRequest`, `OrderSummary`.
+  - Every field of a response is present; a field that can be `null` is marked `@Nullable` (org.jspecify) in the backend and typed `| null`. Each phase marks the fields its screens read.
+  - A field left out when empty (cost prices for staff) is optional.
 - **Roles:** the UI hides what the member's role cannot do (from `GET /business`). The server still decides; staff never receive cost prices at all.
 - **Freshness:**
   - **Notifications:** polled every 60 seconds while the tab is visible.
@@ -95,10 +99,15 @@ Every route that the backend's emails link to exists:
 
 Sizes are full-time working days. Each sub-phase is one commit with a green CI, as for the backend.
 
+| Phase | Sub-phases | Status |
+|---|---|---|
+| F0 Skeleton, design, API client, CI, deploy | F0a skeleton, shell, API client · F0b end-to-end tests · F0c web image and deploy | F0a done |
+| F1–F11 | | Not started |
+
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
 **Builds**
-- `frontend/` with Vite, React, TypeScript, Mantine themed to the mockup, self-hosted Hind Siliguri, i18next (`bn`/`en`), TanStack Router and Query.
+- `frontend/` with Vite, React, TypeScript, shadcn/ui and Tailwind themed to the mockup, self-hosted Hind Siliguri, i18next (`bn`/`en`), TanStack Router and Query.
 - **App shell:** bottom tabs on phones, a sidebar on laptops, the header with the business switcher and the language toggle.
 - **API layer:** the generated client, CSRF, the error handling above, `Accept-Language`, idempotency keys.
 - **Backend:**
@@ -111,6 +120,33 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
   - the deploy drill checks the app loads over HTTPS.
 
 **Checked by:** the shell renders in both languages at 390 px and 1280 px; a type error in an API call fails the build; the deploy drill loads the app.
+
+**As built (F0a):**
+- **Running it:** `npm run dev` in `frontend/` serves http://localhost:5173 and passes `/api` and `/dev` to the backend on port 8080 (`MOJUD_API` changes that).
+- **Layout:**
+  - Below 768 px: header (brand, language), four bottom tabs, and a "+" to `/orders/new`.
+  - From 768 px: a 232 px sidebar with the same tabs.
+  - The brand stands where the business switcher goes; the switcher needs signed-in data (F2).
+  - Every tab is a "coming soon" page for now.
+- **Theme:** the mockup's colours are shadcn/ui's tokens in `src/styles.css`, light only.
+- **Language:**
+  - Bangla until changed, remembered per device (`mojud.language`); `<html lang>` follows it.
+  - Texts in `src/i18n/{bn,en}.json`, keys type-checked, and a test keeps both files' keys equal.
+  - `src/lib/format.ts`: taka from poisha, numbers and dates (Dhaka time) through Intl.
+- **API:**
+  - `api` (openapi-fetch) with `call()`, which returns the body or throws `ApiError` or `NetworkError`.
+  - `errorAction()` maps codes to what the app does.
+  - The query client shows network, rate-limit and other message errors as toasts; signing in, choosing a business, the upgrade dialog and the read-only banner arrive with their screens (F1, F2, F8).
+  - `newIdempotencyKey()` for writes that must not happen twice.
+- **Backend:**
+  - `ApiTypeNames` names nested records after their class, and the build fails if two would share a name. Before this, 14 request records collapsed into 4 schemas and many responses shared names.
+  - `ResponseFields` marks response fields required and `@Nullable` ones nullable.
+  - Test-only endpoints (`/dev/otp`, the fake SSLCommerz) are hidden from the description.
+  - JSON is the documented answer type.
+- **Size:** the first screen is 138 KB of compressed JavaScript; CI fails above 250 KB. The four Hind Siliguri weights load only when shown.
+- **CI:**
+  - The `frontend` job runs lint, types, unit tests, build and size, and checks that `schema.d.ts` and the route tree match what's committed.
+  - The Dependencies workflow also scans `package-lock.json`, and Dependabot proposes npm updates.
 
 ### F1: Signing in and the account (3 days)
 
@@ -258,8 +294,8 @@ Found while mapping the screens. Each lands in the frontend phase that needs it,
 
 Recommendations first. Tell me where you disagree; nothing is blocked until the phase named.
 
-1. **Components:** Mantine (recommended) or shadcn/ui. Decide before F0.
-2. **Default language:** Bangla, with English one tap away (recommended). Decide before F0.
+1. **Components:** decided on Oct 30, 2026: shadcn/ui.
+2. **Default language:** Bangla, with English one tap away, as built in F0a. Say if English should come first.
 3. **Admin area:** inside the same app at `/admin` (recommended; one build, one sign-in), or a separate app. Decide before F10.
 4. **Seller sessions:** can you find 3–5 sellers for 30 minutes each, on their own phones? Needed by F11; earlier is better (after F6).
 5. **Domain:** the app and API on one address, e.g. `app.<your domain>` (needed by F0's deploy, but a placeholder works until the server exists).

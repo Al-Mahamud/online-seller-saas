@@ -1,5 +1,6 @@
 package com.mojud.support;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
  * transaction query APIs. Tests open sessions through checkout, then "pay" here and send the IPN
  * themselves, as the gateway would. Exists only in test sources.
  */
+// Test-only: kept out of the API description the frontend is generated from.
+@Hidden
 @RestController
 @RequestMapping("/api/v1/public/gateway/fake-sslcommerz")
 public class FakeSslCommerz {

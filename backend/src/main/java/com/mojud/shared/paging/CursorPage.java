@@ -2,13 +2,14 @@ package com.mojud.shared.paging;
 
 import java.util.List;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 
 /**
  * One page of a list. {@code nextCursor} is {@code null} on the last page.
  *
  * @param <T> the item type
  */
-public record CursorPage<T>(List<T> items, String nextCursor) {
+public record CursorPage<T>(List<T> items, @Nullable String nextCursor) {
 
     public static final int DEFAULT_LIMIT = 50;
     public static final int MAX_LIMIT = 100;

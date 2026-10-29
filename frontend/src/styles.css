@@ -1,0 +1,67 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Mojud's look, from the reviewed mockup (frontend-plan.md, "Look"): green #0B6B4F, ink #17201B,
+ * ground #F6F7F5, Hind Siliguri. shadcn/ui components read these tokens. Light only for now.
+ */
+:root {
+  --radius: 0.625rem;
+  --background: #f6f7f5;
+  --foreground: #17201b;
+  --card: #ffffff;
+  --card-foreground: #17201b;
+  --popover: #ffffff;
+  --popover-foreground: #17201b;
+  --primary: #0b6b4f;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f2ef;
+  --secondary-foreground: #17201b;
+  --muted: #f0f2ef;
+  --muted-foreground: #5b655f;
+  --accent: #e6f2ec;
+  --accent-foreground: #08513c;
+  --destructive: #b42318;
+  --warning: #fdf1e7;
+  --warning-foreground: #8a4b0b;
+  --border: #e3e5e1;
+  --input: #cbd0cb;
+  --ring: #0b6b4f;
+}
+
+@theme inline {
+  --font-sans: "Hind Siliguri", system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+}

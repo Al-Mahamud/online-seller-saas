@@ -5,8 +5,9 @@ Multi-tenant SaaS for Bangladesh online sellers: inventory, orders, COD delivery
 - [Product plan](docs/product-plan.md)
 - [Backend plan](docs/backend-plan.md)
 - [Implementation plan](docs/implementation-plan.md) (phases and status)
+- [Frontend plan](docs/frontend-plan.md) (the web app's phases and status)
 
-Layout: `backend/` (Spring Boot, Java 17), `frontend/` (later), `deploy/`, `docs/`.
+Layout: `backend/` (Spring Boot, Java 17), `frontend/` (React, TypeScript), `deploy/`, `docs/`.
 
 ## Backend
 
@@ -31,3 +32,25 @@ With the `local` profile: health at `/healthz`, API docs at `/api/docs`, OpenAPI
 - **Sign-up codes:** these aren't sent. They're printed in the log, and `GET /dev/otp?to=01712345678` returns the last one.
 
 Errors are RFC 9457 problem responses with a `code` (see `ErrorCode`) and a `detail` in English or Bangla, chosen by `Accept-Language`.
+
+## Frontend
+
+Needs Node 22 (with npm). Start the backend first (above), then:
+
+```sh
+cd frontend
+npm install        # once, and after package.json changes
+npm run dev        # http://localhost:5173; API calls go to the backend on port 8080
+```
+
+| Command | What |
+|---|---|
+| `npm test` | Unit tests (Vitest) |
+| `npm run lint` / `npm run format` | Check / fix style and lint (Biome) |
+| `npm run typecheck` | TypeScript |
+| `npm run build` then `npm run size` | Production build in `dist/`, and its size budget |
+| `npm run api:types` | Regenerate `src/api/schema.d.ts` from `src/api/openapi.json` |
+
+**When the API changes:** the backend's `OpenApiSnapshotTests` fails and rewrites `frontend/src/api/openapi.json`. Run `npm run api:types`, then commit both files.
+
+**Adding a component:** run `npx shadcn@4.23.0 add <name>`. The source lands in `src/components/ui/`, where it's ours to change.

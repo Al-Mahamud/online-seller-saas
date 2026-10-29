@@ -1,16 +1,17 @@
 # Known vulnerabilities in what the backend ships (backend-plan.md §11; implementation-plan.md 13c):
 # Maven lists the exact libraries the build resolves (a CycloneDX bill of materials, test-only
 # libraries excluded), and OSV-Scanner checks them against the OSV database, which includes the
-# GitHub and NVD advisories. Fails on any known vulnerability. Weekly, and when dependencies change.
+# GitHub and NVD advisories. The web app's lockfile is checked too, build tools included, since
+# they run in CI. Fails on any known vulnerability. Weekly, and when dependencies change.
 # Dependabot (.github/dependabot.yml) proposes the updates.
 name: Dependencies
 
 on:
   push:
     branches: [main]
-    paths: ["backend/pom.xml", ".github/workflows/dependencies.yml"]
+    paths: ["backend/pom.xml", "frontend/package-lock.json", ".github/workflows/dependencies.yml"]
   pull_request:
-    paths: ["backend/pom.xml", ".github/workflows/dependencies.yml"]
+    paths: ["backend/pom.xml", "frontend/package-lock.json", ".github/workflows/dependencies.yml"]
   schedule:
     - cron: "0 2 * * 1"
   workflow_dispatch:
@@ -37,3 +38,4 @@ jobs:
         with:
           scan-args: |-
             --lockfile=backend/target/bom.json
+            --lockfile=frontend/package-lock.json

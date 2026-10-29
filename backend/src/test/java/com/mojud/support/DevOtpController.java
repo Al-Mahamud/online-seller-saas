@@ -2,6 +2,7 @@ package com.mojud.support;
 
 import com.mojud.shared.email.EmailAddress;
 import com.mojud.shared.phone.PhoneNumber;
+import io.swagger.v3.oas.annotations.Hidden;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
  * sources, so only in tests and {@code spring-boot:test-run}; the web app and end-to-end tests use
  * it to sign up without a real SMS or email.
  */
+// Test-only: kept out of the API description the frontend is generated from.
+@Hidden
 @RestController
 class DevOtpController {
 

@@ -191,6 +191,8 @@ management:
 springdoc:
   # Off unless asked for: the API description helps attackers as much as developers. The local
   # and test profiles turn it on.
+  # Answers are JSON unless an endpoint says otherwise (CSV exports, printable pages).
+  default-produces-media-type: application/json
   api-docs:
     enabled: ${API_DOCS_ENABLED:false}
     path: /api/v1/openapi

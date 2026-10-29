@@ -1,0 +1,29 @@
+{
+  "app": {
+    "name": "Mojud"
+  },
+  "nav": {
+    "main": "Main",
+    "today": "Today",
+    "orders": "Orders",
+    "products": "Products",
+    "more": "More"
+  },
+  "language": {
+    "other": "বাংলা",
+    "switch": "Show in Bangla"
+  },
+  "orders": {
+    "new": "New order"
+  },
+  "page": {
+    "comingSoon": "This part is coming soon.",
+    "notFound": "This page doesn't exist.",
+    "backToToday": "Back to Today"
+  },
+  "error": {
+    "network": "Can't reach the server. Check your internet connection and try again.",
+    "rateLimited": "Too many tries. Try again in {{seconds}} seconds.",
+    "unexpected": "Something went wrong. Please try again."
+  }
+}

@@ -1,6 +1,6 @@
-# Every push to main and every pull request: build the backend and run all its tests. On main, the
-# server image is then pushed to GitHub's registry (ghcr.io/al-mahamud/mojud-backend), tagged with
-# the commit and "latest" (deploy/README.md).
+# Every push to main and every pull request: build the backend and the web app and run all their
+# tests. On main, the server image is then pushed to GitHub's registry
+# (ghcr.io/al-mahamud/mojud-backend), tagged with the commit and "latest" (deploy/README.md).
 name: CI
 
 on:
@@ -25,6 +25,35 @@ jobs:
           java-version: "17"
           cache: maven
       - run: ./mvnw -B verify
+
+  # The web app (frontend-plan.md, F0): style and lint, types, unit tests, the production build and
+  # its size budget. The generated files must match what is committed: the API types
+  # (src/api/schema.d.ts, from the backend's API description) and the route tree.
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run size
+      - name: Generated files are up to date
+        run: |
+          npm run api:types
+          if ! git diff --exit-code -- src/api/schema.d.ts src/routeTree.gen.ts; then
+            echo "::error::Generated files differ: run npm run api:types and npm run build in frontend/, then commit them"
+            exit 1
+          fi
 
   image:
     needs: backend

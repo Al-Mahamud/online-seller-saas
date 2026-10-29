@@ -1,13 +1,28 @@
 package com.mojud.shared.web;
 
+import io.swagger.v3.core.jackson.ModelResolver;
+import io.swagger.v3.core.util.Json31;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.ObjectSchema;
+import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.web.csrf.CsrfToken;
+import tools.jackson.databind.JsonNode;
 
 /** The API description the frontend generates its typed client from. */
 @Configuration(proxyBeanMethods = false)
 class OpenApiConfig {
+
+    static {
+        // Free-form JSON (audit details, notification payloads) is an object, not JsonNode's getters.
+        SpringDocUtils.getConfig().replaceWithSchema(JsonNode.class, new ObjectSchema().additionalProperties(true));
+        // Supplied by Spring Security to GET /auth/csrf, not sent by the client.
+        SpringDocUtils.getConfig().addRequestWrapperToIgnore(CsrfToken.class);
+    }
 
     @Bean
     OpenAPI mojudOpenApi() {
@@ -16,5 +31,20 @@ class OpenApiConfig {
                 .version("v1")
                 .description("Inventory, orders and billing for Bangladesh online sellers. "
                         + "Errors are RFC 9457 problem responses with a machine-readable `code`."));
+    }
+
+    /**
+     * Replaces springdoc's default model resolver (same class, so springdoc swaps it in) to use
+     * {@link ApiTypeNames}. First in order, so springdoc's own converters still run before it.
+     */
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    ModelResolver apiModelResolver() {
+        return new ModelResolver(Json31.mapper(), ApiTypeNames.INSTANCE).openapi31(true);
+    }
+
+    @Bean
+    ResponseFields responseFields() {
+        return new ResponseFields(ApiTypeNames.INSTANCE);
     }
 }

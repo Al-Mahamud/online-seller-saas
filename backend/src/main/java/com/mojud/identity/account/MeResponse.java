@@ -1,13 +1,14 @@
 package com.mojud.identity.account;
 
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /** The signed-in user's own account. */
 public record MeResponse(
         UUID id,
         String name,
         String phone,
-        String email,
+        @Nullable String email,
         boolean phoneVerified,
         boolean emailVerified,
         String locale,
