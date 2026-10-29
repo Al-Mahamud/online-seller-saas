@@ -2266,23 +2266,23 @@ export interface components {
         };
         CursorPageAuditLogEntry: {
             items: components["schemas"]["AuditLogEntry"][];
-            nextCursor: string;
+            nextCursor: string | null;
         };
         CursorPageCustomerView: {
             items: components["schemas"]["CustomerView"][];
-            nextCursor: string;
+            nextCursor: string | null;
         };
         CursorPageOrderSummary: {
             items: components["schemas"]["OrderSummary"][];
-            nextCursor: string;
+            nextCursor: string | null;
         };
         CursorPageProductMovement: {
             items: components["schemas"]["ProductMovement"][];
-            nextCursor: string;
+            nextCursor: string | null;
         };
         CursorPageProductSummary: {
             items: components["schemas"]["ProductSummary"][];
-            nextCursor: string;
+            nextCursor: string | null;
         };
         CustomerCreateRequest: {
             address?: string;
@@ -2617,7 +2617,7 @@ export interface components {
             variantId: string;
         };
         MeResponse: {
-            email: string;
+            email: string | null;
             emailVerified: boolean;
             /** Format: uuid */
             id: string;
@@ -3148,14 +3148,14 @@ export interface components {
             /** Format: int32 */
             available: number;
             /** Format: int64 */
-            costPrice: number;
+            costPrice?: number;
             /** Format: uuid */
             id: string;
             label: string;
             /** Format: int32 */
             lowStockThreshold: number;
             /** Format: int64 */
-            margin: number;
+            margin?: number;
             /** Format: int32 */
             onHand: number;
             /** Format: int64 */
