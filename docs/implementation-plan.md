@@ -29,7 +29,7 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Done |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Done |
 | 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | Done |
-| 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | 13a done · 13b in review (no server yet) |
+| 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | 13a, 13c done · 13b built, server run pending |
 | **Total** | **33 commits** | **≈ 51 days** | |
 
 Days are full-time; double them for part-time.
@@ -488,6 +488,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - `docs/operations.md` (deploy, backup, restore, rotate keys).
 
 **Checked by:** checklist ticked in the commit note; load test report in `docs/`.
+
+**As built:** Security review in commit `a0a760b` (checklist ticked there): existing tests cover each §11 item; added EndpointAccessTests (every endpoint names its role, or is open, admin or account-level on purpose, with reasons), CrossOriginTests, a Secure-cookie start-up check, ENCRYPTION_KEY rotation (ENCRYPTION_KEY_PREVIOUS, re-sealed at start-up), Dependabot for the server's images, and `dependencies.yml` (CycloneDX bill of materials of what ships, OSV-Scanner; OSV instead of OWASP dependency-check: same advisories, no NVD key). Its first run found 18 known vulnerabilities (Tomcat 11.0.24, 4 critical; Jackson); Spring Boot 4.1.2 fixed them (`0054267`). Deliberate differences from §11, as built in Phase 3: uploads go through the API (re-encoded) rather than presigned URLs, images up to 8 MB. Load test: `OrderLoadTests` (skipped unless `-Dload.minutes`): 50 staff for 10 minutes, 244,375 orders, 1,218 requests/s, no errors, no oversell, ledger matches, p95 create 67 ms / confirm 42 ms on one 16-thread machine (`docs/load-test-report.md`). Runbook: `docs/operations.md`.
 
 ---
 
