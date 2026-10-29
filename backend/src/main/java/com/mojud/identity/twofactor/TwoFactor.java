@@ -19,6 +19,10 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import javax.sql.DataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +59,8 @@ public class TwoFactor {
 
     private record Row(byte[] secret, Instant enabledAt, Long lastStep) {
     }
+
+    private static final Logger log = LoggerFactory.getLogger(TwoFactor.class);
 
     private final JdbcClient jdbc;
     private final SecretBox box;
@@ -155,6 +161,34 @@ public class TwoFactor {
             throw invalid();
         }
         return newRecoveryCodes(userId);
+    }
+
+    /**
+     * After the encryption key was rotated (SecretBox), re-seals every authenticator secret still
+     * sealed with an old key, at start-up; then the old key can be removed (docs/operations.md).
+     *
+     * @return how many were re-sealed
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public int resealWithCurrentKey() {
+        if (!box.available() || !box.hasPreviousKeys()) {
+            return 0;
+        }
+        record Sealed(UUID userId, byte[] secret) {
+        }
+        int resealed = 0;
+        for (Sealed row : jdbc.sql("select user_id, secret from two_factor for update")
+                .query((rs, n) -> new Sealed(rs.getObject(1, UUID.class), rs.getBytes(2))).list()) {
+            if (!box.sealedWithCurrentKey(row.secret(), owner(row.userId()))) {
+                jdbc.sql("update two_factor set secret = ? where user_id = ?")
+                        .params(box.seal(box.open(row.secret(), owner(row.userId())), owner(row.userId())), row.userId())
+                        .update();
+                resealed++;
+            }
+        }
+        log.info("Re-sealed {} authenticator secret(s) with the current encryption key", resealed);
+        return resealed;
     }
 
     /** Turns it off (the caller has checked the password and a code). */

@@ -21,7 +21,8 @@ class ProductionChecksTests {
         MockEnvironment unsafe = new MockEnvironment()
                 .withProperty("mojud.web.base-url", "http://localhost:5173")
                 .withProperty("mojud.web.api-base-url", "https://api.example.com")
-                .withProperty("mojud.email.provider", "log");
+                .withProperty("mojud.email.provider", "log")
+                .withProperty("server.servlet.session.cookie.secure", "false");
 
         assertThat(ProductionChecks.problems(unsafe)).containsExactly(
                 "DB_APP_PASSWORD is not set",
@@ -29,6 +30,7 @@ class ProductionChecksTests {
                 "DB_SYSTEM_PASSWORD is not set",
                 "ENCRYPTION_KEY is not set",
                 "WEB_BASE_URL must be an https:// address (it is \"http://localhost:5173\")",
+                "The session cookie must be Secure (server.servlet.session.cookie.secure)",
                 "EMAIL_PROVIDER=log would write sign-in codes to the log");
         assertThatThrownBy(() -> new ProductionChecks(unsafe)).hasMessageStartingWith("Unsafe production settings:\n- DB_APP");
     }

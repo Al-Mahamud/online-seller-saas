@@ -41,6 +41,9 @@ class ProductionChecks {
                 problems.add(url[1] + " must be an https:// address (it is \"" + value + "\")");
             }
         }
+        if ("false".equals(environment.getProperty("server.servlet.session.cookie.secure"))) {
+            problems.add("The session cookie must be Secure (server.servlet.session.cookie.secure)");
+        }
         for (String[] channel : new String[][] {{"mojud.sms.provider", "SMS_PROVIDER"}, {"mojud.email.provider", "EMAIL_PROVIDER"}}) {
             if ("log".equals(environment.getProperty(channel[0], "").toLowerCase(Locale.ROOT))) {
                 problems.add(channel[1] + "=log would write sign-in codes to the log");

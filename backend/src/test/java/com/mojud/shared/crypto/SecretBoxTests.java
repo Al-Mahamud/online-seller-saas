@@ -43,6 +43,25 @@ class SecretBoxTests {
                 .hasMessageContaining("32 bytes");
     }
 
+    @Test
+    void afterARotationOldValuesStillOpenUntilResealed() {
+        String oldKey = KEY;
+        byte[] other = new byte[32];
+        other[5] = 9;
+        String newKey = Base64.getEncoder().encodeToString(other);
+        byte[] sealedBefore = new SecretBox(oldKey).seal(bytes("secret"), bytes("u"));
+
+        SecretBox rotated = new SecretBox(newKey, oldKey);
+
+        assertThat(rotated.hasPreviousKeys()).isTrue();
+        assertThat(rotated.open(sealedBefore, bytes("u"))).isEqualTo(bytes("secret"));
+        assertThat(rotated.sealedWithCurrentKey(sealedBefore, bytes("u"))).isFalse();
+        byte[] resealed = rotated.seal(rotated.open(sealedBefore, bytes("u")), bytes("u"));
+        assertThat(rotated.sealedWithCurrentKey(resealed, bytes("u"))).isTrue();
+        assertThat(new SecretBox(newKey).open(resealed, bytes("u"))).isEqualTo(bytes("secret"));
+        assertThatThrownBy(() -> new SecretBox(newKey).open(sealedBefore, bytes("u"))).isInstanceOf(IllegalStateException.class);
+    }
+
     private static byte[] bytes(String text) {
         return text.getBytes(StandardCharsets.UTF_8);
     }

@@ -13,3 +13,12 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  # The server's images (deploy/): PostgreSQL, Caddy, and the backup image's base.
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /deploy/backup
+    schedule:
+      interval: weekly

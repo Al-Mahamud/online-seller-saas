@@ -74,6 +74,9 @@ mojud:
     # bytes in base64 (openssl rand -base64 32). Keep it outside the database and its backups;
     # without it, two-step sign-in cannot be set up (and platform admins cannot use the admin area).
     encryption-key: ${ENCRYPTION_KEY:}
+    # Old keys, comma separated, while rotating: values sealed with them still open, and are
+    # re-sealed with the current key at start-up (docs/operations.md, "Rotating secrets").
+    previous-encryption-keys: ${ENCRYPTION_KEY_PREVIOUS:}
   identity:
     otp:
       ttl: 5m
