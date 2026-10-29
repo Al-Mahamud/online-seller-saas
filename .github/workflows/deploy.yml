@@ -25,10 +25,12 @@ jobs:
     defaults:
       run:
         working-directory: deploy
-    env:
-      CI_BACKUPS: ${{ runner.temp }}/backups
-      CI_BACKUP_KEY: ${{ runner.temp }}/backup-key.txt
     steps:
+      - name: Scratch paths
+        working-directory: .
+        run: |
+          echo "CI_BACKUPS=$RUNNER_TEMP/backups" >> "$GITHUB_ENV"
+          echo "CI_BACKUP_KEY=$RUNNER_TEMP/backup-key.txt" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
@@ -122,9 +124,12 @@ jobs:
         working-directory: deploy
     env:
       HAS_SECRETS: ${{ secrets.BACKUP_AGE_IDENTITY != '' && secrets.BACKUP_S3_ENDPOINT != '' }}
-      CI_BACKUPS: ${{ runner.temp }}/unused
-      CI_BACKUP_KEY: ${{ runner.temp }}/backup-key.txt
     steps:
+      - name: Scratch paths
+        working-directory: .
+        run: |
+          echo "CI_BACKUPS=$RUNNER_TEMP/unused" >> "$GITHUB_ENV"
+          echo "CI_BACKUP_KEY=$RUNNER_TEMP/backup-key.txt" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - name: Secrets
         id: secrets
