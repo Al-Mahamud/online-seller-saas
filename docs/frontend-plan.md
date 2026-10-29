@@ -1,0 +1,265 @@
+# Mojud frontend: implementation plan
+
+Oct 29, 2026 · the web app sellers use, on phones first. It builds on the finished backend (`docs/implementation-plan.md`, Phases 0–13) and the UI mockup ([Mojud UI Preview](https://claude.ai/artifact/U7XobRXtmHmyFshfLGzbSW)). Like the backend, it is split into sub-phases of one commit each, each with what it builds and how it is checked.
+
+## Summary
+
+- **What:** one web app in `frontend/`. Sellers use it on their phones above all, in Bangla first, with English one tap away. It also works well on a laptop.
+- **How it's built:** React and TypeScript. It talks only to the existing API, through a client generated from the API's own description, so the two cannot drift apart.
+- **Where it runs:** on the same domain as the API, so the cookie sign-in, CSRF protection and "no other origins" rules all work as built.
+- **Size:** 12 phases (F0 to F11), about 36 working days full-time. Part-time, about four months, as the backend took. That points the pilot to around **March 2027**.
+
+## Decisions
+
+The product plan already chose React, TypeScript, Vite and TanStack Query, mobile-first, with no native apps. The rest, with the reason for each:
+
+| Area | Choice | Why |
+|---|---|---|
+| Build | Vite, React 19, TypeScript (strict), pnpm, Node 22 | The product plan's stack. Node 22 is already on this machine. |
+| Components | **Mantine 8** (core, form, dates, notifications, modals, charts) | Complete and accessible components out of the box (forms, date pickers, tables, dialogs, toasts). For one part-time developer that beats assembling shadcn/ui pieces. Themeable to the mockup. |
+| Routing | **TanStack Router** | Type-checked routes, and list filters kept in the URL (shareable, survive a refresh), so `/orders?status=CONFIRMED` is typed end to end. |
+| Server data | TanStack Query | Caching, retries, and refetching when the seller comes back to the tab. |
+| API client | `openapi-typescript` + `openapi-fetch`, generated from the backend's OpenAPI document | Every request and response is typed from the server's own description. A backend test keeps a copy of that description in `frontend/` and fails when it changes (F0), so the client is regenerated with every API change. |
+| Languages | i18next, `bn` (default) and `en`, one JSON file each | Numbers, Taka and dates through `Intl` with `bn-BD`/`en-IN`: Bangla digits and lakh grouping (১২,৩৪,৫৬৭) without our own code. Error messages come from the server already translated (it reads `Accept-Language`). |
+| Look | The mockup's design: green `#0B6B4F`, ink `#17201B`, ground `#F6F7F5`, Hind Siliguri (self-hosted, Bangla and Latin subsets) | Already reviewed with you, and readable Bangla at small sizes. Self-hosting avoids a call to Google on every visit. |
+| On phones | Bottom tabs (Today, Orders, Products, More), a floating "+" for the main action, and a business switcher in the header, as in the mockup | One-handed use. On a laptop the same tabs become a sidebar. |
+| Installable | A PWA: home-screen icon, opens full screen, app shell cached | It feels like an app without an app store. Data always comes live from the server: stock must never be shown from an old copy. |
+| Printing | The backend's own HTML pages (packing slips, invoices), opened in a new tab | Already built and tested, with correct Bangla shaping (Phase 8d). |
+| Charts | `@mantine/charts` | Same look, no second chart library. |
+| Two-step QR code | `qrcode`, drawn in the browser | The secret is never sent to anyone else to draw. |
+| Errors | `@sentry/react`, only when a DSN is set at build time | The same Sentry as the backend. |
+| Checks | Biome (lint and format), Vitest and Testing Library (units), **Playwright** (end to end, against the real backend) | End-to-end tests run the app against the backend with its throwaway database, reading sign-up codes from the test-only `/dev/otp`. Nothing is mocked where the API decides. |
+
+**Performance budget.** The target is a ৳12,000 Android phone on a busy 4G connection:
+- the first screen loads at most 250 KB of JavaScript (compressed) and is usable within 3 seconds;
+- each screen loads its own code when opened;
+- images use the backend's small size in lists.
+
+**Accessibility.** As the mockup does:
+- touch targets at least 44 px;
+- every field has a label;
+- text at least 4.5:1 contrast;
+- usable with the keyboard on a laptop.
+
+Playwright runs an accessibility scan (axe) on every screen.
+
+## How the app talks to the API
+
+- **Same origin:**
+  - **Locally:** Vite's dev server sends `/api` to the backend on port 8080.
+  - **On the server:** Caddy serves the built files and sends `/api` to the app.
+  - So the session cookie and CSRF work unchanged.
+- **CSRF:** call `GET /auth/csrf` once at start. Every write sends the `XSRF-TOKEN` cookie back as `X-XSRF-TOKEN`.
+- **Errors:** the backend answers with problem JSON carrying a `code` (`stock.insufficient`) and a translated `detail`.
+  - **Most errors:** the app shows `detail`.
+  - **Some codes are handled specially:**
+    - `auth.required` → sign-in;
+    - `business.not_selected` → business picker;
+    - `plan.limit_reached` (402, with `metric` and `limit`) → upgrade dialog;
+    - `subscription.read_only` / `subscription.suspended` → banner, with writes disabled;
+    - `rate_limited` → wait and say for how long (`Retry-After`);
+    - field errors → under the field.
+- **Idempotency:** creating an order, recording a payment and stock changes send an `Idempotency-Key`, so a double tap or a retry on a bad connection never makes two.
+- **Roles:** the UI hides what the member's role cannot do (from `GET /business`). The server still decides; staff never receive cost prices at all.
+- **Freshness:**
+  - **Notifications:** polled every 60 seconds while the tab is visible.
+  - **Lists:** refresh when the seller returns to the app.
+  - **Live updates:** server-sent events come with the inbox in release 2.
+
+## Screens and the API behind them
+
+| Area | Screens | API |
+|---|---|---|
+| Sign-in | Sign up (code by email; phone when SMS arrives), sign in with password or code, two-step code, forgot password | `/auth/*` |
+| Account | Profile and language, password, phone and email, two-step sign-in (QR, recovery codes) | `/me`, `/me/two-factor/*` |
+| Business | First business (onboarding), switcher, profile and logo, settings, delete (7-day undo), audit log | `/businesses`, `/business*`, `/me/switch-business` |
+| Staff | Members and roles, invites, the invite link page `/invites#token`, hand over ownership | `/staff*`, `/public/invites/lookup`, `/invites/accept` |
+| Products | List (search, category, tag, low stock), editor (options → variants grid, prices, cost, SKU, images), categories and tags, archive and restore | `/products*`, `/variants/*`, `/categories*`, `/tags*`, `/uploads`, `/files/*` |
+| Stock | Receive, damage, count; history per variant; low-stock list | `/stock/*`, `/variants/{id}/movements` |
+| Import | Upload, map columns, preview with problems, commit, progress, error file, template | `/imports*` |
+| Customers | Search by phone or name, details with order history, edit, delete | `/customers*` |
+| Delivery | Division, district and area pickers (Bangla and English names); delivery zones and charges | `/geo/*`, `/delivery-zones*` |
+| Orders | Quick order (the main flow); list by status; details with timeline; confirm, pack, ship, deliver, returns, payments, cancel; bulk pack and ship; slips; COD to settle per courier | `/orders*`, `/shipments*` |
+| Today and reports | Dashboard; sales and profit by day, product and category; CSV exports; the data export | `/dashboard/today`, `/reports/*`, `/exports/*`, `/business/export` |
+| Billing | Plan and usage, choose a plan, pay (SSLCommerz or bank transfer), the return page, invoices | `/billing*`, `/plans` |
+| Notifications | Bell with unread count, list, email choices | `/notifications*` |
+| Platform admin | Businesses (search, details, suspend, trial, plan), plans, invoices to mark paid, metrics, audit | `/admin/*` (two-step required) |
+
+Every route that the backend's emails link to exists:
+- `/billing`, `/billing/invoices/{id}`, `/billing/return`;
+- `/products/low-stock`;
+- `/settings/notifications`, `/settings/security`;
+- `/invites#token`.
+
+## Phases
+
+Sizes are full-time working days. Each sub-phase is one commit with a green CI, as for the backend.
+
+### F0: Skeleton, design, API client, CI, deploy (3 days)
+
+**Builds**
+- `frontend/` with Vite, React, TypeScript, Mantine themed to the mockup, self-hosted Hind Siliguri, i18next (`bn`/`en`), TanStack Router and Query.
+- **App shell:** bottom tabs on phones, a sidebar on laptops, the header with the business switcher and the language toggle.
+- **API layer:** the generated client, CSRF, the error handling above, `Accept-Language`, idempotency keys.
+- **Backend:**
+  - `OpenApiSnapshotTests` writes the API description to `frontend/src/api/openapi.json` and fails when it changes;
+  - schema names cleaned up where the generated types read badly.
+- **CI:** a `frontend` job (lint, types, unit tests, build, bundle-size check) and an `e2e` job (backend with its throwaway database + built frontend + Playwright, phone and laptop sizes).
+- **Deploy:**
+  - CI publishes the built web app as an image (`mojud-web`: Caddy plus the files);
+  - `deploy/compose.yml` uses it instead of the placeholder;
+  - the deploy drill checks the app loads over HTTPS.
+
+**Checked by:** the shell renders in both languages at 390 px and 1280 px; a type error in an API call fails the build; the deploy drill loads the app.
+
+### F1: Signing in and the account (3 days)
+
+**Builds**
+- **Sign-up:** name, phone, email, password, then the 6-digit code. Only the code channels the server offers (`/auth/options`) are shown.
+- **Sign-in:** with a password or a code; the two-step screen (app code or recovery code); forgot password.
+- **Account settings:**
+  - profile and language (saved to the account);
+  - password, and phone and email changes with codes;
+  - two-step sign-in: QR code, the 10 recovery codes shown once to save or print, turning it off.
+
+**Checked by:** e2e: sign up with an email code, sign out, sign in by password, by code, and with two-step on (codes computed in the test as the backend tests do); wrong codes show the server's message in both languages.
+
+### F2: Business, team and settings (3 days)
+
+**Builds**
+- **First-run:** create the first business.
+- **Switching:** the switcher with role badges.
+- **Business profile:** name, phone, address, logo.
+- **Settings:** stock commit point, low-stock default, order number prefix, invoice footer.
+- **Staff:** list, change role, remove, invite by phone or email, cancel an invite, hand over ownership with the password.
+- **The invite link page:** preview, then sign in or sign up with the invited contact, then join.
+- **Audit log** (owner).
+- **Deleting the business:** password, 7-day countdown banner, undo.
+
+**Checked by:** e2e: an owner invites a manager, who joins from the link on a second browser; the manager cannot see owner-only pages; staff removal signs the staff member out of that business.
+
+### F3: Products and stock (5 days)
+
+**Builds**
+- **Product list:** as in the mockup; search, category and tag chips, low-stock badge, infinite scroll.
+- **Product editor:**
+  - details, category and tags;
+  - options (Size: S, M, L), with the variants grid built from them;
+  - per-variant price, cost (hidden for staff), SKU, low-stock level, archive and restore;
+  - images: upload, reorder, main image.
+- **Categories (two levels) and tags.**
+- **Stock:** receive, damage and count with a reason; a variant's movement history; the low-stock list.
+- **Plan limits:** the upgrade dialog when the variant limit is reached.
+
+**Checked by:** e2e: create a product with 2 options and 6 variants on a phone screen; receive stock; a staff member sees no cost anywhere; the 402 limit dialog appears at the trial limit (lowered in the test).
+
+### F4: Importing products (2 days)
+
+**Builds**
+- **Uploading:** the template download, then upload (CSV or Excel).
+- **Checking:** column mapping with the server's guesses, and a preview with problems per row.
+- **Importing:** commit, then progress polling, the result, and the error CSV.
+
+**Checked by:** e2e: import the template with 20 products, one with a bad price; the problem is shown; after fixing, all 20 appear.
+
+### F5: Customers and delivery (2 days)
+
+**Builds**
+- **Customers:** list and search (by phone, as sellers do), details with order history and totals, edit, delete with the server's open-orders rule.
+- **Place picker:** division → district → area, searchable in Bangla and English.
+- **Delivery zones:** zones, their districts and areas, and charges.
+
+**Checked by:** e2e: find a customer by any common phone format; a zone's charge is what a new order is quoted.
+
+### F6: Orders, the core (6 days)
+
+**Builds**
+- **Quick order:** on a phone, from a chat, in under a minute:
+  1. paste or type the phone number, which finds the customer or adds a new one in place;
+  2. the place picker;
+  3. add items from a search that shows what is available now;
+  4. the delivery charge, quoted and editable;
+  5. discount, advance and the COD amount worked out;
+  6. note; then save as a draft or confirm.
+- **Orders list:** tabs by status with counts, filters by date, phone and number.
+- **Order details:**
+  - items, money and the timeline;
+  - the actions the status allows: confirm, pack, ship (courier, picked from those used before, and tracking number), deliver (COD collected, refused items), returns (restock or write off), payments, cancel with a reason.
+- **Bulk:** select orders to pack or ship together.
+- **Printing:** packing slips for one or many orders.
+- **COD to settle:** a page per courier, and marking it settled.
+
+**Checked by:**
+- **The main flow on a phone:** e2e takes a new order for a new customer at 390 px through confirm, pack, ship and deliver with COD, then a return.
+- **Out of stock:** two browsers confirm the last unit, and one sees the server's out-of-stock message.
+- **Bad connection:** a double-tapped save makes one order.
+- **Timed:** the quick order is timed in the e2e test.
+
+### F7: Today, reports and exports (3 days)
+
+**Builds**
+- **Dashboard:** today's sales, orders by status, pending deliveries, COD outstanding, low stock, a 7-day sales chart, and any day picked.
+- **Reports:** sales by day, product or category, and profit (managers and owners); within the plan's date range.
+- **Downloads:** CSV exports, and the owner's full data export.
+
+**Checked by:** the figures on screen equal the API's for a seeded day; staff do not see profit.
+
+### F8: Billing (3 days)
+
+**Builds**
+- **Plan and usage:** the current plan, status and usage against limits.
+- **Choosing a plan:** plans with prices; months (1, 6, 12) and payment (SSLCommerz or bank transfer).
+- **Returning from payment:** the return page polls the invoice until it is paid.
+- **Bank transfer:** the instructions.
+- **Invoices:** the list, and printing.
+- **Changing plan:** upgrade with the prorated amount; downgrade at renewal.
+- **Banners:** for the trial ending, grace and read-only (writes disabled, with a reason).
+
+**Checked by:** e2e: pay through the backend's fake gateway and the plan becomes active; a read-only business shows the banner and the server refuses a write the UI did not hide.
+
+### F9: Notifications (1 day)
+
+**Builds**
+- **The bell:** unread count, polled; a list with links to the thing it is about; mark read.
+- **Email choices:** the low-stock digest on or off.
+
+**Checked by:** a low-stock alert appears within a minute of stock falling.
+
+### F10: Platform admin (2 days)
+
+**Builds**
+- **Where:** `/admin`, only for platform admins, with a reminder to turn on two-step sign-in when it is off.
+- **Businesses:** search, details (owner, members, subscription, usage, invoices), suspend and unsuspend with a reason, extend a trial, set a plan.
+- **Platform:** edit plans, mark bank transfers paid, metrics, the admin audit log.
+
+**Checked by:** e2e: an admin without two-step sees the reminder, not the data; with it, suspending a business shows that business the suspended banner.
+
+### F11: Launch polish (3 days)
+
+**Builds**
+- **Installable:** PWA (manifest, icons, app shell), "add to home screen" on Android.
+- **Speed:** a performance pass on a throttled mid-range phone profile.
+- **Accessibility:** a pass with axe on every screen.
+- **Bangla:** every text read through by a native speaker (you).
+- **Sentry** for the browser.
+- **Sessions with sellers:** 3–5 sellers try the main flows on their own phones; fixes from what they stumble on.
+
+**Checked by:** within the performance budget; no axe violations; the main flows done unaided by most of the sellers.
+
+## Small backend changes the frontend will need
+
+Found while mapping the screens. Each lands in the frontend phase that needs it, with its own tests:
+- **API description snapshot test:** keeps `openapi.json` current (F0).
+- **Leave a business:** a member can't leave by themself yet; only the owner can remove them (F2).
+- **Admin reset of someone's two-step sign-in:** for a lost phone (F10).
+- **Small read endpoints wherever a screen would otherwise make many calls:** for example, order counts by status for the tabs (F6).
+
+## Open decisions
+
+Recommendations first. Tell me where you disagree; nothing is blocked until the phase named.
+
+1. **Components:** Mantine (recommended) or shadcn/ui. Decide before F0.
+2. **Default language:** Bangla, with English one tap away (recommended). Decide before F0.
+3. **Admin area:** inside the same app at `/admin` (recommended; one build, one sign-in), or a separate app. Decide before F10.
+4. **Seller sessions:** can you find 3–5 sellers for 30 minutes each, on their own phones? Needed by F11; earlier is better (after F6).
+5. **Domain:** the app and API on one address, e.g. `app.<your domain>` (needed by F0's deploy, but a placeholder works until the server exists).

@@ -495,7 +495,7 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 
 ## After Phase 13
 
-1. **Frontend plan**: a separate breakdown like this one, written when you're ready to start the frontend.
+1. **Frontend**: planned in [frontend-plan.md](frontend-plan.md) (F0–F11, about 36 working days full-time).
 2. **Release 2 backend** (detail planned later): R1 channels and Meta webhooks · R2 inbox and SSE · R3 AI engine and evals · R4 AI drafts and auto-confirm · R5 WhatsApp · R6 courier APIs and bKash auto-renewal.
 
 ## Waiting on you (not blocking until the phase shown)
