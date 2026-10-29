@@ -2,7 +2,7 @@
 # files in /srv/web. deploy/compose.yml runs it with deploy/Caddyfile, which sends /api to the
 # backend. The build runs on the builder's own platform: its output is the same files for every
 # platform, so the arm64 image needs no emulation.
-FROM --platform=$BUILDPLATFORM node:22-slim AS build
+FROM --platform=$BUILDPLATFORM node:25-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
