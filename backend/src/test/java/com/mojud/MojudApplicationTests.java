@@ -70,6 +70,22 @@ class MojudApplicationTests {
         assertThat(response.body()).contains("\"openapi\"").contains("Mojud API");
     }
 
+    @Test
+    void servesApiDocsPage() throws Exception {
+        HttpResponse<String> redirect = get("/api/docs");
+        assertThat(redirect.statusCode()).isEqualTo(302);
+        String page = redirect.headers().firstValue("Location").orElseThrow();
+        assertThat(page).contains("/api/swagger-ui/");
+
+        HttpResponse<String> response = get(URI.create(page).getPath());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("swagger-ui");
+        assertThat(response.headers().firstValue("Content-Security-Policy"))
+                .hasValue("default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'");
+        assertThat(get("/api/swagger-ui/swagger-initializer.js").statusCode()).isEqualTo(200);
+    }
+
     private HttpResponse<String> get(String path) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).build();
         return HTTP.send(request, HttpResponse.BodyHandlers.ofString());

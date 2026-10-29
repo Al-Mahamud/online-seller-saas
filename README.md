@@ -24,4 +24,10 @@ Against a real PostgreSQL, run `roles.sql` once as a superuser, create the datab
 
 With the `local` profile: health at `/healthz`, API docs at `/api/docs`, OpenAPI JSON at `/api/v1/openapi`.
 
+**In IntelliJ IDEA:** open the `backend` folder (it imports as a Maven project), set the project SDK to a JDK 17 (File → Project Structure), then run `TestMojudApplication` from `src/test/java/com/mojud`. Don't run `MojudApplication` itself: it expects a real PostgreSQL and passwords.
+
+**Trying it out locally:**
+- **Swagger page:** at `/api/docs`, run `GET /api/v1/auth/csrf` once first, so that POST, PUT and DELETE requests are accepted.
+- **Sign-up codes:** these aren't sent. They're printed in the log, and `GET /dev/otp?to=01712345678` returns the last one.
+
 Errors are RFC 9457 problem responses with a `code` (see `ErrorCode`) and a `detail` in English or Bangla, chosen by `Accept-Language`.

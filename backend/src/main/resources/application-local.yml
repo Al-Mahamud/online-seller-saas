@@ -28,3 +28,6 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+    # "Try it out" sends the XSRF-TOKEN cookie back as X-XSRF-TOKEN; call GET /api/v1/auth/csrf first.
+    csrf:
+      enabled: true

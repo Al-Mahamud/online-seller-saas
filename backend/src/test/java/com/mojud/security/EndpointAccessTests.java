@@ -38,7 +38,7 @@ class EndpointAccessTests {
             "GET /api/v1/geo/divisions", "GET /api/v1/geo/districts", "GET /api/v1/geo/districts/{id}/areas",
             "GET /api/v1/plans",
             // API documentation: off on servers (API_DOCS_ENABLED), on in tests.
-            "GET /api/v1/openapi", "GET /api/v1/openapi.yaml");
+            "GET /api/v1/openapi", "GET /api/v1/openapi.yaml", "GET /api/v1/openapi/swagger-config");
 
     @Autowired
     @Qualifier("requestMappingHandlerMapping")

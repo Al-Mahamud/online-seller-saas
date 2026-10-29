@@ -23,7 +23,11 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -44,12 +48,21 @@ class SecurityConfig {
     static final String PERMISSIONS_POLICY =
             "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()";
 
+    static final String API_CSP = "default-src 'none'; frame-ancestors 'none'; sandbox";
+
+    /** Swagger UI's files, served by springdoc under {@code /api/swagger-ui/} when API docs are on. */
+    private static final RequestMatcher DOCS_PAGE = PathPatternRequestMatcher.withDefaults().matcher("/api/swagger-ui/**");
+
+    /** Swagger UI sets styles inline and shows the schema's data: images. */
+    static final String DOCS_PAGE_CSP =
+            "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'";
+
     @Bean
     SecurityFilterChain apiSecurity(HttpSecurity http,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver errors) throws Exception {
         http
                 .authorizeHttpRequests(requests -> requests
-                        .requestMatchers("/healthz/**", "/error", "/api/docs/**", "/swagger-ui/**",
+                        .requestMatchers("/healthz/**", "/error", "/api/docs/**", "/api/swagger-ui/**",
                                 "/api/v1/openapi/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         // Endpoints anyone may call, such as looking up an invite from its link.
@@ -58,12 +71,15 @@ class SecurityConfig {
                         .requestMatchers("/api/v1/admin/**").hasRole("PLATFORM_ADMIN")
                         .anyRequest().authenticated())
                 // Spring's defaults (nosniff, frame DENY, no-store, HSTS on HTTPS) plus: API answers
-                // are data, never a page, so they may load nothing.
+                // are data, never a page, so they may load nothing. The API docs page (local runs
+                // only) loads its own scripts and styles.
                 .headers(headers -> headers
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
                         .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy", PERMISSIONS_POLICY))
-                        .addHeaderWriter(new StaticHeadersWriter("Content-Security-Policy",
-                                "default-src 'none'; frame-ancestors 'none'; sandbox")))
+                        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(new NegatedRequestMatcher(DOCS_PAGE),
+                                new StaticHeadersWriter("Content-Security-Policy", API_CSP)))
+                        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(DOCS_PAGE,
+                                new StaticHeadersWriter("Content-Security-Policy", DOCS_PAGE_CSP))))
                 // Payment gateways call /api/v1/public/gateway/** with no session or token; those
                 // callbacks are verified with the gateway itself instead.
                 .csrf(csrf -> csrf.spa().ignoringRequestMatchers("/api/v1/public/gateway/**"))
