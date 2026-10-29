@@ -1,0 +1,16 @@
+Subject: Rina's Boutique: 2 products are running low
+
+These products in Rina's Boutique are at or below their alert level:
+
+Product | SKU | Left | Alert at
+- Jamdani Saree | JAM-01 | 0 | 3
+- Cotton Kurti (M / Black) | KUR-M-BLK | 2 | 5
+
+See all low stock:
+https://app.mojud.example/products/low-stock
+
+You get this every morning while products are low. Turn it off in Settings, Notifications: https://app.mojud.example/settings/notifications
+
+-- 
+Mojud
+This email was sent automatically by Mojud, so replies are not read.

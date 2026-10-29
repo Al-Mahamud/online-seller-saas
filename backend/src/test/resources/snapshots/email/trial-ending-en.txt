@@ -1,0 +1,12 @@
+Subject: Rina's Boutique: your free trial ends in 3 days
+
+Your free trial ends in 3 days. Choose a plan to keep selling.
+
+Shop: Rina's Boutique
+
+Open billing:
+https://app.mojud.example/billing
+
+-- 
+Mojud
+This email was sent automatically by Mojud, so replies are not read.

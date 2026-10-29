@@ -1,6 +1,5 @@
 package com.mojud.tenancy.business;
 
-import java.time.Instant;
 import com.mojud.identity.AuthenticatedUser;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
@@ -14,6 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

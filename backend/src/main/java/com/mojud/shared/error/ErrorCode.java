@@ -28,6 +28,17 @@ public enum ErrorCode {
     /** Wrong password, wrong code or unknown account; deliberately not distinguished. */
     INVALID_CREDENTIALS("auth.invalid_credentials", HttpStatus.UNAUTHORIZED),
     ACCOUNT_DISABLED("auth.account_disabled", HttpStatus.FORBIDDEN),
+    /** The password or sign-in code was right, but the second step was not finished in time (or tried too often). */
+    AUTH_TWO_FACTOR_EXPIRED("auth.two_factor_expired", HttpStatus.UNAUTHORIZED),
+
+    // Two-step sign-in (TOTP).
+    TWO_FACTOR_INVALID_CODE("two_factor.invalid_code", HttpStatus.BAD_REQUEST),
+    /** No encryption key is configured, so authenticator secrets cannot be stored. */
+    TWO_FACTOR_UNAVAILABLE("two_factor.unavailable", HttpStatus.SERVICE_UNAVAILABLE),
+    TWO_FACTOR_ALREADY_ENABLED("two_factor.already_enabled", HttpStatus.CONFLICT),
+    TWO_FACTOR_NOT_ENABLED("two_factor.not_enabled", HttpStatus.CONFLICT),
+    /** Turning it on needs a setup (a secret to scan) first. */
+    TWO_FACTOR_SETUP_MISSING("two_factor.setup_missing", HttpStatus.CONFLICT),
     /** Wrong, expired, already used or too many attempts; deliberately not distinguished. */
     OTP_INVALID("otp.invalid", HttpStatus.BAD_REQUEST),
     /** No sender is configured for this channel (no SMS gateway yet, backend-plan.md §13). */
@@ -118,6 +129,8 @@ public enum ErrorCode {
     // Platform administration.
     /** The business is already in the state asked for (suspending a suspended business). */
     ADMIN_NO_CHANGE("admin.no_change", HttpStatus.CONFLICT),
+    /** Platform admins must sign in with two-step sign-in (backend-plan.md §11). */
+    ADMIN_TWO_FACTOR_REQUIRED("admin.two_factor_required", HttpStatus.FORBIDDEN),
 
     // Customers.
     /** Another customer has this phone number; {@code customerId} names them. */

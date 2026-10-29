@@ -28,8 +28,8 @@ Design details (tables, rules, endpoints) live in [backend-plan.md](backend-plan
 | 9 Reports | 9a today dashboard · 9b sales, profit, exports | 3 | Done |
 | 10 Plans and subscriptions | 10a plans, trial, limits · 10b lifecycle and read-only mode | 3 | Done |
 | 11 Billing payments | 11a SSLCommerz checkout · 11b upgrades, manual payments, ledger | 4 | Done |
-| 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | 12a done · 12b in review |
-| 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | Not started |
+| 12 Platform admin | 12a business management · 12b metrics and data rights | 2 | Done |
+| 13 Launch readiness | 13a email and 2FA · 13b deployment and backups · 13c security review and load test | 3 | 13a in review |
 | **Total** | **33 commits** | **≈ 51 days** | |
 
 Days are full-time; double them for part-time.
@@ -466,6 +466,8 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 - TOTP two-factor: optional for owners, required for platform admins.
 
 **Checked by:** template snapshot tests in both languages; login with 2FA on and off.
+
+**As built:** Email: `EmailComposer` (shared) builds every email from `email.*` message keys as plain text plus HTML in one layout (values escaped); `SmtpEmailSender` (`EMAIL_PROVIDER=smtp`, SMTP_HOST/PORT/USERNAME/PASSWORD, EMAIL_FROM; STARTTLS required; missing settings stop startup; no mail health check so `/healthz` never depends on the provider). Codes and invites use it; `notifications.MemberMail` emails a business's members with at least a role and a verified email, each in their own language, after commit. Owners get each billing reminder and warning (with the in-app notification, so once per kind a day) and a receipt when an invoice is paid (`billing.BillingEmails`); managers and owners get the low-stock digest at 08:00 (`catalog.system.LowStockDigestJob`, at most 30 rows), which each can turn off per business (`GET/PUT /notifications/preferences`, V32 `notification_preferences`). Frontend links used: `/billing`, `/billing/invoices/{id}`, `/products/low-stock`, `/settings/notifications`, `/settings/security`, `/invites#token`. Two-step sign-in: `/me/two-factor` (status; `setup {password}` returns a base32 secret and otpauth URI; `enable {code}` returns 10 recovery codes once, signs out other devices; `recovery-codes {code}`; `disable {password, code}`); secrets sealed with AES-GCM (`shared.crypto.SecretBox`, ENCRYPTION_KEY, bound to the user id); codes RFC 6238 ±1 step, each step usable once; recovery codes hashed, single use. Sign-in with two-step answers 202 `{twoFactorRequired}` and `POST /auth/login/two-factor {code}` finishes it within 5 minutes and 5 tries; wrong codes count as failed sign-ins. Platform admin rights need a two-step session (`admin.two_factor_required` otherwise). Security emails on turning it on or off and on recovery-code use. Snapshots: 40 files in `src/test/resources/snapshots/email` (`-DupdateSnapshots=true` rewrites them). Not built: an admin reset of someone's two-step sign-in when they lose phone and recovery codes (support case for now).
 
 ### 13b: Deployment and backups (1 day)
 

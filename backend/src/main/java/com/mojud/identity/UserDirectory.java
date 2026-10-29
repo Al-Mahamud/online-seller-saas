@@ -3,7 +3,10 @@ package com.mojud.identity;
 import com.mojud.identity.account.User;
 import com.mojud.identity.account.UserRepository;
 import com.mojud.identity.otp.OtpDestination;
+import com.mojud.shared.email.EmailAddress;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,6 +53,22 @@ public class UserDirectory {
     @Transactional(readOnly = true)
     public Optional<String> verifiedPhone(UUID userId) {
         return users.findById(userId).map(user -> user.getPhone().e164()).filter(phone -> hasVerified(userId, phone));
+    }
+
+    /** Where and in which language to email a user. */
+    public record EmailContact(EmailAddress email, Locale locale) {
+    }
+
+    /** Active users among {@code ids} with a verified email (an unverified one could be anyone's). */
+    @Transactional(readOnly = true)
+    public Map<UUID, EmailContact> emailContacts(Collection<UUID> ids) {
+        Map<UUID, EmailContact> contacts = new LinkedHashMap<>();
+        for (User user : users.findAllById(ids)) {
+            if (user.isActive() && user.isEmailVerified() && user.getEmail().isPresent()) {
+                contacts.put(user.getId(), new EmailContact(user.getEmail().get(), Locale.forLanguageTag(user.getLocale())));
+            }
+        }
+        return contacts;
     }
 
     @Transactional(readOnly = true)

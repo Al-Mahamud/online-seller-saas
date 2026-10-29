@@ -1,9 +1,9 @@
 package com.mojud.identity.account;
 
 import com.mojud.shared.email.EmailAddress;
-import com.mojud.shared.text.Text;
 import com.mojud.shared.id.Ids;
 import com.mojud.shared.phone.PhoneNumber;
+import com.mojud.shared.text.Text;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -13,6 +13,7 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import org.hibernate.annotations.Formula;
 
 @Entity
 @Table(name = "users")
@@ -36,6 +37,10 @@ public class User {
     private Instant emailVerifiedAt;
 
     private boolean isPlatformAdmin;
+
+    /** Read when loaded; set in identity.twofactor.TwoFactor, never through this entity. */
+    @Formula("exists (select 1 from two_factor tf where tf.user_id = id and tf.enabled_at is not null)")
+    private boolean twoFactorEnabled;
 
     @Enumerated(EnumType.STRING)
     private UserStatus status;
@@ -154,5 +159,9 @@ public class User {
 
     public boolean isPlatformAdmin() {
         return isPlatformAdmin;
+    }
+
+    public boolean isTwoFactorEnabled() {
+        return twoFactorEnabled;
     }
 }

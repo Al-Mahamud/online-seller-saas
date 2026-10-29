@@ -6,13 +6,11 @@ import com.mojud.shared.db.system.SystemDatabase;
 import com.mojud.support.ApiClient;
 import com.mojud.support.CapturedMessages;
 import com.mojud.support.IntegrationTest;
+import com.mojud.support.Snapshots;
 import com.mojud.support.TestAccounts;
 import com.mojud.support.TestImages;
-import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -31,7 +29,6 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 @IntegrationTest
 class PackingSlipTests {
 
-    static final Path SNAPSHOTS = Path.of("src/test/resources/snapshots");
     static final int MIRPUR = 9027;
     static final Instant ORDERED = Instant.parse("2026-10-28T05:30:00Z");
 
@@ -69,7 +66,7 @@ class PackingSlipTests {
     }
 
     @Test
-    void theSlipMatchesItsSnapshotInEnglishAndBangla() throws IOException {
+    void theSlipMatchesItsSnapshotInEnglishAndBangla() {
         String id = fixedOrder();
 
         for (String lang : List.of("en", "bn")) {
@@ -77,7 +74,7 @@ class PackingSlipTests {
             assertThat(slip.statusCode()).isEqualTo(200);
             String html = new String(slip.body(), StandardCharsets.UTF_8);
             assertThat(html).as("the logo is embedded").containsPattern("src=\"data:image/(png|jpeg);base64,[A-Za-z0-9+/=]{100,}\"");
-            matchesSnapshot("packing-slip-" + lang + ".html", html.replaceAll("data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+", "data:LOGO"));
+            Snapshots.matches("packing-slip-" + lang + ".html", html.replaceAll("data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+", "data:LOGO"));
         }
     }
 
@@ -133,13 +130,4 @@ class PackingSlipTests {
         return id;
     }
 
-    private static void matchesSnapshot(String name, String actual) throws IOException {
-        Path file = SNAPSHOTS.resolve(name);
-        if (Boolean.getBoolean("updateSnapshots") || !Files.exists(file)) {
-            Files.createDirectories(SNAPSHOTS);
-            Files.writeString(file, actual, StandardCharsets.UTF_8);
-            throw new AssertionError("Snapshot " + file + " written: read it, then commit it");
-        }
-        assertThat(actual).isEqualTo(Files.readString(file, StandardCharsets.UTF_8));
-    }
 }

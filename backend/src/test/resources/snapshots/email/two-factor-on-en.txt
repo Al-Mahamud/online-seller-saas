@@ -1,0 +1,12 @@
+Subject: Two-step sign-in is on for your Mojud account
+
+Two-step sign-in was turned on for your account at 28 Oct 2026, 9:58 PM. Signing in now needs a code from your authenticator app as well as your password or sign-in code.
+
+If this was not you, reset your password now and contact Mojud support.
+
+Open security settings:
+https://app.mojud.example/settings/security
+
+-- 
+Mojud
+This email was sent automatically by Mojud, so replies are not read.

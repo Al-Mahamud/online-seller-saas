@@ -1,6 +1,7 @@
 package com.mojud.support;
 
 import com.mojud.shared.email.EmailAddress;
+import com.mojud.shared.email.EmailMessage;
 import com.mojud.shared.email.EmailSender;
 import com.mojud.shared.phone.PhoneNumber;
 import com.mojud.shared.sms.SmsSender;
@@ -21,7 +22,8 @@ public final class CapturedMessages implements SmsSender, EmailSender {
     private static final Logger log = LoggerFactory.getLogger(CapturedMessages.class);
     private static final Pattern CODE = Pattern.compile("\\b(\\d{6})\\b");
 
-    public record Message(String to, String subject, String body) {
+    /** {@code body} is the text (an email's plain-text part); {@code html} is null for SMS. */
+    public record Message(String to, String subject, String body, String html) {
     }
 
     private final List<Message> messages = new CopyOnWriteArrayList<>();
@@ -29,13 +31,13 @@ public final class CapturedMessages implements SmsSender, EmailSender {
     @Override
     public void send(PhoneNumber to, String text) {
         log.info("SMS to {}: {}", to, text);
-        messages.add(new Message(to.e164(), null, text));
+        messages.add(new Message(to.e164(), null, text, null));
     }
 
     @Override
-    public void send(EmailAddress to, String subject, String body) {
-        log.info("Email to {}: {} / {}", to, subject, body);
-        messages.add(new Message(to.value(), subject, body));
+    public void send(EmailAddress to, EmailMessage message) {
+        log.info("Email to {}: {}\n{}", to, message.subject(), message.text());
+        messages.add(new Message(to.value(), message.subject(), message.text(), message.html()));
     }
 
     /** Every message to this E.164 phone or lower-case email, oldest first. */

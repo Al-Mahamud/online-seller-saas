@@ -97,6 +97,7 @@ public final class CrossTenant {
                 "kind", "DAMAGE", "quantity", 12)))).expectStatus(201);
         UUID notificationId = UUID.fromString(owner.get("/api/v1/notifications").expectStatus(200).json("$.items[0].id"));
         owner.post("/api/v1/notifications/read", Map.of("ids", List.of(notificationId.toString()))).expectStatus(204);
+        owner.put("/api/v1/notifications/preferences", Map.of("lowStockDigestEmail", false)).expectStatus(200);
         UUID importId = UUID.fromString(owner.upload("/api/v1/imports", "stock-" + marker + ".csv",
                 ("Name,Price,SKU\nImported " + marker + ",100,IMP-" + marker + "\n").getBytes(StandardCharsets.UTF_8))
                 .expectStatus(201).json("$.id"));
@@ -214,7 +215,7 @@ public final class CrossTenant {
         return prefix.toString();
     }
 
-    private static String lastInviteToken(CapturedMessages messages, String destination) {
+    public static String lastInviteToken(CapturedMessages messages, String destination) {
         var received = messages.to(destination);
         Matcher link = INVITE_LINK.matcher(received.get(received.size() - 1).body());
         if (!link.find()) {

@@ -15,9 +15,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -122,15 +124,36 @@ class AuthController {
             @Pattern(regexp = SIX_DIGITS, message = "{field.six_digit_code}") String code) {
     }
 
+    /** Asked of an account with two-step sign-in: send a code from the app to {@code /login/two-factor}. */
+    record SecondStep(boolean twoFactorRequired) {
+    }
+
+    /**
+     * 200 with the account when signed in; 202 {@code {"twoFactorRequired": true}} when the account
+     * has two-step sign-in, to be finished within five minutes.
+     */
     @PostMapping("/login")
-    MeResponse logIn(@Valid @RequestBody LoginRequest body, HttpServletRequest request, HttpServletResponse response) {
+    ResponseEntity<Object> logIn(@Valid @RequestBody LoginRequest body, HttpServletRequest request,
+            HttpServletResponse response) {
         LoginIdentifier login = LoginIdentifier.parse(body.login(), "login");
         boolean hasPassword = body.password() != null && !body.password().isEmpty();
         if (hasPassword == (body.code() != null)) {
             throw ApiException.invalidField("password", "field.password_or_code");
         }
-        return hasPassword
+        Optional<MeResponse> me = hasPassword
                 ? auth.logInWithPassword(login, body.password(), request.getRemoteAddr(), request, response)
                 : auth.logInWithCode(login, body.code(), request.getRemoteAddr(), request, response);
+        return me.<ResponseEntity<Object>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.accepted().body(new SecondStep(true)));
+    }
+
+    /** {@code code}: six digits from the authenticator app, or a recovery code (XXXXX-XXXXX). */
+    record SecondStepRequest(@NotBlank @Size(max = 20) String code) {
+    }
+
+    @PostMapping("/login/two-factor")
+    MeResponse logInSecondStep(@Valid @RequestBody SecondStepRequest body, HttpServletRequest request,
+            HttpServletResponse response) {
+        return auth.completeSecondStep(body.code(), request.getRemoteAddr(), request, response);
     }
 }

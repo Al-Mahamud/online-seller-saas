@@ -8,6 +8,8 @@ import com.mojud.support.ApiResponse;
 import com.mojud.support.CapturedMessages;
 import com.mojud.support.IntegrationTest;
 import com.mojud.support.TestAccounts;
+import com.mojud.support.TestClock;
+import com.mojud.support.TestAdmins;
 import com.mojud.support.TestBusinesses;
 import java.time.Duration;
 import java.time.Instant;
@@ -37,6 +39,9 @@ class AdminTests {
 
     @Autowired
     SystemDatabase systemDatabase;
+
+    @Autowired
+    TestClock testClock;
 
     @Autowired
     @Qualifier("requestMappingHandlerMapping")
@@ -193,11 +198,6 @@ class AdminTests {
     }
 
     private ApiClient admin() {
-        ApiClient signUp = new ApiClient(port);
-        TestAccounts.Account account = TestAccounts.signUp(signUp, messages);
-        systemDatabase.jdbc().sql("update users set is_platform_admin = true where email = ?").param(account.email()).update();
-        ApiClient fresh = new ApiClient(port);
-        fresh.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password())).expectStatus(200);
-        return fresh;
+        return TestAdmins.signIn(port, messages, systemDatabase, testClock);
     }
 }

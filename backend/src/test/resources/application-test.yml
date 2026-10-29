@@ -12,6 +12,9 @@ springdoc:
     enabled: true
 
 mojud:
+  security:
+    # A fixed test key (SecretBox).
+    encryption-key: U7MOZ7FW2dMq6/mVy9thaAjsi3mU3VZUcc0UAqBsbhM=
   web:
     api-base-url: http://localhost:${local.server.port}
   billing:

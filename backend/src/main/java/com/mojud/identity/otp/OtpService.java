@@ -3,6 +3,8 @@ package com.mojud.identity.otp;
 import com.mojud.identity.auth.IdentityProperties;
 import com.mojud.shared.async.AfterCommitTasks;
 import com.mojud.shared.email.EmailAddress;
+import com.mojud.shared.email.EmailComposer;
+import com.mojud.shared.email.EmailMessage;
 import com.mojud.shared.email.EmailSender;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
@@ -45,12 +47,15 @@ public class OtpService {
     private final ObjectProvider<SmsSender> sms;
     private final ObjectProvider<EmailSender> email;
     private final MessageSource messages;
+    private final EmailComposer composer;
     private final AfterCommitTasks afterCommit;
     private final Clock clock;
     private final IdentityProperties.Otp settings;
 
     OtpService(OtpChallengeRepository challenges, ObjectProvider<SmsSender> sms, ObjectProvider<EmailSender> email,
-            MessageSource messages, AfterCommitTasks afterCommit, Clock clock, IdentityProperties properties) {
+            MessageSource messages, EmailComposer composer, AfterCommitTasks afterCommit, Clock clock,
+            IdentityProperties properties) {
+        this.composer = composer;
         this.challenges = challenges;
         this.sms = sms;
         this.email = email;
@@ -109,10 +114,15 @@ public class OtpService {
         } else {
             EmailSender sender = email.getObject();
             EmailAddress to = new EmailAddress(destination.value());
-            String subject = messages.getMessage("otp.email.subject", args, locale);
-            String body = messages.getMessage("otp.email.body", args, locale);
-            afterCommit.run(() -> sender.send(to, subject, body));
+            EmailMessage message = email(composer.in(locale), code, settings.ttl().toMinutes());
+            afterCommit.run(() -> sender.send(to, message));
         }
+    }
+
+    /** The email with a code (snapshots in OtpEmailTests). */
+    static EmailMessage email(EmailComposer.Draft draft, String code, long minutes) {
+        return draft.subject("email.otp.subject", code).paragraph("email.otp.intro", minutes).code(code)
+                .note("email.otp.ignore").build();
     }
 
     /**

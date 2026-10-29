@@ -55,12 +55,25 @@ db-scheduler:
   enabled: ${JOBS_ENABLED:true}
 
 mojud:
-  # No real SMS gateway or email provider yet (backend-plan.md §13; email arrives in Phase 13a).
-  # "log" writes messages, codes included, to the log: local runs and tests only.
+  # No SMS gateway yet (backend-plan.md §13). "log" writes messages, codes included, to the log:
+  # local runs and tests only.
   sms:
     provider: ${SMS_PROVIDER:none}
   email:
+    # "smtp" on servers (any provider: Brevo, Amazon SES, ...); "log" locally; "none" sends nothing.
     provider: ${EMAIL_PROVIDER:none}
+    # Like: Mojud <no-reply@your-domain>. Required with smtp.
+    from: ${EMAIL_FROM:}
+    smtp:
+      host: ${SMTP_HOST:}
+      port: ${SMTP_PORT:587}
+      username: ${SMTP_USERNAME:}
+      password: ${SMTP_PASSWORD:}
+  security:
+    # Encrypts secrets kept in the database, such as authenticator secrets (SecretBox): 32 random
+    # bytes in base64 (openssl rand -base64 32). Keep it outside the database and its backups;
+    # without it, two-step sign-in cannot be set up (and platform admins cannot use the admin area).
+    encryption-key: ${ENCRYPTION_KEY:}
   identity:
     otp:
       ttl: 5m

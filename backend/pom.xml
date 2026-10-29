@@ -25,6 +25,7 @@
         <springdoc.version>3.1.1</springdoc.version>
         <db-scheduler.version>16.12.0</db-scheduler.version>
         <embedded-postgres.version>2.2.2</embedded-postgres.version>
+        <greenmail.version>2.1.15</greenmail.version>
         <embedded-postgres-binaries.version>18.6.0</embedded-postgres-binaries.version>
         <bouncycastle.version>1.86</bouncycastle.version>
         <twelvemonkeys.version>3.15.3</twelvemonkeys.version>
@@ -57,6 +58,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- Email by SMTP (implementation-plan.md 13a); any provider (Brevo, Amazon SES, ...). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -151,6 +157,13 @@
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- An SMTP server inside the test, for the real email sender. -->
+        <dependency>
+            <groupId>com.icegreen</groupId>
+            <artifactId>greenmail-junit5</artifactId>
+            <version>${greenmail.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- Real PostgreSQL for tests and local runs, without Docker. -->

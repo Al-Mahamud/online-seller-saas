@@ -8,6 +8,7 @@ import com.mojud.identity.account.UserRepository;
 import com.mojud.identity.otp.OtpDestination;
 import com.mojud.identity.otp.OtpPurpose;
 import com.mojud.identity.otp.OtpService;
+import com.mojud.identity.twofactor.TwoFactor;
 import com.mojud.shared.email.EmailAddress;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
@@ -44,10 +45,15 @@ class AuthService {
     private final LoginSessions sessions;
     private final AuthRateLimits limits;
     private final TransactionTemplate transactions;
+    private final TwoFactor twoFactor;
+    private final SecurityEmails emails;
     private final Clock clock;
 
     AuthService(UserRepository users, OtpService otp, PasswordEncoder passwords, AuthenticationManager authentication,
-            LoginSessions sessions, AuthRateLimits limits, TransactionTemplate transactions, Clock clock) {
+            LoginSessions sessions, AuthRateLimits limits, TransactionTemplate transactions, TwoFactor twoFactor,
+            SecurityEmails emails, Clock clock) {
+        this.twoFactor = twoFactor;
+        this.emails = emails;
         this.users = users;
         this.otp = otp;
         this.passwords = passwords;
@@ -110,11 +116,15 @@ class AuthService {
         } catch (DataIntegrityViolationException e) {
             throw ContactConflicts.translate(e);
         }
-        sessions.start(principal(user), user.getLocale(), request, response);
+        sessions.start(principal(user, false), user.getLocale(), request, response);
         return MeResponse.of(user);
     }
 
-    MeResponse logInWithPassword(LoginIdentifier login, String password, String clientIp,
+    /**
+     * Signed in: the account. Empty: the password or code was right, but the account has two-step
+     * sign-in, so the session waits for a code from the app ({@link #completeSecondStep}).
+     */
+    Optional<MeResponse> logInWithPassword(LoginIdentifier login, String password, String clientIp,
             HttpServletRequest request, HttpServletResponse response) {
         limits.checkLogin(login.value(), clientIp);
         Authentication result;
@@ -128,7 +138,7 @@ class AuthService {
         return start(users.findById(account.id()).orElseThrow(), login, clientIp, request, response);
     }
 
-    MeResponse logInWithCode(LoginIdentifier login, String code, String clientIp,
+    Optional<MeResponse> logInWithCode(LoginIdentifier login, String code, String clientIp,
             HttpServletRequest request, HttpServletResponse response) {
         limits.checkLogin(login.value(), clientIp);
         try {
@@ -142,13 +152,47 @@ class AuthService {
         return start(user, login, clientIp, request, response);
     }
 
-    private MeResponse start(User user, LoginIdentifier login, String clientIp,
+    private Optional<MeResponse> start(User user, LoginIdentifier login, String clientIp,
             HttpServletRequest request, HttpServletResponse response) {
         if (!user.isActive()) {
             throw new ApiException(ErrorCode.ACCOUNT_DISABLED);
         }
+        if (user.isTwoFactorEnabled()) {
+            // The failure count is cleared only once the second step is passed too.
+            sessions.awaitSecondStep(user.getId(), login.value(), request);
+            return Optional.empty();
+        }
         limits.loginSucceeded(login.value(), clientIp);
-        sessions.start(principal(user), user.getLocale(), request, response);
+        sessions.start(principal(user, false), user.getLocale(), request, response);
+        return Optional.of(MeResponse.of(user));
+    }
+
+    /**
+     * The second step: a code from the authenticator app, or a recovery code. Wrong codes count as
+     * failed sign-ins for the login typed in the first step; five on one attempt and the password
+     * is needed again ({@code auth.two_factor_expired}), as it is after five minutes.
+     */
+    MeResponse completeSecondStep(String code, String clientIp, HttpServletRequest request, HttpServletResponse response) {
+        LoginSessions.PendingSecondStep pending = sessions.pendingSecondStep(request)
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_TWO_FACTOR_EXPIRED));
+        limits.checkLogin(pending.login(), clientIp);
+        TwoFactor.Verified verified;
+        try {
+            verified = twoFactor.verify(pending.userId(), code);
+        } catch (ApiException e) {
+            limits.loginFailed(pending.login(), clientIp);
+            sessions.secondStepFailed(pending, request);
+            throw e.code() == ErrorCode.TWO_FACTOR_NOT_ENABLED ? new ApiException(ErrorCode.AUTH_TWO_FACTOR_EXPIRED) : e;
+        }
+        User user = users.findById(pending.userId()).orElseThrow(() -> new ApiException(ErrorCode.AUTH_TWO_FACTOR_EXPIRED));
+        if (!user.isActive()) {
+            throw new ApiException(ErrorCode.ACCOUNT_DISABLED);
+        }
+        limits.loginSucceeded(pending.login(), clientIp);
+        sessions.start(principal(user, true), user.getLocale(), request, response);
+        if (verified.recoveryCode()) {
+            emails.recoveryCodeUsed(user, verified.recoveryCodesLeft());
+        }
         return MeResponse.of(user);
     }
 
@@ -182,8 +226,8 @@ class AuthService {
         sessions.revokeAll(user.getId());
     }
 
-    private static AuthenticatedUser principal(User user) {
-        return new AuthenticatedUser(user.getId(), user.isPlatformAdmin());
+    private static AuthenticatedUser principal(User user, boolean twoFactor) {
+        return new AuthenticatedUser(user.getId(), user.isPlatformAdmin(), twoFactor);
     }
 
     /** A validated sign-up; {@code email} may be null only when the code went to the phone. */

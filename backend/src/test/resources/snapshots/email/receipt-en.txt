@@ -1,0 +1,15 @@
+Subject: Rina's Boutique: receipt for invoice MJ-2026-00042
+
+Payment received. You are on Pro until 28 Apr 2027. Thank you!
+
+Invoice | Plan | Amount | Paid until
+- MJ-2026-00042 | Pro | ৳17,940 | 28 Apr 2027
+
+Shop: Rina's Boutique
+
+View the invoice:
+https://app.mojud.example/billing/invoices/01a1833c-e2b9-773b-930d-1a351c3f0b06
+
+-- 
+Mojud
+This email was sent automatically by Mojud, so replies are not read.

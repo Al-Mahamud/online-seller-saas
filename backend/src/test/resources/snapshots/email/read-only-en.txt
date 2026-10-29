@@ -1,0 +1,12 @@
+Subject: Rina's Boutique: your shop is now read-only
+
+Your plan was not renewed. The shop is now read-only.
+
+Shop: Rina's Boutique
+
+Open billing:
+https://app.mojud.example/billing
+
+-- 
+Mojud
+This email was sent automatically by Mojud, so replies are not read.

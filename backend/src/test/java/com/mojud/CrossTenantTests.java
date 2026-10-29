@@ -59,6 +59,7 @@ class CrossTenantTests {
         CASES.put("POST /api/v1/auth/otp", notBusinessData(auth));
         CASES.put("POST /api/v1/auth/signup", notBusinessData(auth));
         CASES.put("POST /api/v1/auth/login", notBusinessData(auth));
+        CASES.put("POST /api/v1/auth/login/two-factor", notBusinessData(auth));
         CASES.put("POST /api/v1/auth/password/reset", notBusinessData(auth));
 
         // The caller's own account.
@@ -68,6 +69,11 @@ class CrossTenantTests {
         CASES.put("POST /api/v1/me/password", notBusinessData(ownAccount));
         CASES.put("POST /api/v1/me/contact/code", notBusinessData(ownAccount));
         CASES.put("POST /api/v1/me/contact", notBusinessData(ownAccount));
+        CASES.put("GET /api/v1/me/two-factor", notBusinessData(ownAccount));
+        CASES.put("POST /api/v1/me/two-factor/setup", notBusinessData(ownAccount));
+        CASES.put("POST /api/v1/me/two-factor/enable", notBusinessData(ownAccount));
+        CASES.put("POST /api/v1/me/two-factor/recovery-codes", notBusinessData(ownAccount));
+        CASES.put("POST /api/v1/me/two-factor/disable", notBusinessData(ownAccount));
 
         // Businesses.
         CASES.put("POST /api/v1/businesses", notBusinessData("creates a new business owned by the caller"));
@@ -212,6 +218,16 @@ class CrossTenantTests {
         // Low stock and notifications.
         CASES.put("GET /api/v1/stock/low", (a, b) -> expectNoLeak(b.owner().get("/api/v1/stock/low"), a));
         CASES.put("GET /api/v1/notifications", (a, b) -> expectNoLeak(b.owner().get("/api/v1/notifications"), a));
+        // Both fixtures turned the digest off; B turning it back on reads back in B only.
+        CASES.put("GET /api/v1/notifications/preferences", (a, b) -> {
+            b.owner().put("/api/v1/notifications/preferences", Map.of("lowStockDigestEmail", true)).expectStatus(200);
+            assertThat(b.owner().get("/api/v1/notifications/preferences").<Boolean>json("$.lowStockDigestEmail")).isTrue();
+            assertThat(a.owner().get("/api/v1/notifications/preferences").<Boolean>json("$.lowStockDigestEmail")).isFalse();
+        });
+        CASES.put("PUT /api/v1/notifications/preferences", (a, b) -> {
+            b.owner().put("/api/v1/notifications/preferences", Map.of("lowStockDigestEmail", true)).expectStatus(200);
+            assertThat(a.owner().get("/api/v1/notifications/preferences").<Boolean>json("$.lowStockDigestEmail")).isFalse();
+        });
         CASES.put("POST /api/v1/notifications/read", (a, b) -> {
             b.owner().post("/api/v1/notifications/read", Map.of("ids", List.of(a.notificationId().toString())))
                     .expectStatus(204);

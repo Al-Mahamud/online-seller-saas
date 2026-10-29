@@ -5,6 +5,8 @@ import com.mojud.shared.async.AfterCommitTasks;
 import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.db.AdvisoryLocks;
 import com.mojud.shared.email.EmailAddress;
+import com.mojud.shared.email.EmailComposer;
+import com.mojud.shared.email.EmailMessage;
 import com.mojud.shared.email.EmailSender;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
@@ -62,6 +64,7 @@ class InviteService {
     private final SeatPolicy seats;
     private final TeamCounts team;
     private final MessageSource messages;
+    private final EmailComposer composer;
     private final TransactionTemplate transactions;
     private final TransactionTemplate readOnly;
     private final AdvisoryLocks locks;
@@ -73,7 +76,7 @@ class InviteService {
 
     InviteService(InviteRepository invites, MembershipRepository memberships, InviteDirectory directory,
             BusinessNames businessNames, UserDirectory users, ObjectProvider<SmsSender> sms,
-            ObjectProvider<EmailSender> email, AfterCommitTasks afterCommit, MessageSource messages,
+            ObjectProvider<EmailSender> email, EmailComposer composer, AfterCommitTasks afterCommit, MessageSource messages,
             PlatformTransactionManager transactionManager, AdvisoryLocks locks, AuditTrail audit, Clock clock,
             @Value("${mojud.tenancy.invites.ttl}") Duration ttl,
             @Value("${mojud.tenancy.invites.per-business.max}") int perBusinessMax,
@@ -90,6 +93,7 @@ class InviteService {
         this.seats = seats;
         this.team = team;
         this.messages = messages;
+        this.composer = composer;
         this.transactions = new TransactionTemplate(transactionManager);
         this.readOnly = new TransactionTemplate(transactionManager);
         this.readOnly.setReadOnly(true);
@@ -239,9 +243,14 @@ class InviteService {
         } else {
             EmailSender sender = email.getObject();
             EmailAddress to = new EmailAddress(invite.getDestination());
-            String subject = messages.getMessage("invite.email.subject", args, locale);
-            String body = messages.getMessage("invite.email.body", args, locale);
-            afterCommit.run(() -> sender.send(to, subject, body));
+            EmailMessage message = email(composer.in(locale), args, link, ttl.toDays());
+            afterCommit.run(() -> sender.send(to, message));
         }
+    }
+
+    /** {@code args}: inviter, business, role (in the email's language), link (snapshots in InviteEmailTests). */
+    static EmailMessage email(EmailComposer.Draft draft, Object[] args, String link, long days) {
+        return draft.subject("email.invite.subject", args).paragraph("email.invite.intro", args)
+                .action("email.invite.action", link, args[1]).note("email.invite.expiry", days).build();
     }
 }

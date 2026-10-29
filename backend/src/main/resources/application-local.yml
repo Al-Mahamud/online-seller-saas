@@ -1,6 +1,9 @@
 # Local development only. Never enable this profile on a server.
 
 mojud:
+  security:
+    # A fixed key for local runs only (SecretBox); servers set ENCRYPTION_KEY.
+    encryption-key: 8ArFd5N5pBs+nsPRMVSU711bIi69acPf+4Pu3NGCL68=
   sms:
     provider: log
   email:

@@ -1,5 +1,9 @@
 package com.mojud.identity.auth;
 
+import com.mojud.identity.AuthenticatedUser;
+import com.mojud.shared.error.ApiException;
+import com.mojud.shared.error.ErrorCode;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -12,6 +16,8 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
@@ -73,8 +79,16 @@ class SecurityConfig {
                 // Hand security errors to ApiExceptionHandler, so they use the same problem format.
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint((request, response, e) -> errors.resolveException(request, response, null, e))
-                        .accessDeniedHandler((request, response, e) -> errors.resolveException(request, response, null, e)));
+                        .accessDeniedHandler((request, response, e) -> errors.resolveException(request, response, null,
+                                adminWithoutTwoFactor(request) ? new ApiException(ErrorCode.ADMIN_TWO_FACTOR_REQUIRED) : e)));
         return http.build();
+    }
+
+    /** A platform admin whose session did not pass two-step sign-in, asking for the admin area. */
+    private static boolean adminWithoutTwoFactor(HttpServletRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return request.getRequestURI().startsWith("/api/v1/admin/") && authentication != null
+                && authentication.getPrincipal() instanceof AuthenticatedUser user && user.platformAdmin() && !user.twoFactor();
     }
 
     /** Cross-origin requests only from the configured origins; none by default. */

@@ -13,7 +13,7 @@ class LoggingEmailSender implements EmailSender {
     private static final Logger log = LoggerFactory.getLogger(LoggingEmailSender.class);
 
     @Override
-    public void send(EmailAddress to, String subject, String body) {
-        log.info("Email to {}: {} / {}", to, subject, body);
+    public void send(EmailAddress to, EmailMessage message) {
+        log.info("Email to {}: {}\n{}", to, message.subject(), message.text());
     }
 }

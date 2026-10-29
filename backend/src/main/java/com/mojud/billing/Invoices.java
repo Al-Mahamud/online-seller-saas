@@ -83,6 +83,7 @@ class Invoices implements PaymentConfirmations {
     private final UserDirectory users;
     private final BusinessProfile profiles;
     private final Notifier notifier;
+    private final BillingEmails emails;
     private final AuditTrail audit;
     private final ApplicationEventPublisher events;
     private final JdbcClient jdbc;
@@ -94,8 +95,9 @@ class Invoices implements PaymentConfirmations {
     private final Environment environment;
 
     Invoices(Plans plans, Subscriptions subscriptions, SslCommerzClient gateway, UserDirectory users,
-            BusinessProfile profiles, Notifier notifier, AuditTrail audit, ApplicationEventPublisher events,
-            DataSource dataSource, JsonMapper json, PlatformTransactionManager transactionManager, Clock clock,
+            BusinessProfile profiles, Notifier notifier, BillingEmails emails, AuditTrail audit,
+            ApplicationEventPublisher events, DataSource dataSource, JsonMapper json,
+            PlatformTransactionManager transactionManager, Clock clock,
             @Value("${mojud.billing.vat-rate:0}") BigDecimal vatRate, Environment environment) {
         this.plans = plans;
         this.subscriptions = subscriptions;
@@ -103,6 +105,7 @@ class Invoices implements PaymentConfirmations {
         this.users = users;
         this.profiles = profiles;
         this.notifier = notifier;
+        this.emails = emails;
         this.audit = audit;
         this.events = events;
         this.jdbc = JdbcClient.create(dataSource);
@@ -333,7 +336,9 @@ class Invoices implements PaymentConfirmations {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("invoiceId", invoice.id().toString());
         payload.put("args", List.of(plans.get(invoice.planCode()).nameEn(), periodEnd == null ? "" : DAY.format(periodEnd)));
-        notifier.notify("billing.paid", BusinessRole.OWNER, payload, "billing.paid:" + invoice.id());
+        if (notifier.notify("billing.paid", BusinessRole.OWNER, payload, "billing.paid:" + invoice.id())) {
+            emails.receipt(invoice.id(), invoice.number(), invoice.planCode(), invoice.amount(), periodEnd);
+        }
         events.publishEvent(new InvoicePaid(businessId, invoice.id(), invoice.kind(), invoice.planCode(), invoice.amount(),
                 periodEnd));
     }

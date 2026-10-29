@@ -10,6 +10,7 @@ import com.mojud.support.CapturedMessages;
 import com.mojud.support.FakeSslCommerz;
 import com.mojud.support.IntegrationTest;
 import com.mojud.support.TestAccounts;
+import com.mojud.support.TestAdmins;
 import com.mojud.support.TestBusinesses;
 import com.mojud.support.TestClock;
 import java.nio.charset.StandardCharsets;
@@ -201,13 +202,7 @@ class BillingFlowTests {
                 .params(plan, Timestamp.from(start), Timestamp.from(end), business).update();
     }
 
-    /** A platform administrator, signed in afresh (the role is read at sign-in). */
     private ApiClient admin() {
-        ApiClient admin = new ApiClient(port);
-        TestAccounts.Account account = TestAccounts.signUp(admin, messages);
-        systemDatabase.jdbc().sql("update users set is_platform_admin = true where email = ?").param(account.email()).update();
-        ApiClient fresh = new ApiClient(port);
-        fresh.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password())).expectStatus(200);
-        return fresh;
+        return TestAdmins.signIn(port, messages, systemDatabase, clock);
     }
 }

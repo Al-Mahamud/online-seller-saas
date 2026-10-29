@@ -34,8 +34,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <li>reminders 7, 3 and 1 day before a trial or a period ends; warnings 60 and 85 days into
  * READ_ONLY, before data deletion at 90.
  * </ul>
- * Notifications go to the owner, at most one of each kind a day (dedupe keys), so a second run on
- * the same day changes nothing.
+ * Notifications go to the owner, in the app and by email, at most one of each kind a day (dedupe
+ * keys), so a second run on the same day changes nothing.
  */
 @Component
 class SubscriptionLifecycle implements SubscriptionAdvancer {
@@ -51,11 +51,13 @@ class SubscriptionLifecycle implements SubscriptionAdvancer {
     private final JdbcClient jdbc;
     private final TransactionTemplate transactions;
     private final Notifier notifier;
+    private final BillingEmails emails;
     private final AuditTrail audit;
     private final Clock clock;
 
     SubscriptionLifecycle(DataSource dataSource, PlatformTransactionManager transactionManager, Notifier notifier,
-            AuditTrail audit, Clock clock) {
+            BillingEmails emails, AuditTrail audit, Clock clock) {
+        this.emails = emails;
         this.jdbc = JdbcClient.create(dataSource);
         this.transactions = new TransactionTemplate(transactionManager);
         this.transactions.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -157,7 +159,9 @@ class SubscriptionLifecycle implements SubscriptionAdvancer {
     private void notify(String type, List<Object> args, String dedupeKey) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("args", args);
-        notifier.notify(type, BusinessRole.OWNER, payload, dedupeKey);
+        if (notifier.notify(type, BusinessRole.OWNER, payload, dedupeKey)) {
+            emails.reminder(type, args);
+        }
     }
 
     private static Instant instant(Timestamp timestamp) {
