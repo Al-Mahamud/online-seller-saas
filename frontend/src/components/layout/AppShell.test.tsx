@@ -40,11 +40,11 @@ describe("app shell", () => {
     await renderApp();
     const user = userEvent.setup();
 
-    await user.click(screen.getAllByRole("button", { name: "ইংরেজিতে দেখুন" })[0] as HTMLElement);
+    await user.click(screen.getAllByRole("button", { name: "English" })[0] as HTMLElement);
 
     expect(await screen.findByRole("heading", { name: "Today" })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe("en");
-    await user.click(screen.getAllByRole("button", { name: "Show in Bangla" })[0] as HTMLElement);
+    await user.click(screen.getAllByRole("button", { name: "বাংলা" })[0] as HTMLElement);
     expect(await screen.findByRole("heading", { name: "আজ" })).toBeInTheDocument();
   });
 

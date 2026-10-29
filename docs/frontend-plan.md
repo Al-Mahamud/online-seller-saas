@@ -101,7 +101,7 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 
 | Phase | Sub-phases | Status |
 |---|---|---|
-| F0 Skeleton, design, API client, CI, deploy | F0a skeleton, shell, API client · F0b end-to-end tests · F0c web image and deploy | F0a done |
+| F0 Skeleton, design, API client, CI, deploy | F0a skeleton, shell, API client · F0b end-to-end tests · F0c web image and deploy | F0a, F0b done |
 | F1–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
@@ -147,6 +147,18 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **CI:**
   - The `frontend` job runs lint, types, unit tests, build and size, and checks that `schema.d.ts` and the route tree match what's committed.
   - The Dependencies workflow also scans `package-lock.json`, and Dependabot proposes npm updates.
+
+**As built (F0b):**
+- **How it runs:** `npm run e2e` runs Playwright (`frontend/playwright.config.ts`).
+  - It starts the test backend (`spring-boot:test-run`) and the production build (`vite preview`, with the same `/api` and `/dev` proxy).
+  - Locally it reuses servers already running on 8080 and 4173; the backend must be `TestMojudApplication`.
+  - Chromium runs at two sizes: phone (390×844, touch) and laptop (1280×800).
+- **Helpers in `e2e/support`:**
+  - `signUp(request)` creates an account through the app's origin, reading the code from `/dev/otp`; each call uses a new phone number, so tests never collide.
+  - `expectAccessible(page)` runs axe for WCAG 2.2 A and AA.
+- **Tests:** the shell in both languages, the tabs, the language remembered across a reload, "+" only on phones, the not-found page, no sideways scrolling, and the API through the app's origin (sign-up, session cookie, answers in the requested language).
+- **Found by the accessibility scan:** the language button's spoken name differed from its visible text (WCAG 2.5.3). The visible "English"/"বাংলা" is now its name.
+- **CI:** an `e2e` job runs it all (about 20 s of tests after the build), and on failure keeps the report with screenshots and traces for 7 days.
 
 ### F1: Signing in and the account (3 days)
 
