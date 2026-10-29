@@ -35,3 +35,8 @@ updates:
     directory: /deploy/backup
     schedule:
       interval: weekly
+  # The web app image's bases (Node for the build, Caddy to serve).
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: weekly

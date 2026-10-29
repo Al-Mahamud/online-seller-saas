@@ -9,20 +9,20 @@ How to run Mojud once it is on a server (implementation-plan.md 13c). Setting up
 | Is it up? | `https://<APP_DOMAIN>/healthz` answers `{"status":"UP"}`. The Uptime workflow and any external monitor watch it. |
 | Errors | Sentry (with `SENTRY_DSN` set). Otherwise `docker compose logs --since 1h app`. |
 | Backups | Nightly at 02:30 Dhaka to the `mojud-backups` R2 bucket. `docker compose logs backup` shows each night. |
-| Updates | `docker compose pull app && docker compose up -d app` |
+| Updates | `docker compose pull app caddy && docker compose up -d app caddy` |
 | Restore drill | GitHub Actions, "Deploy check". It runs monthly, plus every change. |
 | Known vulnerabilities | GitHub Actions, "Dependencies" (weekly), and Dependabot pull requests. |
 
 ## Deploying and updating
 
-- **Every push to `main`:** if CI passes, a new image is published (`ghcr.io/al-mahamud/mojud-backend`, tagged with the commit and `latest`).
+- **Every push to `main`:** if CI passes, new images are published (`ghcr.io/al-mahamud/mojud-backend` and `mojud-web`, each tagged with the commit and `latest`).
 - **Updating the server:**
   ```sh
   docker compose exec backup backup.sh          # a backup first, if the update changes the database
-  docker compose pull app && docker compose up -d app
+  docker compose pull app caddy && docker compose up -d app caddy
   docker compose logs -f app                    # "Started MojudApplication"; database changes apply on start
   ```
-- **Choosing a version:** pin one with `APP_IMAGE=ghcr.io/al-mahamud/mojud-backend:<commit>` in `.env`.
+- **Choosing a version:** pin one with `APP_IMAGE=ghcr.io/al-mahamud/mojud-backend:<commit>` and `WEB_IMAGE=ghcr.io/al-mahamud/mojud-web:<commit>` in `.env`.
 - **Going back:**
   - Without a database change in between, pin the previous commit.
   - With one, restore the backup taken just before.

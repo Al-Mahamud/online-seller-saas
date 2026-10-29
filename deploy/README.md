@@ -6,7 +6,7 @@ One server with Docker runs everything (implementation-plan.md 13b):
 |---|---|
 | `db` | PostgreSQL 18. Its data lives in the `db-data` volume. No port is open to the internet. |
 | `app` | The Mojud backend image, built by CI from `main` (`ghcr.io/al-mahamud/mojud-backend`). |
-| `caddy` | HTTPS for `APP_DOMAIN`: gets and renews the certificate, sends `/api` and `/healthz` to the app, and serves the web app's files from `web/` (a placeholder for now). |
+| `caddy` | The web app's image (`ghcr.io/al-mahamud/mojud-web`: Caddy plus the built files, by CI from `frontend/`). HTTPS for `APP_DOMAIN`: gets and renews the certificate, sends `/api` and `/healthz` to the app, and serves the web app with its own security headers. |
 | `backup` | Every night, an encrypted copy of the database goes to a Cloudflare R2 bucket. |
 
 Uploaded images go to their own private R2 bucket, so the server's disk holds nothing that the backups miss. Losing the server loses nothing that cannot be restored.
@@ -40,7 +40,7 @@ The whole setup, backup and restore included, runs on every change in CI (`.gith
    ```
    - Put the backup key's public half (`age1...`) in `AGE_RECIPIENT`.
    - Keep a copy of `ENCRYPTION_KEY` with the backup key. A restored database needs it for two-step sign-in.
-4. **Let the server pull the image.** The image is private, like the repository. Use a GitHub token with only `read:packages`:
+4. **Let the server pull the images.** They are private, like the repository. Use a GitHub token with only `read:packages`:
    ```sh
    echo <token> | docker login ghcr.io -u Al-Mahamud --password-stdin
    ```
@@ -60,15 +60,16 @@ The whole setup, backup and restore included, runs on every change in CI (`.gith
 
 ## Updating
 
-Every push to `main` that passes CI publishes a new image, tagged `latest` and with its commit.
+Every push to `main` that passes CI publishes new images (backend and web app), tagged `latest` and with their commit.
 
 ```sh
-docker compose pull app && docker compose up -d app
+docker compose pull app caddy && docker compose up -d app caddy
 ```
 
 - **Database changes:** they apply on start (Flyway).
 - **Short downtime:** requests in progress get 25 seconds to finish.
-- **Choosing a version:** to pin one, set `APP_IMAGE=ghcr.io/al-mahamud/mojud-backend:<commit>`.
+- **Choosing a version:** to pin one, set `APP_IMAGE=ghcr.io/al-mahamud/mojud-backend:<commit>` and `WEB_IMAGE=ghcr.io/al-mahamud/mojud-web:<commit>`, usually the same commit.
+- **The web app updates at once:** browsers check `index.html` on every visit; the files it names are new names, cached for a year.
 - **Going back to an older version:** this works only if no database change came in between. Otherwise restore the backup taken before the update.
 
 ## Backups

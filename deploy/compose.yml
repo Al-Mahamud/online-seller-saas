@@ -68,8 +68,9 @@ services:
     expose:
       - "8080"
 
+  # Caddy with the web app's files (built by CI from frontend/; the image is caddy:2 plus them).
   caddy:
-    image: caddy:2
+    image: ${WEB_IMAGE:-ghcr.io/al-mahamud/mojud-web:latest}
     restart: unless-stopped
     depends_on:
       - app
@@ -82,8 +83,6 @@ services:
       - "443:443/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      # The web app's built files (a placeholder until the frontend exists).
-      - ./web:/srv/web:ro
       - caddy-data:/data
       - caddy-config:/config
 

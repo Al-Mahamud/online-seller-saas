@@ -101,7 +101,7 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 
 | Phase | Sub-phases | Status |
 |---|---|---|
-| F0 Skeleton, design, API client, CI, deploy | F0a skeleton, shell, API client · F0b end-to-end tests · F0c web image and deploy | F0a, F0b done |
+| F0 Skeleton, design, API client, CI, deploy | F0a skeleton, shell, API client · F0b end-to-end tests · F0c web image and deploy | Done |
 | F1–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
@@ -159,6 +159,21 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Tests:** the shell in both languages, the tabs, the language remembered across a reload, "+" only on phones, the not-found page, no sideways scrolling, and the API through the app's origin (sign-up, session cookie, answers in the requested language).
 - **Found by the accessibility scan:** the language button's spoken name differed from its visible text (WCAG 2.5.3). The visible "English"/"বাংলা" is now its name.
 - **CI:** an `e2e` job runs it all (about 20 s of tests after the build), and on failure keeps the report with screenshots and traces for 7 days.
+
+**As built (F0c):**
+- **The image:** `frontend/Dockerfile` builds the app on the builder's platform and copies `dist/` into `caddy:2` at `/srv/web`.
+  - On `main`, CI's `web-image` job pushes `ghcr.io/al-mahamud/mojud-web` (amd64 and arm64, tagged with the commit and `latest`) once `frontend` and `e2e` pass.
+  - The backend image now also waits for `e2e`.
+- **On the server:** `deploy/compose.yml` runs it as `caddy` (`WEB_IMAGE`), replacing the placeholder page.
+- **Caddy for the web app** (the API keeps its own headers):
+  - Security headers: a Content-Security-Policy allowing only this server (inline styles allowed), HSTS, nosniff, `Referrer-Policy: same-origin`, and the same Permissions-Policy as the API.
+  - `/assets/*` cached for a year, a missing file a 404; everything else `no-cache`, with the app's routes answered by `index.html`.
+- **The deploy drill:**
+  - Checks those headers, a deep link, an asset's caching and a missing asset's 404.
+  - Runs `e2e/shell.spec.ts` in Chromium against `https://localhost` (`E2E_BASE_URL`), so a policy that blocks the app shows up as a failure.
+  - The shell tests fail on any console error.
+- **Dependabot:** watches the image's bases.
+- **Pending with 13b:** the real server, and the domain (the plan's open decision 5).
 
 ### F1: Signing in and the account (3 days)
 

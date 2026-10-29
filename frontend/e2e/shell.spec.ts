@@ -1,6 +1,24 @@
 import { expect, test } from "@playwright/test";
 import { expectAccessible } from "./support/axe";
 
+// Script errors and blocked resources (a Content-Security-Policy too strict, in the deploy drill)
+// show up in the console.
+let consoleErrors: string[] = [];
+
+test.beforeEach(({ page }) => {
+  consoleErrors = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => consoleErrors.push(error.message));
+});
+
+test.afterEach(() => {
+  expect(consoleErrors).toEqual([]);
+});
+
 /** The navigation people see: the bottom tabs on a phone, the sidebar on a laptop. */
 function mainNavigation(page: import("@playwright/test").Page) {
   return page.getByRole("navigation", { name: /প্রধান|Main/ });
