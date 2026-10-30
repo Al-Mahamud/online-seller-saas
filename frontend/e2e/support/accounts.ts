@@ -61,3 +61,17 @@ export async function signUp(request: APIRequestContext, { name = "Test Seller",
   expect(created.status()).toBe(201);
   return { phone, password: PASSWORD, name };
 }
+
+/** An account with a business, signed in: what most tests start from. */
+export async function signUpWithBusiness(
+  request: APIRequestContext,
+  { name = "Test Seller", language = "bn", business = "রহিমার কুর্তি হাউস" } = {},
+) {
+  const account = await signUp(request, { name, language });
+  const created = await request.post("/api/v1/businesses", {
+    headers: { "X-XSRF-TOKEN": await csrfToken(request) },
+    data: { name: business },
+  });
+  expect(created.status()).toBe(201);
+  return account;
+}

@@ -1,9 +1,9 @@
-import { signUp } from "./support/accounts";
+import { signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { expect, test } from "./support/test";
 
 test.beforeEach(async ({ page }) => {
-  await signUp(page.request);
+  await signUpWithBusiness(page.request);
 });
 
 /** The navigation people see: the bottom tabs on a phone, the sidebar on a laptop. */

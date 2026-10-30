@@ -1,6 +1,7 @@
-import type { FieldValues, Path, UseFormReturn } from "react-hook-form";
+import type { FieldValues, Path } from "react-hook-form";
 import { ApiError, errorAction } from "@/api/errors";
 import { errorText } from "@/api/query";
+import type { FormOf } from "./fields";
 
 interface Mapping<T extends FieldValues> {
   /** The server's field name, where it differs from the form's: the code request calls it `to`. */
@@ -10,11 +11,7 @@ interface Mapping<T extends FieldValues> {
 }
 
 /** Shows a refused request in the form: under the fields it names, or above the form otherwise. */
-export function showServerError<T extends FieldValues>(
-  form: UseFormReturn<T>,
-  error: unknown,
-  mapping: Mapping<T> = {},
-) {
+export function showServerError<T extends FieldValues>(form: FormOf<T>, error: unknown, mapping: Mapping<T> = {}) {
   const action = errorAction(error);
   if (action.kind === "fields") {
     const known = Object.keys(form.getValues());

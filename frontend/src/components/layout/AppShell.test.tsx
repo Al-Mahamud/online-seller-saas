@@ -3,6 +3,7 @@ import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { type Business, businessQuery, initials } from "@/api/business";
 import { createQueryClient } from "@/api/query";
 import { meQuery } from "@/api/session";
 import { setLanguage } from "@/i18n";
@@ -20,9 +21,20 @@ const me = {
   twoFactorEnabled: false,
 };
 
+const business: Business = {
+  id: "01a18877-ca42-75fd-abc5-98a57110a443",
+  name: "রহিমার কুর্তি হাউস",
+  phone: null,
+  address: null,
+  logo: null,
+  role: "OWNER",
+  deletionDueAt: null,
+};
+
 async function renderApp(path = "/", account: typeof me | null = me) {
   const queryClient = createQueryClient();
   queryClient.setQueryData(meQuery.queryKey, account);
+  queryClient.setQueryData(businessQuery.queryKey, business);
   const router = createAppRouter(queryClient, createMemoryHistory({ initialEntries: [path] }));
   await router.load();
   render(
@@ -36,6 +48,15 @@ async function renderApp(path = "/", account: typeof me | null = me) {
 afterEach(async () => {
   vi.unstubAllGlobals();
   await setLanguage("bn");
+});
+
+describe("initials", () => {
+  it("takes the first letter of two words, keeping Bangla letters whole", () => {
+    expect(initials("Rahima's Kurti House")).toBe("RK");
+    expect(initials("রহিমার কুর্তি হাউস")).toBe("রকু");
+    expect(initials("ক্ষুদ্র দোকান")).toBe("ক্ষুদো");
+    expect(initials("Mojud")).toBe("M");
+  });
 });
 
 describe("app shell", () => {
@@ -74,6 +95,12 @@ describe("app shell", () => {
     await vi.waitFor(() => expect(saved).toEqual([{ locale: "en" }]));
     await user.click(screen.getAllByRole("button", { name: "বাংলা" })[0] as HTMLElement);
     expect(await screen.findByRole("heading", { name: "আজ" })).toBeInTheDocument();
+  });
+
+  it("shows the business in the switcher", async () => {
+    await renderApp();
+
+    expect(screen.getAllByRole("button", { name: /রহিমার কুর্তি হাউস/ })).toHaveLength(2);
   });
 
   it("marks the open tab", async () => {

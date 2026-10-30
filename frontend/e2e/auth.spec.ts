@@ -1,18 +1,22 @@
 import type { Page } from "@playwright/test";
-import { lastCode, newEmail, newPhone, PASSWORD, readCode, signUp } from "./support/accounts";
+import { lastCode, newEmail, newPhone, PASSWORD, readCode, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { expect, test } from "./support/test";
 
 const label = (page: Page, name: string) => page.getByLabel(name, { exact: true });
 
-/** The Today page, which only someone signed in reaches. */
-async function expectSignedIn(page: Page) {
+/** Someone new lands on creating their first business. */
+async function expectFirstRun(page: Page) {
+  await expect(page.getByRole("heading", { level: 1, name: "আপনার ব্যবসা যোগ করুন" })).toBeVisible();
+}
+
+async function expectToday(page: Page) {
   await expect(page.getByRole("navigation", { name: "প্রধান" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "আজ" })).toBeVisible();
 }
 
-async function signOut(page: Page) {
-  await page.getByRole("navigation", { name: "প্রধান" }).getByRole("link", { name: "আরও" }).click();
+/** From the first-run page, which has no tabs. */
+async function signOutFromFirstRun(page: Page) {
   await page.getByRole("button", { name: "লগ আউট" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "আবার স্বাগতম" })).toBeVisible();
 }
@@ -38,11 +42,11 @@ test("signs up with a code by SMS, stays signed in, signs out", async ({ page })
   await label(page, "৬ সংখ্যার কোড").fill(await readCode(page.request, phone));
   await page.getByRole("button", { name: "অ্যাকাউন্ট খুলুন" }).click();
 
-  await expectSignedIn(page);
+  await expectFirstRun(page);
   await page.reload();
-  await expectSignedIn(page);
+  await expectFirstRun(page);
 
-  await signOut(page);
+  await signOutFromFirstRun(page);
   await page.goto("/products");
   await expect(page).toHaveURL(/\/sign-in/);
 });
@@ -60,11 +64,11 @@ test("signs up with a code by email and signs in with that email", async ({ page
 
   await label(page, "৬ সংখ্যার কোড").fill(await readCode(page.request, email));
   await page.getByRole("button", { name: "অ্যাকাউন্ট খুলুন" }).click();
-  await expectSignedIn(page);
+  await expectFirstRun(page);
 
-  await signOut(page);
+  await signOutFromFirstRun(page);
   await signInWithPassword(page, email, PASSWORD);
-  await expectSignedIn(page);
+  await expectFirstRun(page);
 });
 
 test("checks the sign-up form before sending anything", async ({ page }) => {
@@ -104,7 +108,7 @@ async function xsrf(page: Page): Promise<string> {
 
 /** An account in a browser that has signed out again. */
 async function signedOutAccount(page: Page) {
-  const account = await signUp(page.request);
+  const account = await signUpWithBusiness(page.request);
   await page.request.post("/api/v1/auth/logout", { headers: { "X-XSRF-TOKEN": await xsrf(page) } });
   return account;
 }
@@ -152,7 +156,7 @@ test("signs in with a code, and refuses a wrong one", async ({ page }) => {
 
   await label(page, "৬ সংখ্যার কোড").fill(code);
   await page.getByRole("button", { name: "লগ ইন", exact: true }).click();
-  await expectSignedIn(page);
+  await expectToday(page);
 });
 
 test("sets a new password with a code", async ({ page }) => {
@@ -169,19 +173,19 @@ test("sets a new password with a code", async ({ page }) => {
 
   await expect(page.getByRole("heading", { level: 1, name: "আবার স্বাগতম" })).toBeVisible();
   await signInWithPassword(page, account.phone, "a-new-password-2");
-  await expectSignedIn(page);
+  await expectToday(page);
 });
 
 test("someone signed in does not see the sign-in page", async ({ page }) => {
-  await signUp(page.request);
+  await signUpWithBusiness(page.request);
 
   await page.goto("/sign-in");
 
-  await expectSignedIn(page);
+  await expectToday(page);
 });
 
 test("when the session ends, the next request leads to sign-in", async ({ page }) => {
-  await signUp(page.request);
+  await signUpWithBusiness(page.request);
   await page.goto("/more");
   await expect(page.getByRole("button", { name: "লগ আউট" })).toBeVisible();
 

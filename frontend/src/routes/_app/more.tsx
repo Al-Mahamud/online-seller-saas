@@ -1,34 +1,33 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, type LinkProps } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { api, call } from "@/api/client";
-import { signedOut, useMe } from "@/api/session";
+import { hasRole, useBusiness } from "@/api/business";
+import { useMe } from "@/api/session";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
+import { useSignOut } from "@/features/account/useSignOut";
 
 export const Route = createFileRoute("/_app/more")({
   component: More,
 });
 
-/** The account now; customers, staff, settings, billing and the rest from F2 onwards. */
+/** Everything that isn't a tab: the business and the account; customers, billing and the rest from F5 onwards. */
 function More() {
   const { t } = useTranslation();
   const me = useMe();
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const signOut = useMutation({
-    mutationFn: () => call(api.POST("/api/v1/auth/logout")),
-    onSuccess: () => {
-      signedOut(queryClient);
-      void navigate({ to: "/sign-in" });
-    },
-  });
-
+  const business = useBusiness();
+  const signOut = useSignOut();
   return (
-    <>
+    <div className="flex max-w-md flex-col gap-4">
       <PageHeader title={t("nav.more")} />
-      <section className="flex max-w-md flex-col gap-3 rounded-xl border bg-card p-4">
+      {hasRole(business, "MANAGER") && (
+        <section className="rounded-xl border bg-card px-4 py-1">
+          <nav aria-label={t("business.title")} className="flex flex-col">
+            <MoreLink to="/settings/business" label={t("business.title")} />
+          </nav>
+        </section>
+      )}
+      <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
         <div>
           <p className="font-semibold">{me.name}</p>
           <p className="text-sm text-muted-foreground">{me.email ?? me.phone}</p>
@@ -41,13 +40,16 @@ function More() {
           {t("account.signOut")}
         </Button>
       </section>
-    </>
+    </div>
   );
 }
 
-function MoreLink({ to, label }: { to: "/settings/account" | "/settings/security"; label: string }) {
+function MoreLink({ to, label }: { to: LinkProps["to"]; label: string }) {
   return (
-    <Link to={to} className="flex min-h-12 items-center justify-between border-t text-foreground no-underline">
+    <Link
+      to={to}
+      className="flex min-h-12 items-center justify-between border-t text-foreground no-underline first:border-t-0"
+    >
       {label}
       <ChevronRight aria-hidden="true" className="size-5 text-muted-foreground" />
     </Link>

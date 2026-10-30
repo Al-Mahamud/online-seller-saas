@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { businessQuery } from "@/api/business";
 import { accountLanguage, meQuery } from "@/api/session";
 import { AppShell } from "@/components/layout/AppShell";
 import { currentLanguage, setLanguage } from "@/i18n";
@@ -13,7 +14,11 @@ export const Route = createFileRoute("/_app")({
     if (accountLanguage(me) !== currentLanguage()) {
       await setLanguage(accountLanguage(me));
     }
-    return { me };
+    const business = await context.queryClient.ensureQueryData(businessQuery);
+    if (!business) {
+      throw redirect({ to: "/welcome" });
+    }
+    return { me, business };
   },
   component: () => (
     <AppShell>

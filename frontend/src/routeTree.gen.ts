@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppMoreRouteImport } from './routes/_app/more'
 import { Route as AppProductsRouteImport } from './routes/_app/products'
@@ -20,6 +21,7 @@ import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
 import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings/account'
+import { Route as AppSettingsBusinessRouteImport } from './routes/_app/settings/business'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 
 const AppRoute = AppRouteImport.update({
@@ -28,6 +30,11 @@ const AppRoute = AppRouteImport.update({
 } as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -75,6 +82,11 @@ const AppSettingsAccountRoute = AppSettingsAccountRouteImport.update({
   path: '/settings/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsBusinessRoute = AppSettingsBusinessRouteImport.update({
+  id: '/settings/business',
+  path: '/settings/business',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
   id: '/settings/security',
   path: '/settings/security',
@@ -83,6 +95,7 @@ const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
   '/products': typeof AppProductsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -90,11 +103,13 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof AuthSignUpRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/settings/account': typeof AppSettingsAccountRoute
+  '/settings/business': typeof AppSettingsBusinessRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/orders/': typeof AppOrdersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
+  '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
   '/products': typeof AppProductsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -102,6 +117,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof AuthSignUpRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/settings/account': typeof AppSettingsAccountRoute
+  '/settings/business': typeof AppSettingsBusinessRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/orders': typeof AppOrdersIndexRoute
 }
@@ -109,6 +125,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
+  '/welcome': typeof WelcomeRoute
   '/_app/more': typeof AppMoreRoute
   '/_app/products': typeof AppProductsRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -117,6 +134,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/settings/account': typeof AppSettingsAccountRoute
+  '/_app/settings/business': typeof AppSettingsBusinessRoute
   '/_app/settings/security': typeof AppSettingsSecurityRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
 }
@@ -124,6 +142,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/welcome'
     | '/more'
     | '/products'
     | '/forgot-password'
@@ -131,11 +150,13 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/orders/new'
     | '/settings/account'
+    | '/settings/business'
     | '/settings/security'
     | '/orders/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/welcome'
     | '/more'
     | '/products'
     | '/forgot-password'
@@ -143,12 +164,14 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/orders/new'
     | '/settings/account'
+    | '/settings/business'
     | '/settings/security'
     | '/orders'
   id:
     | '__root__'
     | '/_app'
     | '/_auth'
+    | '/welcome'
     | '/_app/more'
     | '/_app/products'
     | '/_auth/forgot-password'
@@ -157,6 +180,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/orders/new'
     | '/_app/settings/account'
+    | '/_app/settings/business'
     | '/_app/settings/security'
     | '/_app/orders/'
   fileRoutesById: FileRoutesById
@@ -164,6 +188,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  WelcomeRoute: typeof WelcomeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -180,6 +205,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -245,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/business': {
+      id: '/_app/settings/business'
+      path: '/settings/business'
+      fullPath: '/settings/business'
+      preLoaderRoute: typeof AppSettingsBusinessRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/security': {
       id: '/_app/settings/security'
       path: '/settings/security'
@@ -261,6 +300,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
   AppSettingsAccountRoute: typeof AppSettingsAccountRoute
+  AppSettingsBusinessRoute: typeof AppSettingsBusinessRoute
   AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
 }
@@ -271,6 +311,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
   AppSettingsAccountRoute: AppSettingsAccountRoute,
+  AppSettingsBusinessRoute: AppSettingsBusinessRoute,
   AppSettingsSecurityRoute: AppSettingsSecurityRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
 }
@@ -294,6 +335,7 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  WelcomeRoute: WelcomeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

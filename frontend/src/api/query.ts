@@ -40,12 +40,28 @@ declare module "@tanstack/react-query" {
   }
 }
 
-/** `onSignedOut`: the server said the session is gone (expired, or signed out elsewhere). */
-export function createQueryClient({ onSignedOut }: { onSignedOut?: () => void } = {}) {
+/**
+ * `onSignedOut`: the server said the session is gone (expired, or signed out elsewhere).
+ * `onAccessChanged`: the server said no business is selected, or refused on the role: a member's
+ * business or role may have changed.
+ */
+export function createQueryClient({
+  onSignedOut,
+  onAccessChanged,
+}: {
+  onSignedOut?: () => void;
+  onAccessChanged?: () => void;
+} = {}) {
   const handle = (error: unknown, showsOwnErrors: boolean | undefined) => {
-    if (errorAction(error).kind === "sign-in") {
+    const { kind } = errorAction(error);
+    if (kind === "sign-in") {
       onSignedOut?.();
-    } else if (!showsOwnErrors) {
+      return;
+    }
+    if (kind === "pick-business" || (error instanceof ApiError && error.status === 403)) {
+      onAccessChanged?.();
+    }
+    if (!showsOwnErrors) {
       showError(error);
     }
   };

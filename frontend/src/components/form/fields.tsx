@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import i18n from "@/i18n";
 
 /** Our own messages arrive from the form's rules as text keys; the server's are already translated. */
@@ -13,10 +14,14 @@ function fieldMessage(message: string | undefined): string | undefined {
   return message && i18n.exists(message) ? i18n.t(message as never) : message;
 }
 
+/** Any form over these field values, whatever its rules turn them into when submitted (text to a number). */
+// biome-ignore lint/suspicious/noExplicitAny: the submitted type does not matter to a field.
+export type FormOf<T extends FieldValues> = UseFormReturn<T, any, any>;
+
 type InputProps = Omit<ComponentProps<typeof Input>, "form" | "name">;
 
 interface FieldProps<T extends FieldValues> extends InputProps {
-  form: UseFormReturn<T>;
+  form: FormOf<T>;
   name: Path<T>;
   label: string;
   hint?: string;
@@ -37,6 +42,46 @@ export function TextField<T extends FieldValues>({ form, name, label, hint, ...i
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         {...input}
+        {...form.register(name)}
+      />
+      {hint && (
+        <p id={`${id}-hint`} className="text-sm text-muted-foreground">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={`${id}-error`} className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Longer text, with the same label, hint and error as a TextField. */
+export function TextAreaField<T extends FieldValues>({
+  form,
+  name,
+  label,
+  hint,
+}: {
+  form: FormOf<T>;
+  name: Path<T>;
+  label: string;
+  hint?: string;
+}) {
+  const id = useId();
+  const error = fieldMessage(form.getFieldState(name, form.formState).error?.message);
+  const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id} className="text-[15px] leading-normal font-semibold">
+        {label}
+      </Label>
+      <Textarea
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
         {...form.register(name)}
       />
       {hint && (
@@ -81,7 +126,7 @@ export function CodeField<T extends FieldValues>(props: FieldProps<T>) {
 }
 
 /** A problem with the form as a whole, such as a wrong password. */
-export function FormError<T extends FieldValues>({ form }: { form: UseFormReturn<T> }) {
+export function FormError<T extends FieldValues>({ form }: { form: FormOf<T> }) {
   const message = fieldMessage(form.formState.errors.root?.message);
   return message ? (
     <Alert variant="destructive">

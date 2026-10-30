@@ -74,7 +74,11 @@
     "nameLong": "The name can't be longer than 120 characters.",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
-    "codeLong": "That code is too long. Please check it."
+    "codeLong": "That code is too long. Please check it.",
+    "numberRange": "Enter a number from 0 to 1,00,000.",
+    "prefixInvalid": "Only English letters, digits and hyphens, up to 10.",
+    "footerLong": "This can't be longer than 500 characters.",
+    "addressLong": "The address can't be longer than 300 characters."
   },
   "auth": {
     "login": "Phone number or email",
@@ -157,5 +161,48 @@
     "offStep": "To turn it off, enter your password and a code from the app, or a recovery code.",
     "appOrRecovery": "App code or recovery code",
     "offDone": "Two-step sign-in has been turned off."
+  },
+  "business": {
+    "title": "Business",
+    "switch": "Switch business",
+    "new": "New business",
+    "name": "Business name",
+    "phone": "Business phone number (optional)",
+    "address": "Address (optional)",
+    "create": "Create business",
+    "lost": "You're no longer a member of \"{{name}}\".",
+    "role": {
+      "OWNER": "Owner",
+      "MANAGER": "Manager",
+      "STAFF": "Staff"
+    },
+    "welcome": {
+      "title": "Add your business",
+      "subtitle": "To start, give the name of your shop or page. The rest can wait.",
+      "invited": "If someone invited you to their business, open the link they sent you."
+    },
+    "profile": {
+      "title": "Business details",
+      "logo": "Logo",
+      "logoAlt": "Business logo",
+      "upload": "Upload a logo",
+      "change": "Change logo",
+      "remove": "Remove logo",
+      "logoHint": "JPEG, PNG or WebP, up to 8 MB."
+    },
+    "settings": {
+      "title": "Orders and stock",
+      "stockQuestion": "When should stock go down?",
+      "SHIP": "When handed to the courier",
+      "SHIPHint": "Confirming an order sets the stock aside; it goes down when handed to the courier.",
+      "CONFIRM": "When the order is confirmed",
+      "CONFIRMHint": "Stock goes down as soon as an order is confirmed.",
+      "lowStock": "Low-stock level",
+      "lowStockHint": "Used for products without a level of their own.",
+      "prefix": "Start of order numbers",
+      "prefixHint": "English letters, digits and hyphens, up to 10. For example RK-",
+      "footer": "Text at the bottom of slips",
+      "footerHint": "Printed at the bottom of packing slips, such as thanks or a returns policy."
+    }
   }
 }

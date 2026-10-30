@@ -2199,14 +2199,14 @@ export interface components {
             selected: boolean;
         };
         BusinessResponse: {
-            address: string;
+            address: string | null;
             /** Format: date-time */
-            deletionDueAt: string;
+            deletionDueAt: string | null;
             /** Format: uuid */
             id: string;
-            logo: components["schemas"]["FileLinks"];
+            logo: components["schemas"]["FileLinks"] | null;
             name: string;
-            phone: string;
+            phone: string | null;
             /** @enum {string} */
             role: "OWNER" | "MANAGER" | "STAFF";
         };

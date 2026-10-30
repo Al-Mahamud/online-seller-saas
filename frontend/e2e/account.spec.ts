@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { newEmail, PASSWORD, readCode, signUp } from "./support/accounts";
+import { newEmail, PASSWORD, readCode, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { expect, test } from "./support/test";
 import { totp } from "./support/totp";
@@ -21,7 +21,7 @@ async function signIn(page: Page, login: string, password: string) {
 const today = (page: Page) => page.getByRole("heading", { level: 1, name: "আজ" });
 
 test("reaches the account pages from More", async ({ page }) => {
-  await signUp(page.request, { name: "Rahima Khatun" });
+  await signUpWithBusiness(page.request, { name: "Rahima Khatun" });
   await page.goto("/more");
 
   await expect(page.getByText("Rahima Khatun")).toBeVisible();
@@ -36,7 +36,7 @@ test("reaches the account pages from More", async ({ page }) => {
 });
 
 test("changes the name and the language", async ({ page }) => {
-  await signUp(page.request);
+  await signUpWithBusiness(page.request);
   await page.goto("/settings/account");
 
   await label(page, "নাম").fill("Rahima Khatun");
@@ -56,7 +56,7 @@ test("changes the name and the language", async ({ page }) => {
 });
 
 test("adds an email with a code and the password", async ({ page }) => {
-  await signUp(page.request);
+  await signUpWithBusiness(page.request);
   const email = newEmail();
   await page.goto("/settings/account");
 
@@ -81,7 +81,7 @@ test("adds an email with a code and the password", async ({ page }) => {
 });
 
 test("changes the password, refusing a wrong current one", async ({ page }) => {
-  const account = await signUp(page.request);
+  const account = await signUpWithBusiness(page.request);
   await page.goto("/settings/security");
 
   await label(page, "বর্তমান পাসওয়ার্ড").fill("not-the-password");
@@ -99,7 +99,7 @@ test("changes the password, refusing a wrong current one", async ({ page }) => {
 });
 
 test("turns on two-step sign-in, signs in with it, and turns it off", async ({ page }) => {
-  const account = await signUp(page.request);
+  const account = await signUpWithBusiness(page.request);
   await page.goto("/settings/security");
 
   // Turning it on: the password, the QR code, then the app's first code.
@@ -167,7 +167,7 @@ test("turns on two-step sign-in, signs in with it, and turns it off", async ({ p
 });
 
 test("makes new recovery codes with a code from the app", async ({ page }) => {
-  await signUp(page.request);
+  await signUpWithBusiness(page.request);
   await page.goto("/settings/security");
   await page.getByRole("button", { name: "চালু করুন" }).click();
   const dialog = page.getByRole("dialog");

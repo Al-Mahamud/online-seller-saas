@@ -103,7 +103,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 |---|---|---|
 | F0 Skeleton, design, API client, CI, deploy | F0a skeleton, shell, API client · F0b end-to-end tests · F0c web image and deploy | Done |
 | F1 Signing in and the account | F1a sign-up, sign-in, forgot password, pages behind sign-in · F1b account settings, two-step sign-in | Done |
-| F2–F11 | | Not started |
+| F2 Business, team and settings | F2a first business, switcher, details, logo, settings · F2b staff, invites, leaving, audit log, deleting | F2a done |
+| F3–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -246,6 +247,18 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Deleting the business:** password, 7-day countdown banner, undo.
 
 **Checked by:** e2e: an owner invites a manager, who joins from the link on a second browser; the manager cannot see owner-only pages; staff removal signs the staff member out of that business.
+
+**As built (F2a):**
+- **The guard:** `_app` also needs a selected business. With none it goes to `/welcome`, a form with the business's name (phone and address optional), and sign-out for those who came to join someone else's.
+- **Which business:** `businessQuery` (`GET /business`) is the selected one, and it carries the role.
+  - The server moves the selection by itself when a member is removed: the next request silently runs in their other business, or none. So the app reads it again every minute and on returning to the app, and an answer naming another business means a warning, all cached data dropped, and a new start at Today.
+  - A `business.not_selected` or 403 from any request triggers the same check.
+  - Known gap: within that minute, a write by someone removed at that moment could land in their other business. It takes a person in two businesses, removed mid-use; the fix would be sending the expected business with each write.
+- **Roles:** `hasRole` hides what a role cannot do and `requireRole` keeps pages out of reach, with the server still deciding.
+- **Switcher:** in the header on phones and the sidebar on laptops: logo or initials, name, role. The list loads when opened; it can create another business. Switching drops everything cached from the other one.
+- **`/settings/business`** (managers and owners): details; logo upload, change and remove (the server's message for an image too small or too large); when stock goes down, low-stock level, order number start (upper-cased as typed), slip footer.
+- **Accessibility scan caught:** the switcher's spoken name (now hidden text plus the visible name), and a menu hiding the page from screen readers while open (`modal={false}`).
+- **A bug the tests caught:** several requests failing together when a session ended each added a "return to" onto the sign-in link. Only the first counts now.
 
 ### F3: Products and stock (5 days)
 

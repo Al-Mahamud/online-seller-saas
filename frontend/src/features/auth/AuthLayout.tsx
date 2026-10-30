@@ -2,18 +2,24 @@ import { Outlet } from "@tanstack/react-router";
 import { Brand } from "@/components/layout/Brand";
 import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
-/** The frame of the signing-in pages: one column, as in the mockup. */
-export function AuthLayout() {
+/** The frame of the pages without tabs, such as signing in: one column, as in the mockup. */
+export function SimpleFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 px-5.5 pt-5 pb-7">
       <header className="flex items-center justify-between">
         <Brand large />
         <LanguageToggle />
       </header>
-      <main className="flex flex-1 flex-col gap-5 pt-4">
-        <Outlet />
-      </main>
+      <main className="flex flex-1 flex-col gap-5 pt-4">{children}</main>
     </div>
+  );
+}
+
+export function AuthLayout() {
+  return (
+    <SimpleFrame>
+      <Outlet />
+    </SimpleFrame>
   );
 }
 
