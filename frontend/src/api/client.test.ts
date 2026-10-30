@@ -85,7 +85,10 @@ describe("the business a write means", () => {
   });
 
   it("treats the server's refusal like a moved business", () => {
-    const error = ApiError.from(new Response(null, { status: 409 }), { code: "business.changed", detail: "Not saved." });
+    const error = ApiError.from(new Response(null, { status: 409 }), {
+      code: "business.changed",
+      detail: "Not saved.",
+    });
     expect(errorAction(error)).toEqual({ kind: "pick-business" });
   });
 });
