@@ -1,4 +1,4 @@
-import { Link, type LinkProps } from "@tanstack/react-router";
+import { Link, type LinkProps, useLocation } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -30,6 +30,9 @@ function HomeLink() {
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
+  // It would only cover the buttons of the account pages, and the new-order page itself.
+  const { pathname } = useLocation();
+  const showsNewOrder = !/^\/(more|settings|orders\/new)/.test(pathname);
   return (
     <div className="min-h-dvh md:flex">
       <nav
@@ -61,13 +64,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="flex-1 px-4 pt-4 pb-28 md:px-10 md:pt-8 md:pb-12">{children}</main>
       </div>
 
-      <Link
-        to="/orders/new"
-        aria-label={t("orders.new")}
-        className="fixed right-4.5 bottom-[calc(84px+env(safe-area-inset-bottom))] z-20 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(23,32,27,0.18)] md:hidden"
-      >
-        <Plus aria-hidden="true" className="size-6" strokeWidth={2.4} />
-      </Link>
+      {showsNewOrder && (
+        <Link
+          to="/orders/new"
+          aria-label={t("orders.new")}
+          className="fixed right-4.5 bottom-[calc(84px+env(safe-area-inset-bottom))] z-20 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(23,32,27,0.18)] md:hidden"
+        >
+          <Plus aria-hidden="true" className="size-6" strokeWidth={2.4} />
+        </Link>
+      )}
 
       <nav
         aria-label={t("nav.main")}

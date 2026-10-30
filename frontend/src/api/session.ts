@@ -1,4 +1,5 @@
-import { type QueryClient, queryOptions } from "@tanstack/react-query";
+import { type QueryClient, queryOptions, useQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 import { type Language, setLanguage } from "@/i18n";
 import { api, call } from "./client";
 import { ApiError } from "./errors";
@@ -23,6 +24,19 @@ export const meQuery = queryOptions({
   // The route's error page says so when this fails.
   meta: { showsOwnErrors: true },
 });
+
+/**
+ * The account, on screens behind sign-in, kept current as it changes. The last one is kept for the
+ * moment between signing out and the page changing.
+ */
+export function useMe(): Me {
+  const { data } = useQuery(meQuery);
+  const last = useRef(data);
+  if (data) {
+    last.current = data;
+  }
+  return last.current as Me;
+}
 
 /** Which ways of receiving a code the server has: no SMS until a gateway is set up. */
 export const authOptionsQuery = queryOptions({

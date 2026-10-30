@@ -102,7 +102,7 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | Phase | Sub-phases | Status |
 |---|---|---|
 | F0 Skeleton, design, API client, CI, deploy | F0a skeleton, shell, API client · F0b end-to-end tests · F0c web image and deploy | Done |
-| F1 Signing in and the account | F1a sign-up, sign-in, forgot password, pages behind sign-in · F1b account settings, two-step sign-in | F1a done |
+| F1 Signing in and the account | F1a sign-up, sign-in, forgot password, pages behind sign-in · F1b account settings, two-step sign-in | Done |
 | F2–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
@@ -214,6 +214,24 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **E2E:**
   - `public.spec.ts` needs no test backend, so the deploy drill runs it; `auth.spec.ts` and `shell.spec.ts` need `/dev/otp`.
   - Every test fails on a console error, apart from refused API calls, which are normal.
+
+**As built (F1b):**
+- **Where:** More links to `/settings/account` and `/settings/security` (the address the security emails link to).
+- **Account:**
+  - Name, and language with two buttons.
+  - Phone and email show verified or not, and a button to add, verify or change, offered only when the server can send codes that way.
+  - The dialog sends a code, then takes the code and the current password. A number or address someone else has leads back to its field.
+- **Security:**
+  - Changing the password, with the note that it signs out other devices.
+  - Two-step sign-in: the password, then the QR code (drawn in the browser, loaded only when needed) with the key to type instead, then the app's first code.
+  - The 10 recovery codes are shown once, in a dialog that closes only with "I've saved them". They can be copied or saved to a file, and printed from there.
+  - New recovery codes, and turning it off (password plus an app or recovery code).
+- **The "+" button:** hidden on More, the settings pages and the new-order page.
+- **E2E:**
+  - `e2e/support/totp.ts` is an authenticator app written apart from the server's code; wrong codes and passwords are refused under their fields.
+  - The full journey: turn on, sign in with the app's code, sign in with a recovery code, the count drops to 9, turn off, sign in with only the password.
+  - 60 tests across both screen sizes; a double run with no retries passed all 120.
+- **Size:** 204 KB for the heaviest first visit (the security page), within the 250 KB budget.
 
 ### F2: Business, team and settings (3 days)
 

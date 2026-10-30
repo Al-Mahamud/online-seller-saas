@@ -19,7 +19,8 @@
     "comingSoon": "This part is coming soon.",
     "notFound": "This page doesn't exist.",
     "backToToday": "Back to Today",
-    "retry": "Try again"
+    "retry": "Try again",
+    "close": "Close"
   },
   "error": {
     "network": "Can't reach the server. Check your internet connection and try again.",
@@ -27,7 +28,43 @@
     "unexpected": "Something went wrong. Please try again."
   },
   "account": {
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "title": "Account",
+    "security": "Security",
+    "saved": "Saved.",
+    "save": "Save",
+    "name": "Name",
+    "language": "Language",
+    "contact": "Phone and email",
+    "phone": "Phone number",
+    "email": "Email",
+    "noEmail": "Not added",
+    "verified": "Verified",
+    "notVerified": "Not verified",
+    "change": "Change",
+    "verify": "Verify",
+    "add": "Add",
+    "smsUnavailable": "SMS isn't on yet, so the phone number can be verified later.",
+    "emailUnavailable": "Email isn't on yet.",
+    "contactDialog": {
+      "phoneTitle": "Phone number",
+      "emailTitle": "Email",
+      "newPhone": "Phone number",
+      "newEmail": "Email address",
+      "description": "We'll send a code there, to check that it's yours.",
+      "sent": "We've sent a 6-digit code to {{to}}.",
+      "currentPassword": "Current password",
+      "confirm": "Confirm"
+    },
+    "password": {
+      "title": "Password",
+      "current": "Current password",
+      "new": "New password",
+      "hint": "At least 8 characters. Changing it signs out your other devices.",
+      "submit": "Change password",
+      "done": "Your password has been changed."
+    },
+    "profile": "Profile"
   },
   "field": {
     "required": "Please fill this in.",
@@ -36,7 +73,8 @@
     "passwordLong": "The password can't be longer than 128 characters.",
     "nameLong": "The name can't be longer than 120 characters.",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "codeLong": "That code is too long. Please check it."
   },
   "auth": {
     "login": "Phone number or email",
@@ -90,5 +128,34 @@
       "done": "Your password has been changed. Now sign in.",
       "backToSignIn": "Back to sign in"
     }
+  },
+  "twoFactor": {
+    "title": "Two-step sign-in",
+    "off": "Signing in also needs a code from an app on your phone, so someone who knows your password still can't sign in.",
+    "on": "On since {{date}}.",
+    "recoveryLeft": "Recovery codes left: {{left}}",
+    "turnOn": "Turn on",
+    "turnOff": "Turn off",
+    "newCodes": "New recovery codes",
+    "password": "Password",
+    "passwordStep": "Enter your password to confirm it's you.",
+    "continue": "Continue",
+    "scanStep": "Scan this QR code with an authenticator app such as Google Authenticator, then enter the app's 6-digit code.",
+    "qrAlt": "QR code for your authenticator app",
+    "secret": "Can't scan? Type this key instead",
+    "appCode": "6-digit code from the app",
+    "enable": "Turn on",
+    "codesTitle": "Recovery codes",
+    "codesWarning": "Keep these somewhere safe now: they won't be shown again. If you lose your phone, each one signs you in once.",
+    "copy": "Copy",
+    "copied": "Copied.",
+    "copyFailed": "Couldn't copy. Please write the codes down.",
+    "download": "Save to a file",
+    "saved": "I've saved them",
+    "newCodesStep": "Your old recovery codes will stop working. Enter a code from the app to confirm.",
+    "createCodes": "Create new codes",
+    "offStep": "To turn it off, enter your password and a code from the app, or a recovery code.",
+    "appOrRecovery": "App code or recovery code",
+    "offDone": "Two-step sign-in has been turned off."
   }
 }

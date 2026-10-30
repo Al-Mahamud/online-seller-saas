@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AuthHeading } from "./AuthLayout";
 import { ResendCode } from "./ResendCode";
-import { code, currentPassword, login } from "./schemas";
+import { appOrRecoveryCode, code, currentPassword, login } from "./schemas";
 
 const route = getRouteApi("/_auth/sign-in");
 
@@ -222,7 +222,7 @@ function CodeForm({
   );
 }
 
-const twoStepSchema = z.object({ code: z.string().trim().min(1, "field.required").max(20, "field.required") });
+const twoStepSchema = z.object({ code: appOrRecoveryCode });
 
 /** The second step: a code from the authenticator app, or one of the recovery codes. */
 function TwoStepForm({

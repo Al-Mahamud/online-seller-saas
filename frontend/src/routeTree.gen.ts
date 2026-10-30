@@ -19,6 +19,8 @@ import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
+import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings/account'
+import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -68,6 +70,16 @@ const AppOrdersNewRoute = AppOrdersNewRouteImport.update({
   path: '/orders/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsAccountRoute = AppSettingsAccountRouteImport.update({
+  id: '/settings/account',
+  path: '/settings/account',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
+  id: '/settings/security',
+  path: '/settings/security',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -77,6 +89,8 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/orders/new': typeof AppOrdersNewRoute
+  '/settings/account': typeof AppSettingsAccountRoute
+  '/settings/security': typeof AppSettingsSecurityRoute
   '/orders/': typeof AppOrdersIndexRoute
 }
 export interface FileRoutesByTo {
@@ -87,6 +101,8 @@ export interface FileRoutesByTo {
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/orders/new': typeof AppOrdersNewRoute
+  '/settings/account': typeof AppSettingsAccountRoute
+  '/settings/security': typeof AppSettingsSecurityRoute
   '/orders': typeof AppOrdersIndexRoute
 }
 export interface FileRoutesById {
@@ -100,6 +116,8 @@ export interface FileRoutesById {
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_app/': typeof AppIndexRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
+  '/_app/settings/account': typeof AppSettingsAccountRoute
+  '/_app/settings/security': typeof AppSettingsSecurityRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
 }
 export interface FileRouteTypes {
@@ -112,6 +130,8 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/orders/new'
+    | '/settings/account'
+    | '/settings/security'
     | '/orders/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -122,6 +142,8 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/orders/new'
+    | '/settings/account'
+    | '/settings/security'
     | '/orders'
   id:
     | '__root__'
@@ -134,6 +156,8 @@ export interface FileRouteTypes {
     | '/_auth/sign-up'
     | '/_app/'
     | '/_app/orders/new'
+    | '/_app/settings/account'
+    | '/_app/settings/security'
     | '/_app/orders/'
   fileRoutesById: FileRoutesById
 }
@@ -214,6 +238,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrdersNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/account': {
+      id: '/_app/settings/account'
+      path: '/settings/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof AppSettingsAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/security': {
+      id: '/_app/settings/security'
+      path: '/settings/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof AppSettingsSecurityRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -222,6 +260,8 @@ interface AppRouteChildren {
   AppProductsRoute: typeof AppProductsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
+  AppSettingsAccountRoute: typeof AppSettingsAccountRoute
+  AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
 }
 
@@ -230,6 +270,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppProductsRoute: AppProductsRoute,
   AppIndexRoute: AppIndexRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
+  AppSettingsAccountRoute: AppSettingsAccountRoute,
+  AppSettingsSecurityRoute: AppSettingsSecurityRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
 }
 
