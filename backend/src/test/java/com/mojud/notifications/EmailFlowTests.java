@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.mojud.billing.system.SubscriptionAdvancer;
 import com.mojud.catalog.system.LowStockDigestJob;
 import com.mojud.shared.db.system.SystemDatabase;
+import com.mojud.shared.time.DhakaTime;
 import com.mojud.support.ApiClient;
 import com.mojud.support.CapturedMessages;
 import com.mojud.support.CrossTenant;
@@ -14,7 +15,7 @@ import com.mojud.support.TestAdmins;
 import com.mojud.support.TestBusinesses;
 import com.mojud.support.TestClock;
 import java.sql.Timestamp;
-import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -67,7 +68,7 @@ class EmailFlowTests {
     void billingRemindersGoToOwnersOnceADayInTheirLanguage() {
         systemDatabase.jdbc().sql("update users set locale = 'bn' where email = ?").param(ownerAccount.email()).update();
         systemDatabase.jdbc().sql("update subscriptions set trial_ends_at = ? where business_id = ?")
-                .params(Timestamp.from(clock.instant().plus(Duration.ofDays(3)).plus(Duration.ofHours(1))), business).update();
+                .params(Timestamp.from(threeDaysAway()), business).update();
 
         advancer.advance(business);
         advancer.advance(business);
@@ -78,6 +79,11 @@ class EmailFlowTests {
         assertThat(reminders.get(0).html()).contains("/billing");
         assertThat(emails(managerAccount, "trial")).isEmpty();
         assertThat(emails(staffAccount, "trial")).isEmpty();
+    }
+
+    /** Reminders count Dhaka calendar days, so this is noon three days on, whatever the time now. */
+    private Instant threeDaysAway() {
+        return DhakaTime.today(clock).plusDays(3).atTime(12, 0).atZone(DhakaTime.ZONE).toInstant();
     }
 
     @Test
