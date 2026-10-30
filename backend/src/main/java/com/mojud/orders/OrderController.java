@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -87,6 +88,14 @@ class OrderController {
             @RequestParam(required = false) String phone, @RequestParam(required = false) String number,
             @RequestParam(required = false) String cursor, @RequestParam(required = false) Integer limit) {
         return orders.list(status, from, to, phone, number, cursor, limit);
+    }
+
+    /** How many orders each status has, for the same filters as the list: the tabs' numbers. */
+    @GetMapping("/api/v1/orders/counts")
+    Map<OrderStatus, Integer> counts(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String phone, @RequestParam(required = false) String number) {
+        return orders.counts(from, to, phone, number);
     }
 
     @GetMapping("/api/v1/orders/{id}")
@@ -183,11 +192,15 @@ class OrderController {
             Instant receivedAt) {
     }
 
-    /** Money paid to the business directly: before shipping (an advance) or after delivery (a shortfall). */
+    /**
+     * Money paid to the business directly: before shipping (an advance) or after delivery (a shortfall).
+     * With an {@code Idempotency-Key} header, a resend returns the first answer and records nothing more.
+     */
     @PostMapping("/api/v1/orders/{id}/payments")
     @ResponseStatus(HttpStatus.CREATED)
-    OrderViews.Detail pay(@PathVariable UUID id, @Valid @RequestBody PaymentRequest body) {
-        return payments.record(id, body.method(), body.amount(), body.reference(), body.receivedAt());
+    OrderViews.Detail pay(@PathVariable UUID id, @Valid @RequestBody PaymentRequest body,
+            @RequestHeader(name = Idempotency.HEADER, required = false) @Size(max = 100) String idempotencyKey) {
+        return payments.record(id, body.method(), body.amount(), body.reference(), body.receivedAt(), idempotencyKey);
     }
 
     record BulkPackRequest(@NotNull @Size(max = 200) List<@NotNull UUID> orderIds) {

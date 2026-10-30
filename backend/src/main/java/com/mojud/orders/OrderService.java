@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -214,27 +215,14 @@ class OrderService {
     @Transactional(readOnly = true)
     CursorPage<OrderViews.Summary> list(List<OrderStatus> statuses, LocalDate from, LocalDate to, String phone,
             String number, String cursor, Integer limit) {
-        String e164 = "";
-        if (phone != null && !phone.isBlank()) {
-            e164 = PhoneNumber.tryParse(phone).map(PhoneNumber::e164).orElse(null);
-            if (e164 == null) {
-                return new CursorPage<>(List.of(), null);
-            }
-        }
-        long wanted = 0;
-        if (number != null && !number.isBlank()) {
-            String digits = number.replaceAll("\\D", "");
-            if (digits.isEmpty() || digits.length() > 15) {
-                return new CursorPage<>(List.of(), null);
-            }
-            wanted = Long.parseLong(digits);
+        Filter filter = Filter.of(from, to, phone, number);
+        if (filter == null) {
+            return new CursorPage<>(List.of(), null);
         }
         int pageSize = CursorPage.limit(limit);
         Cursor after = Cursor.decode(cursor);
         List<Order> page = orders.findPage(statuses == null || statuses.isEmpty() ? Arrays.asList(OrderStatus.values()) : statuses,
-                from == null ? START_OF_TIME : DhakaTime.startOf(from),
-                to == null ? END_OF_TIME : DhakaTime.startOf(to.plusDays(1)),
-                e164, wanted, after == null ? END_OF_TIME : after.sortKeyAsInstant(),
+                filter.from(), filter.to(), filter.phone(), filter.number(), after == null ? END_OF_TIME : after.sortKeyAsInstant(),
                 after == null ? LAST_ID : after.id(), Limit.of(pageSize + 1));
         CursorPage<Order> paged = CursorPage.of(page, pageSize, o -> new Cursor(o.getCreatedAt().toString(), o.getId()));
         Map<UUID, Integer> counts = new HashMap<>();
@@ -244,6 +232,44 @@ class OrderService {
         }
         return new CursorPage<>(paged.items().stream().map(o -> OrderViews.summary(o, counts.getOrDefault(o.getId(), 0)))
                 .toList(), paged.nextCursor());
+    }
+
+    /** How many orders each status has, for the same filters as the list: every status, none left out. */
+    @Transactional(readOnly = true)
+    Map<OrderStatus, Integer> counts(LocalDate from, LocalDate to, String phone, String number) {
+        Map<OrderStatus, Integer> counts = new EnumMap<>(OrderStatus.class);
+        Arrays.stream(OrderStatus.values()).forEach(status -> counts.put(status, 0));
+        Filter filter = Filter.of(from, to, phone, number);
+        if (filter != null) {
+            orders.countByStatus(filter.from(), filter.to(), filter.phone(), filter.number())
+                    .forEach(row -> counts.put((OrderStatus) row[0], ((Number) row[1]).intValue()));
+        }
+        return counts;
+    }
+
+    /** The list's filters as the queries take them. */
+    private record Filter(Instant from, Instant to, String phone, long number) {
+
+        /** Null when nothing can match: a phone or a number that isn't one. */
+        static Filter of(LocalDate from, LocalDate to, String phone, String number) {
+            String e164 = "";
+            if (phone != null && !phone.isBlank()) {
+                e164 = PhoneNumber.tryParse(phone).map(PhoneNumber::e164).orElse(null);
+                if (e164 == null) {
+                    return null;
+                }
+            }
+            long wanted = 0;
+            if (number != null && !number.isBlank()) {
+                String digits = number.replaceAll("\\D", "");
+                if (digits.isEmpty() || digits.length() > 15) {
+                    return null;
+                }
+                wanted = Long.parseLong(digits);
+            }
+            return new Filter(from == null ? START_OF_TIME : DhakaTime.startOf(from),
+                    to == null ? END_OF_TIME : DhakaTime.startOf(to.plusDays(1)), e164, wanted);
+        }
     }
 
     private CustomerDirectory.Snapshot customer(UUID customerId, CustomerInput input, boolean required) {
@@ -387,6 +413,6 @@ class OrderService {
         boolean showCost = CurrentBusiness.require().isAtLeast(BusinessRole.MANAGER);
         List<OrderItem> lines = items.findByOrder(order.getId());
         return OrderViews.detail(order, lines, shipments.findByOrder(order.getId()), payments.findByOrder(order.getId()),
-                returns.forOrder(order.getId(), lines), geo, showCost);
+                returns.forOrder(order.getId(), lines), events.forOrder(order.getId()), geo, showCost);
     }
 }

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -26,7 +27,8 @@ class BulkActions {
     static final int MAX_ORDERS = 100;
 
     /** {@code ok}: moved; otherwise {@code code} and {@code message} say why not. */
-    record Result(UUID orderId, boolean ok, String status, String numberLabel, String code, String message) {
+    record Result(UUID orderId, boolean ok, @Nullable String status, @Nullable String numberLabel, @Nullable String code,
+            @Nullable String message) {
     }
 
     record ShipLine(UUID orderId, String trackingNo, Long courierCharge) {

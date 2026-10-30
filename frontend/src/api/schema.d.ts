@@ -1204,6 +1204,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["counts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/print": {
         parameters: {
             query?: never;
@@ -2162,13 +2178,13 @@ export interface components {
             used: number;
         };
         BulkActionsResult: {
-            code: string;
-            message: string;
-            numberLabel: string;
+            code: string | null;
+            message: string | null;
+            numberLabel: string | null;
             ok: boolean;
             /** Format: uuid */
             orderId: string;
-            status: string;
+            status: string | null;
         };
         BusinessCreateRequest: {
             address?: string;
@@ -2271,20 +2287,20 @@ export interface components {
         };
         CodSettlementsRow: {
             /** Format: int64 */
-            codCollected: number;
+            codCollected: number | null;
             /** Format: int64 */
             codExpected: number;
             codStatus: string;
             courier: string;
             /** Format: date-time */
-            deliveredAt: string;
+            deliveredAt: string | null;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
             orderId: string;
             orderNumberLabel: string;
             /** Format: date-time */
-            settledAt: string;
+            settledAt: string | null;
             /** Format: date-time */
             shippedAt: string;
             status: string;
@@ -2756,8 +2772,8 @@ export interface components {
         };
         OrderDelivery: {
             address: string;
-            area: components["schemas"]["OrderGeoRef"];
-            district: components["schemas"]["OrderGeoRef"];
+            area: components["schemas"]["OrderGeoRef"] | null;
+            district: components["schemas"]["OrderGeoRef"] | null;
             name: string;
             phone: string;
         };
@@ -2777,25 +2793,26 @@ export interface components {
             amountPaid: number;
             /** Format: int64 */
             balanceDue: number;
-            cancelReason: string;
+            cancelReason: string | null;
             /** Format: date-time */
-            cancelledAt: string;
+            cancelledAt: string | null;
             /** Format: int64 */
             codAmount: number;
             /** Format: date-time */
-            confirmedAt: string;
+            confirmedAt: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
             createdBy: string;
             customer: components["schemas"]["OrderCustomerRef"];
             /** Format: date-time */
-            deliveredAt: string;
+            deliveredAt: string | null;
             delivery: components["schemas"]["OrderDelivery"];
             /** Format: int64 */
             deliveryCharge: number;
             /** Format: int64 */
             discount: number;
+            events: components["schemas"]["OrderEventsView"][];
             /** Format: uuid */
             id: string;
             items: components["schemas"]["OrderItem"][];
@@ -2806,17 +2823,17 @@ export interface components {
             number: number;
             numberLabel: string;
             /** Format: date-time */
-            packedAt: string;
+            packedAt: string | null;
             paymentStatus: string;
             payments: components["schemas"]["OrderPaymentView"][];
             /** Format: int64 */
             returnCredit: number;
             /** Format: date-time */
-            returnedAt: string;
+            returnedAt: string | null;
             returns: components["schemas"]["OrderReturnsView"][];
             shipments: components["schemas"]["OrderShipmentView"][];
             /** Format: date-time */
-            shippedAt: string;
+            shippedAt: string | null;
             source: string;
             /** @enum {string} */
             status: "DRAFT" | "CONFIRMED" | "PACKED" | "SHIPPED" | "DELIVERED" | "RETURNED" | "CANCELLED";
@@ -2830,6 +2847,16 @@ export interface components {
             updatedAt: string;
             /** Format: int64 */
             version: number;
+        };
+        OrderEventsView: {
+            /** Format: date-time */
+            at: string;
+            by: string | null;
+            /** @enum {string|null} */
+            from: "DRAFT" | "CONFIRMED" | "PACKED" | "SHIPPED" | "DELIVERED" | "RETURNED" | "CANCELLED" | null;
+            note: string;
+            /** @enum {string} */
+            to: "DRAFT" | "CONFIRMED" | "PACKED" | "SHIPPED" | "DELIVERED" | "RETURNED" | "CANCELLED";
         };
         OrderGeoRef: {
             /** Format: int32 */
@@ -2847,7 +2874,7 @@ export interface components {
             quantity: number;
             sku: string;
             /** Format: int64 */
-            unitCost: number;
+            unitCost: number | null;
             /** Format: int64 */
             unitPrice: number;
             /** Format: uuid */
@@ -2968,8 +2995,8 @@ export interface components {
             reason: string;
             /** Format: int64 */
             refundAmount: number;
-            /** @enum {string} */
-            refundMethod: "BKASH" | "NAGAD" | "ROCKET" | "BANK" | "CASH" | "CARD" | "OTHER";
+            /** @enum {string|null} */
+            refundMethod: "BKASH" | "NAGAD" | "ROCKET" | "BANK" | "CASH" | "CARD" | "OTHER" | null;
             refundReference: string;
         };
         OrderShipRequest: {
@@ -2982,7 +3009,7 @@ export interface components {
         };
         OrderShipmentView: {
             /** Format: int64 */
-            codCollected: number;
+            codCollected: number | null;
             /** Format: int64 */
             codExpected: number;
             codStatus: string;
@@ -2990,11 +3017,11 @@ export interface components {
             /** Format: int64 */
             courierCharge: number;
             /** Format: date-time */
-            deliveredAt: string;
+            deliveredAt: string | null;
             /** Format: uuid */
             id: string;
             /** Format: date-time */
-            settledAt: string;
+            settledAt: string | null;
             /** Format: date-time */
             shippedAt: string;
             status: string;
@@ -5352,6 +5379,33 @@ export interface operations {
             };
         };
     };
+    counts: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                phone?: string;
+                number?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+        };
+    };
     print: {
         parameters: {
             query: {
@@ -5531,7 +5585,9 @@ export interface operations {
     pay: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };

@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { Language } from "@/i18n";
+import { banglaDigits } from "./digits";
 
 /**
  * Numbers, taka and dates through Intl: Bangla digits and lakh grouping (১২,৩৪,৫৬৭) in Bangla,
@@ -65,5 +66,7 @@ export function useFormat() {
     taka: (poisha: number) => formatTaka(poisha, language),
     date: (at: string | Date) => formatDate(at, language),
     dateTime: (at: string | Date) => formatDateTime(at, language),
+    /** An order's number as the slips print it. */
+    orderNumber: (label: string) => (language === "bn" ? banglaDigits(label) : label),
   };
 }

@@ -3,6 +3,7 @@ package com.mojud.orders;
 import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
+import com.mojud.shared.idempotency.Idempotency;
 import com.mojud.tenancy.CurrentBusiness;
 import java.time.Clock;
 import java.time.Duration;
@@ -26,10 +27,13 @@ class OrderPayments {
     private final OrderRepository orders;
     private final PaymentRepository payments;
     private final OrderService service;
+    private final Idempotency idempotency;
     private final AuditTrail audit;
     private final Clock clock;
 
-    OrderPayments(OrderRepository orders, PaymentRepository payments, OrderService service, AuditTrail audit, Clock clock) {
+    OrderPayments(OrderRepository orders, PaymentRepository payments, OrderService service, Idempotency idempotency,
+            AuditTrail audit, Clock clock) {
+        this.idempotency = idempotency;
         this.orders = orders;
         this.payments = payments;
         this.service = service;
@@ -37,9 +41,22 @@ class OrderPayments {
         this.clock = clock;
     }
 
-    /** @param receivedAt when the money came (null: now); not in the future */
+    /** What a resend must repeat to be the same payment. */
+    private record Request(UUID orderId, PaymentMethod method, long amount, String reference, Instant receivedAt) {
+    }
+
+    /**
+     * @param receivedAt when the money came (null: now); not in the future
+     * @param idempotencyKey a resend with the same key returns the first answer and records nothing more
+     */
     @Transactional
-    OrderViews.Detail record(UUID orderId, PaymentMethod method, long amount, String reference, Instant receivedAt) {
+    OrderViews.Detail record(UUID orderId, PaymentMethod method, long amount, String reference, Instant receivedAt,
+            String idempotencyKey) {
+        return idempotency.run(idempotencyKey, new Request(orderId, method, amount, reference, receivedAt),
+                OrderViews.Detail.class, () -> recordOnce(orderId, method, amount, reference, receivedAt));
+    }
+
+    private OrderViews.Detail recordOnce(UUID orderId, PaymentMethod method, long amount, String reference, Instant receivedAt) {
         CurrentBusiness me = CurrentBusiness.require();
         String ref = OrderService.reference(reference);
         Instant now = clock.instant();

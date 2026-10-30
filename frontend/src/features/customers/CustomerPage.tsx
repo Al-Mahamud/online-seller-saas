@@ -64,6 +64,11 @@ export function CustomerPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link to="/orders/new" search={{ phone: customer.phone }}>
+              {t("orders.new")}
+            </Link>
+          </Button>
           <Button variant="outline" onClick={() => setDialog("edit")}>
             {t("customers.edit")}
           </Button>
@@ -124,20 +129,26 @@ function OrdersSection({ phone }: { phone: string }) {
       {items.length > 0 && (
         <ul className="flex flex-col">
           {items.map((order) => (
-            <li key={order.id} className="flex items-center justify-between gap-3 border-t py-2 first:border-t-0">
-              <span className="min-w-0">
-                <span className="block font-medium">{order.numberLabel}</span>
-                <span className="block text-sm text-muted-foreground">
-                  {t("customers.orderLine", {
-                    count: format.number(order.itemCount),
-                    date: format.date(order.createdAt),
-                  })}
+            <li key={order.id} className="border-t first:border-t-0">
+              <Link
+                to="/orders/$orderId"
+                params={{ orderId: order.id }}
+                className="flex items-center justify-between gap-3 py-2 text-foreground no-underline"
+              >
+                <span className="min-w-0">
+                  <span className="block font-medium">{format.orderNumber(order.numberLabel)}</span>
+                  <span className="block text-sm text-muted-foreground">
+                    {t("customers.orderLine", {
+                      count: format.number(order.itemCount),
+                      date: format.date(order.createdAt),
+                    })}
+                  </span>
                 </span>
-              </span>
-              <span className="flex-none text-right">
-                <span className="block font-semibold">{format.taka(order.total)}</span>
-                <span className="block text-sm text-muted-foreground">{t(`orderStatus.${order.status}`)}</span>
-              </span>
+                <span className="flex-none text-right">
+                  <span className="block font-semibold">{format.taka(order.total)}</span>
+                  <span className="block text-sm text-muted-foreground">{t(`orderStatus.${order.status}`)}</span>
+                </span>
+              </Link>
             </li>
           ))}
         </ul>

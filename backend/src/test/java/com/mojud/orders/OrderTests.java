@@ -122,6 +122,38 @@ class OrderTests {
     }
 
     @Test
+    void theCountsFollowTheListsFilters() {
+        ApiResponse first = create();
+        owner.post("/api/v1/orders", Map.of("customer", Map.of("name", "Karim", "phone", "01819876543"),
+                "items", List.of(item(kurtiM, 2)))).expectStatus(201);
+        owner.post("/api/v1/orders/" + first.json("$.id") + "/cancel", Map.of("reason", "Changed her mind")).expectStatus(200);
+
+        ApiResponse all = owner.get("/api/v1/orders/counts").expectStatus(200);
+        assertThat(all.<Integer>json("$.DRAFT")).isEqualTo(1);
+        assertThat(all.<Integer>json("$.CANCELLED")).isEqualTo(1);
+        assertThat(all.<Integer>json("$.DELIVERED")).isZero();
+        assertThat(owner.get("/api/v1/orders/counts?phone=01712-345678").<Integer>json("$.DRAFT")).isZero();
+        assertThat(owner.get("/api/v1/orders/counts?phone=01712-345678").<Integer>json("$.CANCELLED")).isEqualTo(1);
+        assertThat(owner.get("/api/v1/orders/counts?number=1002").<Integer>json("$.DRAFT")).isEqualTo(1);
+        assertThat(owner.get("/api/v1/orders/counts?from=2001-01-01&to=2001-01-02").<Integer>json("$.DRAFT")).isZero();
+        assertThat(owner.get("/api/v1/orders/counts?phone=nonsense").<Integer>json("$.DRAFT")).isZero();
+    }
+
+    @Test
+    void theDetailsCarryTheTimeline() {
+        ApiResponse first = create();
+        String id = first.json("$.id");
+        assertThat(first.<List<String>>json("$.events[*].to")).containsExactly("DRAFT");
+
+        ApiResponse cancelled = owner.post("/api/v1/orders/" + id + "/cancel", Map.of("reason", "Changed her mind")).expectStatus(200);
+
+        assertThat(cancelled.<List<String>>json("$.events[*].to")).containsExactly("DRAFT", "CANCELLED");
+        assertThat(cancelled.<String>json("$.events[1].from")).isEqualTo("DRAFT");
+        assertThat(cancelled.<String>json("$.events[1].note")).isEqualTo("Changed her mind");
+        assertThat(cancelled.<String>json("$.events[1].by")).isNotBlank();
+    }
+
+    @Test
     void aResentOrderIsMadeOnce() {
         Map<String, Object> body = Map.of("customerId", customerId, "items", List.of(item(kurtiS, 1)));
         Map<String, String> key = Map.of("Idempotency-Key", "order-form-7f3a");

@@ -107,7 +107,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | F3 Products and stock | One commit | Done |
 | F4 Importing products | One commit | Done |
 | F5 Customers and delivery | One commit | Done |
-| F6–F11 | | Not started |
+| F6 Orders, the core | One commit | Done |
+| F7–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -394,7 +395,32 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Bad connection:** a double-tapped save makes one order.
 - **Timed:** the quick order is timed in the e2e test.
 
+**As built (F6):**
+- **Quick order (`/orders/new`, also from a customer's page):** one page, top to bottom.
+  - The whole phone number finds the customer, with their address and place filled in; otherwise a name box is there, and the customer is made with the order.
+  - Items come from a search showing what is available; a product with variants asks which. Quantity and price are editable per line, and more than is available shows a warning without stopping a draft.
+  - The charge follows the place until the seller types their own. Discount, advance (with how it was paid) and the COD amount work out as they type.
+  - Confirming checks the address and district first, and goes to whatever needs fixing. If the server then refuses (out of stock), the order stays a draft and its page opens with the reason, naming the items.
+  - Added beyond the plan: a different recipient, folded away; gifts are common.
+- **Editing (`/orders/$id/edit`):** the same form, for drafts and confirmed orders. A draft couldn't otherwise get its missing address; a confirmed order's customer stays.
+- **List (`/orders`):** tabs by status with counts, search by order number or phone, dates folded away; every filter is in the address. Tick orders to pack, ship (one courier, a tracking number each) or print together; the answer says which failed and why. A failed order leaves the selection: its status has changed, so trying again wouldn't help.
+- **Details (`/orders/$id`):** the status's actions, the customer, items, money, courier and the history, with who did what. Dialogs: ship (couriers used before one tap away), deliver (COD collected; refused items restocked or written off), parcel came back (and ship again), customer return (with refund), payment, cancel.
+- **COD (`/cod`, from More and the list):** per courier, what it owes and what is still on the way; all ticked at first, untick what this payout doesn't cover. Managers and owners settle. Not built: a history of past settlements (each order's page shows its own).
+- **Printing:** slips open in a new tab, in the language on screen, and open the print dialog.
+- **Backend:**
+  - `GET /orders/counts`, with the list's filters.
+  - The timeline: `events` on an order (from `order_events`, which nothing could read before).
+  - `Idempotency-Key` on payments: this plan promised it, and the backend ignored the header.
+- **No form libraries here:** these screens use `components/form/Field.tsx` and their own state, because lines and amounts depend on each other. The heaviest of them comes to 214 KB.
+- **Order numbers** are shown as the slips print them, in Bangla digits (`#১০০১`). Search takes either digits.
+- **E2E (`orders.spec.ts`, 12 tests):** the main flow at both sizes, timed; a known customer and the charge by place; two browsers and the last unit; a double tap; a lost answer retried; refused items; a parcel back and sent again; a payment and a cancel; the list, bulk and printing; COD. 136 tests across both screen sizes.
+- **`expectAccessible` looks again for up to 5 seconds:** colours can't be judged halfway through a fade. A lasting problem still fails.
+- **Size:** the heaviest first visit is 249.2 KB of 250, a product page with its form libraries. Order pages are 214 KB at most. Every phase's text adds to all pages, about 2.5 KB this time, so **F7 must make room first**: see below.
+- **For F11:** phone numbers show as `+8801712345678` on screen; slips already print them the local way.
+
 ### F7: Today, reports and exports (3 days)
+
+**First:** make room in the size budget (249.2 of 250 KB after F6). The product page and the other form pages carry react-hook-form and zod in full. Try zod's smaller `zod/mini` build, or moving the product page's forms onto `Field.tsx`. Don't raise the limit to get past this.
 
 **Builds**
 - **Dashboard:** today's sales, orders by status, pending deliveries, COD outstanding, low stock, a 7-day sales chart, and any day picked.

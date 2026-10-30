@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +31,8 @@ class CodSettlements {
 
     /** Money in poisha. */
     record Row(UUID id, UUID orderId, String orderNumberLabel, String courier, String trackingNo, String status,
-            long codExpected, Long codCollected, String codStatus, Instant shippedAt, Instant deliveredAt, Instant settledAt) {
+            long codExpected, @Nullable Long codCollected, String codStatus, Instant shippedAt, @Nullable Instant deliveredAt,
+            @Nullable Instant settledAt) {
     }
 
     /** {@code amount}: the COD collected on the shipments settled, in poisha. */

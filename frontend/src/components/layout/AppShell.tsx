@@ -27,11 +27,11 @@ const FLOATING_BUTTON =
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
-  // It would only cover the buttons of the account pages, and the new-order page itself.
+  // It would only cover the buttons of the account pages, and an order's own.
   const { pathname } = useLocation();
   const business = useBusiness();
   const onProducts = /^\/products\/?$/.test(pathname);
-  const showsNewOrder = !/^\/(more|settings|billing|orders\/new|products)/.test(pathname);
+  const showsNewOrder = !/^\/(more|settings|billing|orders\/|cod|products)/.test(pathname);
   const showsNewProduct = onProducts && hasRole(business, "MANAGER");
   return (
     <div className="min-h-dvh md:flex">

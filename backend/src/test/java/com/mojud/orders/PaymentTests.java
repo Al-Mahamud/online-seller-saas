@@ -145,6 +145,21 @@ class PaymentTests {
     }
 
     @Test
+    void aResentPaymentIsRecordedOnce() {
+        String id = order(Map.of());
+        Map<String, Object> payment = Map.of("method", "BKASH", "amount", 20000);
+        Map<String, String> key = Map.of("Idempotency-Key", "payment-form-1");
+
+        ApiResponse first = owner.post("/api/v1/orders/" + id + "/payments", payment, key).expectStatus(201);
+        ApiResponse again = owner.post("/api/v1/orders/" + id + "/payments", payment, key).expectStatus(201);
+
+        assertThat(again.body()).isEqualTo(first.body());
+        assertThat(owner.get("/api/v1/orders/" + id).<Integer>json("$.amountPaid")).isEqualTo(20000);
+        owner.post("/api/v1/orders/" + id + "/payments", Map.of("method", "BKASH", "amount", 30000), key)
+                .expectError(409, "idempotency.key_reused");
+    }
+
+    @Test
     void settlingIsOneCouriersDeliveredCashOnce() {
         String pathaoA = delivered("Pathao");
         String pathaoB = delivered("pathao");

@@ -103,7 +103,7 @@ test("shows a customer's orders, and refuses deleting one with an order in progr
   });
 
   await page.goto(`/customers/${customer.id}`);
-  await expect(page.getByText(String(order.numberLabel))).toBeVisible();
+  await expect(page.getByText("#১০০১")).toBeVisible();
   await expect(page.getByText("৳৩,০৬০")).toBeVisible();
   await expect(page.getByText("খসড়া")).toBeVisible();
 

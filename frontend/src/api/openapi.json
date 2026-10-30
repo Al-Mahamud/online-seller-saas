@@ -772,13 +772,13 @@
       "BulkActionsResult" : {
         "properties" : {
           "code" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "message" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "numberLabel" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "ok" : {
             "type" : "boolean"
@@ -788,7 +788,7 @@
             "type" : "string"
           },
           "status" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           }
         },
         "required" : [ "code", "message", "numberLabel", "ok", "orderId", "status" ],
@@ -1086,7 +1086,7 @@
         "properties" : {
           "codCollected" : {
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "codExpected" : {
             "format" : "int64",
@@ -1100,7 +1100,7 @@
           },
           "deliveredAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "id" : {
             "format" : "uuid",
@@ -1115,7 +1115,7 @@
           },
           "settledAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "shippedAt" : {
             "format" : "date-time",
@@ -2454,10 +2454,18 @@
             "type" : "string"
           },
           "area" : {
-            "$ref" : "#/components/schemas/OrderGeoRef"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/OrderGeoRef"
+            }, {
+              "type" : "null"
+            } ]
           },
           "district" : {
-            "$ref" : "#/components/schemas/OrderGeoRef"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/OrderGeoRef"
+            }, {
+              "type" : "null"
+            } ]
           },
           "name" : {
             "type" : "string"
@@ -2512,11 +2520,11 @@
             "type" : "integer"
           },
           "cancelReason" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "cancelledAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "codAmount" : {
             "format" : "int64",
@@ -2524,7 +2532,7 @@
           },
           "confirmedAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "createdAt" : {
             "format" : "date-time",
@@ -2539,7 +2547,7 @@
           },
           "deliveredAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "delivery" : {
             "$ref" : "#/components/schemas/OrderDelivery"
@@ -2551,6 +2559,12 @@
           "discount" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "events" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OrderEventsView"
+            },
+            "type" : "array"
           },
           "id" : {
             "format" : "uuid",
@@ -2578,7 +2592,7 @@
           },
           "packedAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "paymentStatus" : {
             "type" : "string"
@@ -2595,7 +2609,7 @@
           },
           "returnedAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "returns" : {
             "items" : {
@@ -2611,7 +2625,7 @@
           },
           "shippedAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "source" : {
             "type" : "string"
@@ -2641,7 +2655,31 @@
             "type" : "integer"
           }
         },
-        "required" : [ "advancePaid", "amountPaid", "balanceDue", "cancelReason", "cancelledAt", "codAmount", "confirmedAt", "createdAt", "createdBy", "customer", "deliveredAt", "delivery", "deliveryCharge", "discount", "id", "items", "netTotal", "note", "number", "numberLabel", "packedAt", "paymentStatus", "payments", "returnCredit", "returnedAt", "returns", "shipments", "shippedAt", "source", "status", "stockState", "subtotal", "total", "updatedAt", "version" ],
+        "required" : [ "advancePaid", "amountPaid", "balanceDue", "cancelReason", "cancelledAt", "codAmount", "confirmedAt", "createdAt", "createdBy", "customer", "deliveredAt", "delivery", "deliveryCharge", "discount", "events", "id", "items", "netTotal", "note", "number", "numberLabel", "packedAt", "paymentStatus", "payments", "returnCredit", "returnedAt", "returns", "shipments", "shippedAt", "source", "status", "stockState", "subtotal", "total", "updatedAt", "version" ],
+        "type" : "object"
+      },
+      "OrderEventsView" : {
+        "properties" : {
+          "at" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "by" : {
+            "type" : [ "string", "null" ]
+          },
+          "from" : {
+            "enum" : [ "DRAFT", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "RETURNED", "CANCELLED" ],
+            "type" : [ "string", "null" ]
+          },
+          "note" : {
+            "type" : "string"
+          },
+          "to" : {
+            "enum" : [ "DRAFT", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "RETURNED", "CANCELLED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "at", "by", "from", "note", "to" ],
         "type" : "object"
       },
       "OrderGeoRef" : {
@@ -2682,7 +2720,7 @@
           },
           "unitCost" : {
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "unitPrice" : {
             "format" : "int64",
@@ -2980,7 +3018,7 @@
           },
           "refundMethod" : {
             "enum" : [ "BKASH", "NAGAD", "ROCKET", "BANK", "CASH", "CARD", "OTHER" ],
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "refundReference" : {
             "type" : "string"
@@ -3017,7 +3055,7 @@
         "properties" : {
           "codCollected" : {
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "codExpected" : {
             "format" : "int64",
@@ -3035,7 +3073,7 @@
           },
           "deliveredAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "id" : {
             "format" : "uuid",
@@ -3043,7 +3081,7 @@
           },
           "settledAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "shippedAt" : {
             "format" : "date-time",
@@ -6358,6 +6396,59 @@
         "tags" : [ "order-controller" ]
       }
     },
+    "/api/v1/orders/counts" : {
+      "get" : {
+        "operationId" : "counts",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "phone",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "number",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "additionalProperties" : {
+                    "format" : "int32",
+                    "type" : "integer"
+                  },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
     "/api/v1/orders/print" : {
       "get" : {
         "operationId" : "print",
@@ -6619,6 +6710,15 @@
           "required" : true,
           "schema" : {
             "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "maxLength" : 100,
+            "minLength" : 0,
             "type" : "string"
           }
         } ],

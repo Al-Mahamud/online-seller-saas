@@ -98,6 +98,7 @@ function PickField({
   shown,
   disabled,
   disabledText,
+  error,
   onOpen,
   onClear,
 }: {
@@ -105,6 +106,7 @@ function PickField({
   shown: string | null;
   disabled?: boolean;
   disabledText?: string;
+  error?: string;
   onOpen: () => void;
   onClear: () => void;
 }) {
@@ -140,12 +142,28 @@ function PickField({
           </Button>
         )}
       </div>
+      {error && (
+        <p data-problem tabIndex={-1} className="text-sm text-destructive outline-none">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
 
 /** District, then its thana or upazila. Used for customers and order delivery addresses. */
-export function PlacePicker({ value, onChange }: { value: PlaceValue; onChange: (value: PlaceValue) => void }) {
+export function PlacePicker({
+  value,
+  onChange,
+  districtLabel,
+  districtError,
+}: {
+  value: PlaceValue;
+  onChange: (value: PlaceValue) => void;
+  /** Where the district is needed, as on an order, the label stops saying it's optional. */
+  districtLabel?: string;
+  districtError?: string;
+}) {
   const { t } = useTranslation();
   const placeName = usePlaceName();
   const [open, setOpen] = useState<"district" | "area">();
@@ -159,8 +177,9 @@ export function PlacePicker({ value, onChange }: { value: PlaceValue; onChange: 
   return (
     <div className="flex flex-col gap-4">
       <PickField
-        label={t("place.district")}
+        label={districtLabel ?? t("place.district")}
         shown={district ? placeName(district) : null}
+        error={districtError}
         onOpen={() => setOpen("district")}
         onClear={() => onChange({ districtId: null, areaId: null })}
       />

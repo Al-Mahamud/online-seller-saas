@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { categoriesQuery, flatCategories, lowStockQuery, type ProductSummary, productsQuery, tagsQuery } from "./api";
+import { Thumbnail } from "./Thumbnail";
 
 const route = getRouteApi("/_app/products/");
 
@@ -179,23 +180,6 @@ function usePriceText() {
     }
     return minPrice === maxPrice ? format.taka(minPrice) : `${format.taka(minPrice)} – ${format.taka(maxPrice)}`;
   };
-}
-
-function Thumbnail({ src, className }: { src: string | null; className: string }) {
-  const { t } = useTranslation();
-  return src ? (
-    <img src={src} alt="" loading="lazy" className={cn("flex-none rounded-lg object-cover", className)} />
-  ) : (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "flex flex-none items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground",
-        className,
-      )}
-    >
-      {t("products.noImage")}
-    </span>
-  );
 }
 
 function LowStockBadge() {

@@ -290,6 +290,16 @@ class CrossTenantTests {
             expectNoLeak(b.owner().get("/api/v1/orders"), a);
             expectNoLeak(b.owner().get("/api/v1/orders?number=1001"), a);
         });
+        CASES.put("GET /api/v1/orders/counts", (a, b) -> {
+            // A's new order moves A's count and not B's.
+            Map<String, Object> order = Map.of("customerId", a.customerId().toString(), "items",
+                    List.of(Map.of("variantId", a.variantId().toString(), "quantity", 1)));
+            int beforeA = a.owner().get("/api/v1/orders/counts").<Integer>json("$.DRAFT");
+            int beforeB = b.owner().get("/api/v1/orders/counts").<Integer>json("$.DRAFT");
+            a.owner().post("/api/v1/orders", order).expectStatus(201);
+            assertThat(a.owner().get("/api/v1/orders/counts").<Integer>json("$.DRAFT")).isEqualTo(beforeA + 1);
+            assertThat(b.owner().get("/api/v1/orders/counts").<Integer>json("$.DRAFT")).isEqualTo(beforeB);
+        });
         CASES.put("GET /api/v1/orders/{id}", (a, b) -> expectNotFound(b.owner().get("/api/v1/orders/" + a.orderId())));
         CASES.put("POST /api/v1/orders/{id}/confirm", (a, b) -> {
             expectNotFound(b.owner().post("/api/v1/orders/" + a.orderId() + "/confirm", null));

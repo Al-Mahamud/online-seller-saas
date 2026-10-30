@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -43,7 +44,7 @@ class OrderReturns {
             Disposition disposition) {
     }
 
-    record View(UUID id, ReturnKind kind, String reason, long credit, long refundAmount, PaymentMethod refundMethod,
+    record View(UUID id, ReturnKind kind, String reason, long credit, long refundAmount, @Nullable PaymentMethod refundMethod,
             String refundReference, List<ItemView> items, Instant createdAt) {
     }
 

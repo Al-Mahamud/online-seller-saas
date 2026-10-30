@@ -1,13 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-import { ComingSoon } from "@/components/layout/ComingSoon";
+import { OrdersPage } from "@/features/orders/OrdersPage";
+import { orderFilters } from "@/features/orders/search";
 
 export const Route = createFileRoute("/_app/orders/")({
-  component: Orders,
+  validateSearch: orderFilters,
+  component: OrdersPage,
 });
-
-/** Orders by status (F6). */
-function Orders() {
-  const { t } = useTranslation();
-  return <ComingSoon title={t("nav.orders")} />;
-}

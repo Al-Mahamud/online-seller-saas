@@ -36,4 +36,13 @@ interface OrderRepository extends JpaRepository<Order, UUID> {
             order by o.createdAt desc, o.id desc""")
     List<Order> findPage(Collection<OrderStatus> statuses, Instant from, Instant to, String phone, long number,
             Instant afterAt, UUID afterId, Limit limit);
+
+    /** Rows of status and count, for the same filters as {@link #findPage}. */
+    @Query("""
+            select o.status, count(o) from SalesOrder o
+            where o.createdAt >= :from and o.createdAt < :to
+              and (:phone = '' or o.customerPhone = :phone or o.deliveryPhone = :phone)
+              and (:number = 0 or o.number = :number)
+            group by o.status""")
+    List<Object[]> countByStatus(Instant from, Instant to, String phone, long number);
 }
