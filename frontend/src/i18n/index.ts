@@ -1,7 +1,6 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import bn from "./bn.json";
-import en from "./en.json";
+import type bn from "./bn.json";
 
 /** Bangla first, English one tap away (frontend-plan.md, "Languages"). */
 export const LANGUAGES = ["bn", "en"] as const;
@@ -14,6 +13,15 @@ declare module "i18next" {
 }
 
 const STORAGE_KEY = "mojud.language";
+
+/** Each language's texts load only when used: nobody downloads both. */
+const LOADERS = { bn: () => import("./bn.json"), en: () => import("./en.json") };
+
+async function loadTexts(language: Language) {
+  if (!i18n.hasResourceBundle(language, "translation")) {
+    i18n.addResourceBundle(language, "translation", (await LOADERS[language]()).default);
+  }
+}
 
 /** The language chosen on this device; Bangla when none was chosen or storage is unavailable. */
 export function savedLanguage(): Language {
@@ -38,6 +46,7 @@ export async function setLanguage(language: Language) {
   } catch {
     // Still switch for this visit.
   }
+  await loadTexts(language);
   await i18n.changeLanguage(language);
 }
 
@@ -46,10 +55,11 @@ i18n.on("languageChanged", () => {
   document.title = i18n.t("app.name");
 });
 
-void i18n.use(initReactI18next).init({
-  resources: { bn: { translation: bn }, en: { translation: en } },
-  lng: savedLanguage(),
-  fallbackLng: "bn",
+const initial = savedLanguage();
+await i18n.use(initReactI18next).init({
+  resources: { [initial]: { translation: (await LOADERS[initial]()).default } },
+  lng: initial,
+  fallbackLng: false,
   interpolation: { escapeValue: false },
 });
 

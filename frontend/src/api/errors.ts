@@ -74,6 +74,7 @@ export function errorAction(error: unknown): ErrorAction {
     case "auth.required":
       return { kind: "sign-in" };
     case "business.not_selected":
+    case "business.changed":
       return { kind: "pick-business" };
     case "plan.limit_reached":
       return {

@@ -79,7 +79,9 @@
     "numberRange": "Enter a number from 0 to 1,00,000.",
     "prefixInvalid": "Only English letters, digits and hyphens, up to 10.",
     "footerLong": "This can't be longer than 500 characters.",
-    "addressLong": "The address can't be longer than 300 characters."
+    "addressLong": "The address can't be longer than 300 characters.",
+    "amountInvalid": "Enter a valid amount, such as 1500.",
+    "countInvalid": "Enter a valid number."
   },
   "auth": {
     "login": "Phone number or email",
@@ -324,6 +326,167 @@
       "variant": {
         "prices_changed": "Product prices changed"
       }
+    }
+  },
+  "products": {
+    "new": "New product",
+    "search": "Search products",
+    "searchHint": "Search by name or SKU",
+    "all": "All",
+    "statusLabel": "Product status",
+    "status": {
+      "ACTIVE": "Active",
+      "ARCHIVED": "Archived"
+    },
+    "lowStockCount": "Low stock: {{count}}",
+    "noMatch": "No products match this.",
+    "none": "No products yet.",
+    "noImage": "Photo",
+    "lowStock": "Low stock",
+    "variantCount": "{{count}} variants",
+    "available": "{{count}} available",
+    "alertAt": "Alert at {{count}}",
+    "lowStockTitle": "Running low",
+    "lowStockNone": "Nothing is running low right now.",
+    "columns": {
+      "product": "Product",
+      "category": "Category",
+      "tags": "Tags",
+      "stock": "Stock",
+      "price": "Price"
+    },
+    "details": "Details",
+    "name": "Product name",
+    "description": "Description (optional)",
+    "category": "Category",
+    "noCategory": "No category",
+    "tags": "Tags",
+    "newTag": "New tag",
+    "addTag": "Add tag",
+    "pricesAndStock": "Prices and stock",
+    "price": "Selling price (৳)",
+    "cost": "Cost price (৳, optional)",
+    "costHint": "Only owners and managers see this.",
+    "sku": "SKU (optional)",
+    "skuHint": "Leave empty to generate one.",
+    "openingStock": "Opening stock (optional)",
+    "openingStockEach": "Each variant starts with this many.",
+    "create": "Create product",
+    "archive": "Archive",
+    "restore": "Restore",
+    "variants": "Variants",
+    "edit": "Edit",
+    "costShort": "Cost {{amount}}",
+    "marginShort": "Margin {{amount}}",
+    "stockLine": "On hand {{onHand}} · Set aside {{reserved}} · Available {{available}}",
+    "threshold": "Low-stock level (optional)",
+    "thresholdHint": "Leave empty to use the business's level.",
+    "archiveVariant": "Archive this variant",
+    "restoreVariant": "Restore this variant",
+    "options": {
+      "title": "Options",
+      "explain": "Such as Size: S, M, L and Colour: Red, Blue. Each combination becomes a variant. Up to 3 options.",
+      "explainEdit": "Removing a value archives its variants; adding it back restores them with their SKU and price.",
+      "add": "Add option",
+      "makes": "{{count}} variants in all",
+      "number": "Option {{number}}",
+      "name": "Option name",
+      "nameHint": "Such as Size",
+      "remove": "Remove option {{number}}",
+      "removeValue": "Remove {{value}}",
+      "value": "Add a value",
+      "valueHint": "Such as XL",
+      "addValue": "Add",
+      "incomplete": "Give each option a name and at least one value.",
+      "tooMany": "A product can have up to 100 variants."
+    },
+    "images": {
+      "title": "Images",
+      "count": "{{count}} of {{max}}",
+      "alt": "Image {{number}} of {{name}}",
+      "open": "Open image {{number}}",
+      "add": "Add images",
+      "main": "Main",
+      "hint": "JPEG, PNG or WebP, up to 8 MB, at least 100 × 100 pixels. Open an image to arrange it. Location data is removed from photos.",
+      "dialogTitle": "Image",
+      "showFor": "Shown for",
+      "allVariants": "All variants",
+      "makeMain": "Make main image",
+      "earlier": "Move earlier",
+      "later": "Move later",
+      "remove": "Remove image"
+    }
+  },
+  "stock": {
+    "change": "Change stock",
+    "history": "History",
+    "noHistory": "No changes yet.",
+    "what": "What happened?",
+    "kind": {
+      "RECEIVE": "New stock arrived",
+      "DAMAGE": "Damaged or lost",
+      "COUNT": "I counted it"
+    },
+    "hint": {
+      "RECEIVE": "Enter how many arrived. They're added to the stock.",
+      "DAMAGE": "Enter how many went. They're taken off the stock.",
+      "COUNT": "Enter the total you counted. The stock becomes that number."
+    },
+    "now": "{{count}} on hand now",
+    "note": "Reason (optional)",
+    "noteHint": "Such as delivery from Islampur",
+    "save": "Save",
+    "done": "Stock changed.",
+    "nothing": "Enter a number in at least one box.",
+    "badQuantity": "{{name}}: enter a valid number.",
+    "after": "{{count}} on hand after",
+    "movement": {
+      "OPENING": "Opening stock",
+      "RECEIVE": "Stock arrived",
+      "ADJUST": "Corrected by a count",
+      "DAMAGE": "Damaged or lost",
+      "RESERVE": "Set aside for an order",
+      "RELEASE": "No longer set aside",
+      "SHIP": "Handed to the courier",
+      "SALE": "Sold",
+      "UNSALE": "Sale undone",
+      "RETURN": "Returned",
+      "RETURN_DAMAGED": "Returned damaged"
+    }
+  },
+  "categories": {
+    "title": "Categories and tags",
+    "categories": "Categories",
+    "none": "No categories yet.",
+    "noTags": "No tags yet.",
+    "newCategory": "New category",
+    "newTag": "New tag",
+    "name": "Name",
+    "under": "Where it sits",
+    "topLevel": "At the top",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "delete": "Delete",
+    "deleteTitle": "Delete \"{{name}}\"?",
+    "deleteDescription": "If it has products or subcategories, move those first.",
+    "deleteTagTitle": "Delete the tag \"{{name}}\"?",
+    "deleteTagDescription": "The products stay; only this tag comes off them."
+  },
+  "billing": {
+    "title": "Plans and payment"
+  },
+  "planLimit": {
+    "title": "You've reached your plan's limit",
+    "reached": "You've reached your plan's limit on {{what}}. To have more, change your plan.",
+    "reachedAt": "Your plan allows {{limit}} {{what}}, and you've reached that. To have more, change your plan.",
+    "seePlans": "See plans",
+    "metric": {
+      "variants": "variants",
+      "orders_per_month": "orders a month",
+      "staff_seats": "members",
+      "import_rows": "imported rows",
+      "exports": "exports",
+      "other": "this feature"
     }
   }
 }

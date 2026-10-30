@@ -18,6 +18,7 @@ import com.mojud.shared.paging.Cursor;
 import com.mojud.shared.paging.CursorPage;
 import com.mojud.shared.text.Text;
 import com.mojud.tenancy.BusinessRole;
+import com.mojud.tenancy.BusinessDefaults;
 import com.mojud.tenancy.CurrentBusiness;
 import java.time.Clock;
 import java.time.Instant;
@@ -98,6 +99,7 @@ class ProductService {
     private final StockService stock;
     private final StockQueries stockLevels;
     private final VariantQuota quota;
+    private final BusinessDefaults defaults;
     private final UserDirectory users;
     private final TransactionTemplate transactions;
     private final AdvisoryLocks locks;
@@ -107,7 +109,7 @@ class ProductService {
     ProductService(ProductRepository products, ProductOptionRepository options, ProductVariantRepository variants,
             ProductTagRepository productTags, ProductImageRepository images, StockService stock,
             StockQueries stockLevels, UserDirectory users, TransactionTemplate transactions,
-            AdvisoryLocks locks, AuditTrail audit, Clock clock, VariantQuota quota) {
+            AdvisoryLocks locks, AuditTrail audit, Clock clock, VariantQuota quota, BusinessDefaults defaults) {
         this.products = products;
         this.options = options;
         this.variants = variants;
@@ -116,6 +118,7 @@ class ProductService {
         this.stock = stock;
         this.stockLevels = stockLevels;
         this.quota = quota;
+        this.defaults = defaults;
         this.users = users;
         this.transactions = transactions;
         this.locks = locks;
@@ -158,16 +161,19 @@ class ProductService {
                 .collect(Collectors.groupingBy(ProductVariant::getProductId));
         Map<UUID, StockLevel> levels = stockLevels.levels(pageVariants.stream().map(ProductVariant::getId).toList());
         Map<UUID, List<ProductViews.Tag>> tags = tagsOf(ids);
+        int lowStockDefault = defaults.lowStockDefault();
         return page.stream().map(product -> {
             List<ProductVariant> active = variantsByProduct.getOrDefault(product.getId(), List.of()).stream()
                     .filter(ProductVariant::isActive).toList();
             Money min = active.stream().map(v -> Money.ofPoisha(v.getPrice())).min(Comparator.naturalOrder()).orElse(null);
             Money max = active.stream().map(v -> Money.ofPoisha(v.getPrice())).max(Comparator.naturalOrder()).orElse(null);
             int available = active.stream().mapToInt(v -> levels.get(v.getId()).available()).sum();
+            boolean low = product.getStatus() == ProductStatus.ACTIVE && active.stream().anyMatch(v ->
+                    levels.get(v.getId()).available() <= (v.getLowStockThreshold() != null ? v.getLowStockThreshold() : lowStockDefault));
             ProductImage image = firstImage.get(product.getId());
             return new ProductViews.Summary(product.getId(), product.getName(), product.getCategoryId(),
                     product.getStatus(), tags.getOrDefault(product.getId(), List.of()), active.size(), min, max,
-                    available, image == null ? null : FileLinks.of(image.getFileId()).small(), product.getCreatedAt());
+                    available, low, image == null ? null : FileLinks.of(image.getFileId()).small(), product.getCreatedAt());
         }).toList();
     }
 

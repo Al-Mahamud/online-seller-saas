@@ -51,6 +51,11 @@ public enum ErrorCode {
     // Businesses.
     /** The request needs a selected business and the session has none; the client shows the switcher. */
     BUSINESS_NOT_SELECTED("business.not_selected", HttpStatus.CONFLICT),
+    /**
+     * A write named the business it means (X-Business-Id) and the session is in another: the member
+     * was removed from it, and the server moved them. Nothing was done.
+     */
+    BUSINESS_CHANGED("business.changed", HttpStatus.CONFLICT),
     /** {0} is the limit. */
     BUSINESS_LIMIT_REACHED("business.limit_reached", HttpStatus.CONFLICT),
 

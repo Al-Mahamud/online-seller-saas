@@ -15,15 +15,20 @@ import { Route as InvitesRouteImport } from './routes/invites'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppMoreRouteImport } from './routes/_app/more'
-import { Route as AppProductsRouteImport } from './routes/_app/products'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
+import { Route as AppBillingIndexRouteImport } from './routes/_app/billing/index'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
+import { Route as AppProductsIndexRouteImport } from './routes/_app/products/index'
+import { Route as AppProductsProductIdRouteImport } from './routes/_app/products/$productId'
+import { Route as AppProductsLowStockRouteImport } from './routes/_app/products/low-stock'
+import { Route as AppProductsNewRouteImport } from './routes/_app/products/new'
 import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings/account'
 import { Route as AppSettingsAuditLogRouteImport } from './routes/_app/settings/audit-log'
 import { Route as AppSettingsBusinessRouteImport } from './routes/_app/settings/business'
+import { Route as AppSettingsCategoriesRouteImport } from './routes/_app/settings/categories'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 import { Route as AppSettingsStaffRouteImport } from './routes/_app/settings/staff'
 
@@ -55,11 +60,6 @@ const AppMoreRoute = AppMoreRouteImport.update({
   path: '/more',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProductsRoute = AppProductsRouteImport.update({
-  id: '/products',
-  path: '/products',
-  getParentRoute: () => AppRoute,
-} as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
@@ -75,6 +75,11 @@ const AuthSignUpRoute = AuthSignUpRouteImport.update({
   path: '/sign-up',
   getParentRoute: () => AuthRoute,
 } as any)
+const AppBillingIndexRoute = AppBillingIndexRouteImport.update({
+  id: '/billing/',
+  path: '/billing/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppOrdersIndexRoute = AppOrdersIndexRouteImport.update({
   id: '/orders/',
   path: '/orders/',
@@ -83,6 +88,26 @@ const AppOrdersIndexRoute = AppOrdersIndexRouteImport.update({
 const AppOrdersNewRoute = AppOrdersNewRouteImport.update({
   id: '/orders/new',
   path: '/orders/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProductsIndexRoute = AppProductsIndexRouteImport.update({
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProductsProductIdRoute = AppProductsProductIdRouteImport.update({
+  id: '/products/$productId',
+  path: '/products/$productId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProductsLowStockRoute = AppProductsLowStockRouteImport.update({
+  id: '/products/low-stock',
+  path: '/products/low-stock',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProductsNewRoute = AppProductsNewRouteImport.update({
+  id: '/products/new',
+  path: '/products/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsAccountRoute = AppSettingsAccountRouteImport.update({
@@ -98,6 +123,11 @@ const AppSettingsAuditLogRoute = AppSettingsAuditLogRouteImport.update({
 const AppSettingsBusinessRoute = AppSettingsBusinessRouteImport.update({
   id: '/settings/business',
   path: '/settings/business',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsCategoriesRoute = AppSettingsCategoriesRouteImport.update({
+  id: '/settings/categories',
+  path: '/settings/categories',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
@@ -116,34 +146,44 @@ export interface FileRoutesByFullPath {
   '/invites': typeof InvitesRoute
   '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
-  '/products': typeof AppProductsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/orders/new': typeof AppOrdersNewRoute
+  '/products/$productId': typeof AppProductsProductIdRoute
+  '/products/low-stock': typeof AppProductsLowStockRoute
+  '/products/new': typeof AppProductsNewRoute
   '/settings/account': typeof AppSettingsAccountRoute
   '/settings/audit-log': typeof AppSettingsAuditLogRoute
   '/settings/business': typeof AppSettingsBusinessRoute
+  '/settings/categories': typeof AppSettingsCategoriesRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/staff': typeof AppSettingsStaffRoute
+  '/billing/': typeof AppBillingIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
+  '/products/': typeof AppProductsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/invites': typeof InvitesRoute
   '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
-  '/products': typeof AppProductsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/orders/new': typeof AppOrdersNewRoute
+  '/products/$productId': typeof AppProductsProductIdRoute
+  '/products/low-stock': typeof AppProductsLowStockRoute
+  '/products/new': typeof AppProductsNewRoute
   '/settings/account': typeof AppSettingsAccountRoute
   '/settings/audit-log': typeof AppSettingsAuditLogRoute
   '/settings/business': typeof AppSettingsBusinessRoute
+  '/settings/categories': typeof AppSettingsCategoriesRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/staff': typeof AppSettingsStaffRoute
+  '/billing': typeof AppBillingIndexRoute
   '/orders': typeof AppOrdersIndexRoute
+  '/products': typeof AppProductsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,18 +192,23 @@ export interface FileRoutesById {
   '/invites': typeof InvitesRoute
   '/welcome': typeof WelcomeRoute
   '/_app/more': typeof AppMoreRoute
-  '/_app/products': typeof AppProductsRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_app/': typeof AppIndexRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
+  '/_app/products/$productId': typeof AppProductsProductIdRoute
+  '/_app/products/low-stock': typeof AppProductsLowStockRoute
+  '/_app/products/new': typeof AppProductsNewRoute
   '/_app/settings/account': typeof AppSettingsAccountRoute
   '/_app/settings/audit-log': typeof AppSettingsAuditLogRoute
   '/_app/settings/business': typeof AppSettingsBusinessRoute
+  '/_app/settings/categories': typeof AppSettingsCategoriesRoute
   '/_app/settings/security': typeof AppSettingsSecurityRoute
   '/_app/settings/staff': typeof AppSettingsStaffRoute
+  '/_app/billing/': typeof AppBillingIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
+  '/_app/products/': typeof AppProductsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -172,34 +217,44 @@ export interface FileRouteTypes {
     | '/invites'
     | '/welcome'
     | '/more'
-    | '/products'
     | '/forgot-password'
     | '/sign-in'
     | '/sign-up'
     | '/orders/new'
+    | '/products/$productId'
+    | '/products/low-stock'
+    | '/products/new'
     | '/settings/account'
     | '/settings/audit-log'
     | '/settings/business'
+    | '/settings/categories'
     | '/settings/security'
     | '/settings/staff'
+    | '/billing/'
     | '/orders/'
+    | '/products/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/invites'
     | '/welcome'
     | '/more'
-    | '/products'
     | '/forgot-password'
     | '/sign-in'
     | '/sign-up'
     | '/orders/new'
+    | '/products/$productId'
+    | '/products/low-stock'
+    | '/products/new'
     | '/settings/account'
     | '/settings/audit-log'
     | '/settings/business'
+    | '/settings/categories'
     | '/settings/security'
     | '/settings/staff'
+    | '/billing'
     | '/orders'
+    | '/products'
   id:
     | '__root__'
     | '/_app'
@@ -207,18 +262,23 @@ export interface FileRouteTypes {
     | '/invites'
     | '/welcome'
     | '/_app/more'
-    | '/_app/products'
     | '/_auth/forgot-password'
     | '/_auth/sign-in'
     | '/_auth/sign-up'
     | '/_app/'
     | '/_app/orders/new'
+    | '/_app/products/$productId'
+    | '/_app/products/low-stock'
+    | '/_app/products/new'
     | '/_app/settings/account'
     | '/_app/settings/audit-log'
     | '/_app/settings/business'
+    | '/_app/settings/categories'
     | '/_app/settings/security'
     | '/_app/settings/staff'
+    | '/_app/billing/'
     | '/_app/orders/'
+    | '/_app/products/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -272,13 +332,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMoreRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/products': {
-      id: '/_app/products'
-      path: '/products'
-      fullPath: '/products'
-      preLoaderRoute: typeof AppProductsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_auth/forgot-password': {
       id: '/_auth/forgot-password'
       path: '/forgot-password'
@@ -300,6 +353,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignUpRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_app/billing/': {
+      id: '/_app/billing/'
+      path: '/billing'
+      fullPath: '/billing/'
+      preLoaderRoute: typeof AppBillingIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/orders/': {
       id: '/_app/orders/'
       path: '/orders'
@@ -312,6 +372,34 @@ declare module '@tanstack/react-router' {
       path: '/orders/new'
       fullPath: '/orders/new'
       preLoaderRoute: typeof AppOrdersNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/products/': {
+      id: '/_app/products/'
+      path: '/products'
+      fullPath: '/products/'
+      preLoaderRoute: typeof AppProductsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/products/$productId': {
+      id: '/_app/products/$productId'
+      path: '/products/$productId'
+      fullPath: '/products/$productId'
+      preLoaderRoute: typeof AppProductsProductIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/products/low-stock': {
+      id: '/_app/products/low-stock'
+      path: '/products/low-stock'
+      fullPath: '/products/low-stock'
+      preLoaderRoute: typeof AppProductsLowStockRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/products/new': {
+      id: '/_app/products/new'
+      path: '/products/new'
+      fullPath: '/products/new'
+      preLoaderRoute: typeof AppProductsNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings/account': {
@@ -335,6 +423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsBusinessRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/categories': {
+      id: '/_app/settings/categories'
+      path: '/settings/categories'
+      fullPath: '/settings/categories'
+      preLoaderRoute: typeof AppSettingsCategoriesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/security': {
       id: '/_app/settings/security'
       path: '/settings/security'
@@ -354,28 +449,38 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppMoreRoute: typeof AppMoreRoute
-  AppProductsRoute: typeof AppProductsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
+  AppProductsProductIdRoute: typeof AppProductsProductIdRoute
+  AppProductsLowStockRoute: typeof AppProductsLowStockRoute
+  AppProductsNewRoute: typeof AppProductsNewRoute
   AppSettingsAccountRoute: typeof AppSettingsAccountRoute
   AppSettingsAuditLogRoute: typeof AppSettingsAuditLogRoute
   AppSettingsBusinessRoute: typeof AppSettingsBusinessRoute
+  AppSettingsCategoriesRoute: typeof AppSettingsCategoriesRoute
   AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
   AppSettingsStaffRoute: typeof AppSettingsStaffRoute
+  AppBillingIndexRoute: typeof AppBillingIndexRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
+  AppProductsIndexRoute: typeof AppProductsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppMoreRoute: AppMoreRoute,
-  AppProductsRoute: AppProductsRoute,
   AppIndexRoute: AppIndexRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
+  AppProductsProductIdRoute: AppProductsProductIdRoute,
+  AppProductsLowStockRoute: AppProductsLowStockRoute,
+  AppProductsNewRoute: AppProductsNewRoute,
   AppSettingsAccountRoute: AppSettingsAccountRoute,
   AppSettingsAuditLogRoute: AppSettingsAuditLogRoute,
   AppSettingsBusinessRoute: AppSettingsBusinessRoute,
+  AppSettingsCategoriesRoute: AppSettingsCategoriesRoute,
   AppSettingsSecurityRoute: AppSettingsSecurityRoute,
   AppSettingsStaffRoute: AppSettingsStaffRoute,
+  AppBillingIndexRoute: AppBillingIndexRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
+  AppProductsIndexRoute: AppProductsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

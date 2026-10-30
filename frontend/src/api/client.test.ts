@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setLanguage } from "@/i18n";
-import { call, createApi } from "./client";
+import { call, createApi, setExpectedBusiness } from "./client";
 import { ApiError, errorAction, NetworkError } from "./errors";
 
 function clearCookies() {
@@ -64,6 +64,29 @@ describe("api client", () => {
     const urls = fetchImpl.mock.calls.map((_call, index) => new URL(requestAt(fetchImpl, index).url).pathname);
     expect(urls).toEqual(["/api/v1/auth/csrf", "/api/v1/auth/otp", "/api/v1/auth/otp"]);
     expect(requestAt(fetchImpl, 1).headers.get("X-XSRF-TOKEN")).toBe("token-1");
+  });
+});
+
+describe("the business a write means", () => {
+  afterEach(() => setExpectedBusiness(null));
+
+  it("is named on writes, and not on reads", async () => {
+    // biome-ignore lint/suspicious/noDocumentCookie: stands in for the server's Set-Cookie.
+    document.cookie = "XSRF-TOKEN=token-1; path=/";
+    const fetchImpl = vi.fn(async (_request: Request) => json({}, 200));
+    const api = createApi(fetchImpl as typeof fetch);
+    setExpectedBusiness("01a18877-ca42-75fd-abc5-98a57110a443");
+
+    await api.GET("/api/v1/plans");
+    await api.PATCH("/api/v1/business", { body: { name: "New name" } });
+
+    expect(requestAt(fetchImpl, 0).headers.get("X-Business-Id")).toBeNull();
+    expect(requestAt(fetchImpl, 1).headers.get("X-Business-Id")).toBe("01a18877-ca42-75fd-abc5-98a57110a443");
+  });
+
+  it("treats the server's refusal like a moved business", () => {
+    const error = ApiError.from(new Response(null, { status: 409 }), { code: "business.changed", detail: "Not saved." });
+    expect(errorAction(error)).toEqual({ kind: "pick-business" });
   });
 });
 

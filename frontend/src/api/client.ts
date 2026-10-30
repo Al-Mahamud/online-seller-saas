@@ -13,6 +13,16 @@ import type { paths } from "./schema";
 export type Api = ReturnType<typeof createApi>;
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+let expectedBusiness: string | null = null;
+
+/**
+ * Writes name the business on screen, and the server refuses them if the session has moved to another
+ * (a member removed from it moves by themself): the change must not land in the wrong business.
+ */
+export function setExpectedBusiness(businessId: string | null) {
+  expectedBusiness = businessId;
+}
 const CSRF_COOKIE = "XSRF-TOKEN";
 
 function cookie(name: string): string | null {
@@ -45,6 +55,9 @@ export function createApi(fetchImpl: typeof fetch = (...args) => fetch(...args))
         const token = await csrfToken();
         if (token) {
           request.headers.set("X-XSRF-TOKEN", token);
+        }
+        if (expectedBusiness) {
+          request.headers.set("X-Business-Id", expectedBusiness);
         }
       }
       return request;

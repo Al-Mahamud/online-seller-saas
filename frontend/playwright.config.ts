@@ -18,6 +18,8 @@ const external = process.env.E2E_BASE_URL;
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
+  // Password hashing is slow on purpose, and a test may sign up several people.
+  timeout: 60_000,
   forbidOnly: ci,
   retries: ci ? 1 : 0,
   reporter: ci ? [["github"], ["html", { open: "never" }]] : [["list"]],

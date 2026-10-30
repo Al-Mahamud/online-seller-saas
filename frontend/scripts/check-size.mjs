@@ -32,6 +32,11 @@ const total = (files) => [...files].reduce((sum, file) => sum + compressed(file)
 const kb = (bytes) => `${(bytes / 1024).toFixed(1).padStart(7)} KB`;
 
 const entry = closure("index.html");
+// The texts load separately, in the language in use.
+closure(
+  Object.keys(manifest).find((key) => key.endsWith("i18n/bn.json")),
+  entry,
+);
 console.log(`${kb(total(entry))}  loaded by every page`);
 
 // A page under a layout route (_app, _auth) also needs the layout's own code.

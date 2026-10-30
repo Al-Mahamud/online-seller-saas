@@ -1,7 +1,7 @@
 import { type QueryClient, queryOptions, useQuery } from "@tanstack/react-query";
 import { redirect } from "@tanstack/react-router";
 import { useRef } from "react";
-import { api, call } from "./client";
+import { api, call, setExpectedBusiness } from "./client";
 import { ApiError } from "./errors";
 import type { components } from "./schema";
 
@@ -57,6 +57,14 @@ export const businessQuery = queryOptions({
   refetchInterval: 60_000,
   meta: { showsOwnErrors: true },
 });
+
+/** Writes name whichever business is in the cache, from the moment it is (see setExpectedBusiness). */
+export function trackExpectedBusiness(queryClient: QueryClient) {
+  queryClient.getQueryCache().subscribe(() => {
+    const business = queryClient.getQueryData<Business | null>(businessQuery.queryKey);
+    setExpectedBusiness(business?.id ?? null);
+  });
+}
 
 /** The people's businesses, for the switcher. */
 export const businessesQuery = queryOptions({

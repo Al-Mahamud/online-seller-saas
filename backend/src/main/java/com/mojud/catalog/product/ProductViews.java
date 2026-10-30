@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * What the API returns for products. Cost price and margin are filled only for managers and
@@ -35,7 +36,7 @@ final class ProductViews {
             @JsonInclude(JsonInclude.Include.NON_NULL) Money costPrice,
             @JsonInclude(JsonInclude.Include.NON_NULL) Money margin,
             /** Null: the business's default applies. */
-            Integer lowStockThreshold,
+            @Nullable Integer lowStockThreshold,
             /** On the shelf; held for confirmed orders; the difference, which can be sold. */
             int onHand,
             int reserved,
@@ -68,11 +69,12 @@ final class ProductViews {
 
     /** One entry of a variant's stock history (Phase 4a). */
     record Movement(UUID id, Instant at, MovementType type, int onHandChange, int reservedChange, int onHandAfter,
-            int reservedAfter, int availableAfter, String referenceType, UUID referenceId, String note, Actor by) {
+            int reservedAfter, int availableAfter, @Nullable String referenceType, @Nullable UUID referenceId,
+            @Nullable String note, @Nullable Actor by) {
     }
 
     /** {@code variantId} null: shown for the whole product. */
-    record Image(UUID id, UUID fileId, UUID variantId, String large, String small) {
+    record Image(UUID id, UUID fileId, @Nullable UUID variantId, String large, String small) {
 
         static Image of(ProductImage image) {
             FileLinks.Links links = FileLinks.of(image.getFileId());
@@ -80,12 +82,16 @@ final class ProductViews {
         }
     }
 
-    record Detail(UUID id, String name, String description, UUID categoryId, ProductStatus status, List<Tag> tags,
+    record Detail(UUID id, String name, @Nullable String description, @Nullable UUID categoryId, ProductStatus status, List<Tag> tags,
             List<Image> images, List<Option> options, List<Variant> variants, Instant createdAt, long version) {
     }
 
-    /** One row of the product list: prices of the active variants only; the first image's small copy. */
-    record Summary(UUID id, String name, UUID categoryId, ProductStatus status, List<Tag> tags, int activeVariants,
-            Money minPrice, Money maxPrice, int available, String thumbnail, Instant createdAt) {
+    /**
+     * One row of the product list: prices of the active variants only; the first image's small copy;
+     * {@code lowStock} when an active variant is at or below its alert level.
+     */
+    record Summary(UUID id, String name, @Nullable UUID categoryId, ProductStatus status, List<Tag> tags, int activeVariants,
+            @Nullable Money minPrice, @Nullable Money maxPrice, int available, boolean lowStock, @Nullable String thumbnail,
+            Instant createdAt) {
     }
 }

@@ -115,7 +115,7 @@ class SecurityConfig {
             CorsConfiguration cors = new CorsConfiguration();
             cors.setAllowedOrigins(web.allowedOrigins());
             cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
-            cors.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "Idempotency-Key", "Accept-Language"));
+            cors.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "Idempotency-Key", "Accept-Language", "X-Business-Id"));
             cors.setAllowCredentials(true);
             source.registerCorsConfiguration("/api/**", cors);
         }

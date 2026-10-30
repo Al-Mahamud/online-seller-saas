@@ -43,20 +43,26 @@ declare module "@tanstack/react-query" {
 /**
  * `onSignedOut`: the server said the session is gone (expired, or signed out elsewhere).
  * `onAccessChanged`: the server said no business is selected, or refused on the role: a member's
- * business or role may have changed.
+ * business or role may have changed. `onPlanLimit`: the business's plan doesn't allow this.
  */
 export function createQueryClient({
   onSignedOut,
   onAccessChanged,
+  onPlanLimit,
 }: {
   onSignedOut?: () => void;
   onAccessChanged?: () => void;
+  onPlanLimit?: (limit: { metric: string | null; limit: number | null }) => void;
 } = {}) {
   const handle = (error: unknown, showsOwnErrors: boolean | undefined) => {
-    const { kind } = errorAction(error);
+    const action = errorAction(error);
+    const { kind } = action;
     if (kind === "sign-in") {
       onSignedOut?.();
       return;
+    }
+    if (action.kind === "upgrade") {
+      onPlanLimit?.({ metric: action.metric, limit: action.limit });
     }
     if (kind === "pick-business" || (error instanceof ApiError && error.status === 403)) {
       onAccessChanged?.();

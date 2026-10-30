@@ -3201,14 +3201,14 @@
         "properties" : {
           "categoryId" : {
             "format" : "uuid",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
           },
           "description" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "id" : {
             "format" : "uuid",
@@ -3271,7 +3271,7 @@
           },
           "variantId" : {
             "format" : "uuid",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           }
         },
         "required" : [ "fileId", "id", "large", "small", "variantId" ],
@@ -3326,14 +3326,18 @@
             "type" : "integer"
           },
           "by" : {
-            "$ref" : "#/components/schemas/ProductActor"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/ProductActor"
+            }, {
+              "type" : "null"
+            } ]
           },
           "id" : {
             "format" : "uuid",
             "type" : "string"
           },
           "note" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "onHandAfter" : {
             "format" : "int32",
@@ -3345,10 +3349,10 @@
           },
           "referenceId" : {
             "format" : "uuid",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "referenceType" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "reservedAfter" : {
             "format" : "int32",
@@ -3445,7 +3449,7 @@
           },
           "categoryId" : {
             "format" : "uuid",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "createdAt" : {
             "format" : "date-time",
@@ -3455,13 +3459,16 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "lowStock" : {
+            "type" : "boolean"
+          },
           "maxPrice" : {
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "minPrice" : {
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "name" : {
             "type" : "string"
@@ -3477,10 +3484,10 @@
             "type" : "array"
           },
           "thumbnail" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "activeVariants", "available", "categoryId", "createdAt", "id", "maxPrice", "minPrice", "name", "status", "tags", "thumbnail" ],
+        "required" : [ "activeVariants", "available", "categoryId", "createdAt", "id", "lowStock", "maxPrice", "minPrice", "name", "status", "tags", "thumbnail" ],
         "type" : "object"
       },
       "ProductTag" : {
@@ -3554,7 +3561,7 @@
           },
           "lowStockThreshold" : {
             "format" : "int32",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "margin" : {
             "format" : "int64",

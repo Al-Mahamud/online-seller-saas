@@ -245,6 +245,24 @@ class StaffTests {
     }
 
     @Test
+    void aWriteNamingABusinessTheMemberWasMovedFromDoesNothing() {
+        Owner owner = newBusiness("Old Shop");
+        Member member = join(owner, "MANAGER");
+        TestBusinesses.create(member.client, "Own Shop");
+        member.client.post("/api/v1/me/switch-business", Map.of("businessId", owner.businessId.toString())).expectStatus(200);
+        ApiClient naming = member.client.withHeader("X-Business-Id", owner.businessId.toString());
+
+        // While it is the selected one, naming it changes nothing.
+        naming.patch("/api/v1/business", Map.of("name", "Old Shop 2")).expectStatus(200);
+
+        owner.client.delete("/api/v1/staff/" + member.userId).expectStatus(204);
+
+        // The session has moved to their own shop; the write meant for the old one is refused.
+        naming.patch("/api/v1/business", Map.of("name", "Written By Mistake")).expectError(409, "business.changed");
+        assertThat(member.client.get("/api/v1/business").<String>json("$.name")).isEqualTo("Own Shop");
+    }
+
+    @Test
     void theOwnerCannotLeave() {
         Owner owner = newBusiness("Kept Shop");
 

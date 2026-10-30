@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { businessQuery, settingsQuery, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
+import { uploadImage } from "@/api/uploads";
 import { FormError, TextAreaField, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
 import { BackToMore, PageHeader } from "@/components/layout/PageHeader";
@@ -75,10 +76,7 @@ function LogoSection() {
   const update = (updated: typeof business) => queryClient.setQueryData(businessQuery.queryKey, updated);
   const upload = useMutation({
     mutationFn: async (file: File) => {
-      const data = new FormData();
-      data.append("file", file);
-      // The generated type calls a file a string; the browser sends the form data as it is.
-      const uploaded = await call(api.POST("/api/v1/uploads", { body: { file: "" }, bodySerializer: () => data }));
+      const uploaded = await uploadImage(file);
       return call(api.PUT("/api/v1/business/logo", { body: { fileId: uploaded.id } }));
     },
     onSuccess: update,

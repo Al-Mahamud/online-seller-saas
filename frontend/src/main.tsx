@@ -8,9 +8,10 @@ import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
-import { businessQuery, resetBusinessData, whenBusinessChangesUnderneath } from "./api/business";
+import { businessQuery, resetBusinessData, trackExpectedBusiness, whenBusinessChangesUnderneath } from "./api/business";
 import { createQueryClient } from "./api/query";
 import { signedOut } from "./api/session";
+import { showPlanLimit } from "./components/layout/planLimit";
 import i18n from "./i18n";
 import { safeRedirect } from "./lib/redirect";
 import { createAppRouter } from "./router";
@@ -26,9 +27,11 @@ const queryClient = createQueryClient({
     }
   },
   onAccessChanged: () => void queryClient.invalidateQueries(businessQuery),
+  onPlanLimit: showPlanLimit,
 });
 const router = createAppRouter(queryClient);
 
+trackExpectedBusiness(queryClient);
 whenBusinessChangesUnderneath((lost) => {
   toast.warning(i18n.t("business.lost", { name: lost.name }));
   resetBusinessData(queryClient);

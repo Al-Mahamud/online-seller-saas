@@ -104,7 +104,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | F0 Skeleton, design, API client, CI, deploy | F0a skeleton, shell, API client · F0b end-to-end tests · F0c web image and deploy | Done |
 | F1 Signing in and the account | F1a sign-up, sign-in, forgot password, pages behind sign-in · F1b account settings, two-step sign-in | Done |
 | F2 Business, team and settings | F2a first business, switcher, details, logo, settings · F2b staff, invites, leaving, audit log, deleting | Done |
-| F3–F11 | | Not started |
+| F3 Products and stock | One commit | Done |
+| F4–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -253,7 +254,7 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Which business:** `businessQuery` (`GET /business`) is the selected one, and it carries the role.
   - The server moves the selection by itself when a member is removed: the next request silently runs in their other business, or none. So the app reads it again every minute and on returning to the app, and an answer naming another business means a warning, all cached data dropped, and a new start at Today.
   - A `business.not_selected` or 403 from any request triggers the same check.
-  - Known gap: within that minute, a write by someone removed at that moment could land in their other business. It takes a person in two businesses, removed mid-use; the fix would be sending the expected business with each write.
+  - Within that minute, writes are protected too (added in F3): each names the business on screen in `X-Business-Id`, and the server refuses it with `business.changed` if the session has moved.
 - **Roles:** `hasRole` hides what a role cannot do and `requireRole` keeps pages out of reach, with the server still deciding.
 - **Switcher:** in the header on phones and the sidebar on laptops: logo or initials, name, role. The list loads when opened; it can create another business. Switching drops everything cached from the other one.
 - **`/settings/business`** (managers and owners): details; logo upload, change and remove (the server's message for an image too small or too large); when stock goes down, low-stock level, order number start (upper-cased as typed), slip footer.
@@ -296,6 +297,29 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Plan limits:** the upgrade dialog when the variant limit is reached.
 
 **Checked by:** e2e: create a product with 2 options and 6 variants on a phone screen; receive stock; a staff member sees no cost anywhere; the 402 limit dialog appears at the trial limit (lowered in the test).
+
+**As built (F3):**
+- **The wrong-business guard:** `RoleInterceptor` compares `X-Business-Id` with the session's business on business-scoped writes (409 `business.changed`, nothing done). The client sends whichever business is in its cache.
+- **`/products`:**
+  - Cards on phones, a table from 768 px, as in the mockup; pages load as the end comes into view.
+  - Search, one category or tag at a time as chips (subcategories appear under their category), active or archived; all kept in the address.
+  - A low-stock badge per product: `lowStock` added to the backend's list, using the same rule as the low-stock list.
+- **`/products/new`** (managers and owners): details, category, tags (new ones on the spot), options with the number of variants they make, price, cost, SKU, opening stock.
+- **`/products/$id`:**
+  - Everyone sees it and changes stock. Managers and owners edit details, images, options and variants, and archive and restore.
+  - Stale edits are refused by `version`; the form takes the latest and shows the server's message.
+  - Each variant is edited in a dialog, not inline as the mockup's grid shows: a table of inputs doesn't work on a phone. Seller sessions (F11) will show whether laptops want the grid too.
+- **Images:** up to 8, several at once. Opening one offers making it main, moving it, which variant it shows for, and removing it; buttons, not dragging, so it works by touch and keyboard.
+- **Stock:**
+  - One dialog for any of the product's variants at once: arrived, damaged or lost, or counted, with a reason. All of it happens or none; the idempotency key is kept across retries of one change.
+  - History per variant, in plain words.
+  - `/products/low-stock`, where the low-stock email links.
+- **`/settings/categories`** (managers and owners): two levels, add, rename, move, reorder, delete; tags.
+- **Plan limits:** any 402 `plan.limit_reached` opens one dialog, with what the limit is and a link to `/billing`, a placeholder until F8.
+- **Staff and cost:** the test reads the server's raw answer as well as the screen: no cost or margin anywhere.
+- **Language files load separately**, only the one in use, so growing texts don't weigh on every page.
+- **Size:** every page loads 160 KB; the list adds 26 KB (186 KB); the heaviest page, a product with its forms, is 243 KB of 250. F6's order forms must share these form libraries, not add to them.
+- **E2E (`products.spec.ts`):** 100 tests across both screen sizes; a double run with no retries passed all 200. The limit test puts a business on the real Starter plan with a test-only `POST /dev/plan`, and fills it with 500 variants.
 
 ### F4: Importing products (2 days)
 

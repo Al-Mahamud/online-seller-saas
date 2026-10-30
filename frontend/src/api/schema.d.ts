@@ -3057,10 +3057,10 @@ export interface components {
         };
         ProductDetail: {
             /** Format: uuid */
-            categoryId: string;
+            categoryId: string | null;
             /** Format: date-time */
             createdAt: string;
-            description: string;
+            description: string | null;
             /** Format: uuid */
             id: string;
             images: components["schemas"]["ProductImage"][];
@@ -3081,7 +3081,7 @@ export interface components {
             large: string;
             small: string;
             /** Format: uuid */
-            variantId: string;
+            variantId: string | null;
         };
         ProductImageOrderRequest: {
             ids: string[];
@@ -3101,17 +3101,17 @@ export interface components {
             at: string;
             /** Format: int32 */
             availableAfter: number;
-            by: components["schemas"]["ProductActor"];
+            by: components["schemas"]["ProductActor"] | null;
             /** Format: uuid */
             id: string;
-            note: string;
+            note: string | null;
             /** Format: int32 */
             onHandAfter: number;
             /** Format: int32 */
             onHandChange: number;
             /** Format: uuid */
-            referenceId: string;
-            referenceType: string;
+            referenceId: string | null;
+            referenceType: string | null;
             /** Format: int32 */
             reservedAfter: number;
             /** Format: int32 */
@@ -3146,20 +3146,21 @@ export interface components {
             /** Format: int32 */
             available: number;
             /** Format: uuid */
-            categoryId: string;
+            categoryId: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
             id: string;
+            lowStock: boolean;
             /** Format: int64 */
-            maxPrice: number;
+            maxPrice: number | null;
             /** Format: int64 */
-            minPrice: number;
+            minPrice: number | null;
             name: string;
             /** @enum {string} */
             status: "ACTIVE" | "ARCHIVED";
             tags: components["schemas"]["ProductTag"][];
-            thumbnail: string;
+            thumbnail: string | null;
         };
         ProductTag: {
             /** Format: uuid */
@@ -3188,7 +3189,7 @@ export interface components {
             id: string;
             label: string;
             /** Format: int32 */
-            lowStockThreshold: number;
+            lowStockThreshold: number | null;
             /** Format: int64 */
             margin?: number;
             /** Format: int32 */
