@@ -36,7 +36,7 @@ class BillingAdminController {
 
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(DhakaTime.ZONE);
 
-    record AdminInvoice(UUID id, String number, UUID businessId, String kind, String planCode, long amount, String status,
+    record AdminInvoice(UUID id, String number, UUID businessId, String businessName, String kind, String planCode, long amount, String status,
             String payBy, Instant createdAt) {
     }
 
@@ -59,13 +59,14 @@ class BillingAdminController {
     @GetMapping("/api/v1/admin/billing/invoices")
     List<AdminInvoice> invoices(@RequestParam(required = false) String status) {
         return database.jdbc().sql("""
-                        select id, number, business_id, kind, plan_code, amount, status, pay_by, created_at from invoices
-                        where (? = '' or status = ?) order by created_at desc limit 500
+                        select i.id, i.number, i.business_id, b.name, i.kind, i.plan_code, i.amount, i.status, i.pay_by, i.created_at
+                        from invoices i join businesses b on b.id = i.business_id
+                        where (? = '' or i.status = ?) order by i.created_at desc limit 500
                         """)
                 .params(status == null ? "" : status, status == null ? "" : status)
                 .query((rs, n) -> new AdminInvoice(rs.getObject(1, UUID.class), rs.getString(2), rs.getObject(3, UUID.class),
-                        rs.getString(4), rs.getString(5), rs.getLong(6), rs.getString(7), rs.getString(8),
-                        rs.getTimestamp(9).toInstant()))
+                        rs.getString(4), rs.getString(5), rs.getString(6), rs.getLong(7), rs.getString(8), rs.getString(9),
+                        rs.getTimestamp(10).toInstant()))
                 .list();
     }
 

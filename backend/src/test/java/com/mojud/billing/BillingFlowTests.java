@@ -134,6 +134,7 @@ class BillingFlowTests {
 
         ApiClient admin = admin();
         assertThat(admin.get("/api/v1/admin/billing/invoices?status=OPEN").<List<String>>json("$[*].id")).contains(invoice);
+        assertThat(admin.get("/api/v1/admin/billing/invoices?status=OPEN").<List<String>>json("$[*].businessName")).isNotEmpty();
         admin.post("/api/v1/admin/billing/invoices/" + invoice + "/mark-paid", Map.of("reference", "DBBL-778812"))
                 .expectStatus(200);
 

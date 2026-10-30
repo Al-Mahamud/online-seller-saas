@@ -9,6 +9,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,7 +26,7 @@ class AdminMetricsController {
      * member changed something in the last 7 days.
      */
     record Metrics(long users, long signUps7d, long signUps30d, long businesses, long businesses7d, long trialing, long paying,
-            long readOnly, long suspended, long everPaid, BigDecimal conversion, long mrrPoisha, long weeklyActive,
+            long readOnly, long suspended, long everPaid, @Nullable BigDecimal conversion, long mrrPoisha, long weeklyActive,
             Instant at) {
     }
 

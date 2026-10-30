@@ -4,16 +4,17 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /** Businesses across the platform, for platform administration (the system role reads them). */
 public interface BusinessDirectory {
 
-    record Owner(UUID id, String name, String phone, String email) {
+    record Owner(UUID id, String name, @Nullable String phone, @Nullable String email) {
     }
 
     /** {@code members}: active members, the owner included. */
-    record BusinessSummary(UUID id, String name, String phone, String address, String status, Instant createdAt,
-            Owner owner, int members) {
+    record BusinessSummary(UUID id, String name, @Nullable String phone, @Nullable String address, String status,
+            Instant createdAt, @Nullable Owner owner, int members) {
     }
 
     /**

@@ -190,7 +190,8 @@
       "submit": "Change password",
       "done": "Your password has been changed."
     },
-    "profile": "Profile"
+    "profile": "Profile",
+    "admin": "Admin"
   },
   "field": {
     "required": "Please fill this in.",

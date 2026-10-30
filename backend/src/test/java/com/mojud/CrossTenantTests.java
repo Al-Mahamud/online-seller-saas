@@ -462,6 +462,7 @@ class CrossTenantTests {
         CASES.put("GET /dev/invite", notBusinessData("exists only in test sources and local runs"));
         CASES.put("POST /dev/plan", notBusinessData("exists only in test sources and local runs"));
         CASES.put("POST /dev/subscription", notBusinessData("exists only in test sources and local runs"));
+        CASES.put("POST /dev/platform-admin", notBusinessData("exists only in test sources and local runs"));
         CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/checkout/{tranId}", notBusinessData("the fake gateway"));
         CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/checkout/{tranId}/{choice}", notBusinessData("the fake gateway"));
         CASES.put("POST /api/v1/public/gateway/fake-sslcommerz/gwprocess/v4/api.php", notBusinessData("the fake gateway"));

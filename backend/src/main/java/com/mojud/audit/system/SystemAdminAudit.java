@@ -53,12 +53,14 @@ class SystemAdminAudit implements AdminAudit {
     @SuppressWarnings("unchecked")
     public List<Entry> recent(UUID businessId, int limit) {
         return database.jdbc().sql("""
-                        select id, admin_id, action, target_type, target_id, target_business_id, details::text, created_at
-                        from admin_audit where (cast(? as uuid) is null or target_business_id = ?)
-                        order by created_at desc, id desc limit ?
+                        select a.id, a.admin_id, a.action, a.target_type, a.target_id, a.target_business_id, a.details::text,
+                               a.created_at, u.name
+                        from admin_audit a left join users u on u.id = a.admin_id
+                        where (cast(? as uuid) is null or a.target_business_id = ?)
+                        order by a.created_at desc, a.id desc limit ?
                         """)
                 .params(businessId, businessId, limit)
-                .query((rs, n) -> new Entry(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
+                .query((rs, n) -> new Entry(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(9), rs.getString(3),
                         rs.getString(4), rs.getString(5), rs.getObject(6, UUID.class),
                         json.readValue(rs.getString(7), Map.class), rs.getTimestamp(8).toInstant()))
                 .list();

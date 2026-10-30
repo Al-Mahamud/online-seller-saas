@@ -114,13 +114,16 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "adminName" : {
+            "type" : [ "string", "null" ]
+          },
           "at" : {
             "format" : "date-time",
             "type" : "string"
           },
           "businessId" : {
             "format" : "uuid",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "details" : {
             "additionalProperties" : { },
@@ -137,7 +140,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "action", "adminId", "at", "businessId", "details", "id", "targetId", "targetType" ],
+        "required" : [ "action", "adminId", "adminName", "at", "businessId", "details", "id", "targetId", "targetType" ],
         "type" : "object"
       },
       "AdminBusinessDetail" : {
@@ -256,7 +259,7 @@
             "type" : "integer"
           },
           "conversion" : {
-            "type" : "number"
+            "type" : [ "number", "null" ]
           },
           "everPaid" : {
             "format" : "int64",
@@ -512,6 +515,9 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "businessName" : {
+            "type" : "string"
+          },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -536,7 +542,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "businessId", "createdAt", "id", "kind", "number", "payBy", "planCode", "status" ],
+        "required" : [ "amount", "businessId", "businessName", "createdAt", "id", "kind", "number", "payBy", "planCode", "status" ],
         "type" : "object"
       },
       "BillingAdminMarkPaidRequest" : {
@@ -572,7 +578,7 @@
           },
           "paidAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "payBy" : {
             "type" : "string"
@@ -591,7 +597,7 @@
         "properties" : {
           "currentPeriodEnd" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "invoices" : {
             "items" : {
@@ -600,7 +606,7 @@
             "type" : "array"
           },
           "pendingPlanCode" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "planCode" : {
             "type" : "string"
@@ -609,11 +615,11 @@
             "type" : "string"
           },
           "suspendedFrom" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "trialEndsAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "usage" : {
             "additionalProperties" : {
@@ -661,7 +667,7 @@
         "properties" : {
           "currentPeriodEnd" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "planCode" : {
             "type" : "string"
@@ -671,7 +677,7 @@
           },
           "trialEndsAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           }
         },
         "required" : [ "currentPeriodEnd", "planCode", "status", "trialEndsAt" ],
@@ -681,7 +687,7 @@
         "properties" : {
           "limit" : {
             "format" : "int32",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "used" : {
             "format" : "int64",
@@ -862,7 +868,7 @@
       "BusinessDirectoryBusinessSummary" : {
         "properties" : {
           "address" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "createdAt" : {
             "format" : "date-time",
@@ -880,10 +886,14 @@
             "type" : "string"
           },
           "owner" : {
-            "$ref" : "#/components/schemas/BusinessDirectoryOwner"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/BusinessDirectoryOwner"
+            }, {
+              "type" : "null"
+            } ]
           },
           "phone" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "status" : {
             "type" : "string"
@@ -895,7 +905,7 @@
       "BusinessDirectoryOwner" : {
         "properties" : {
           "email" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "id" : {
             "format" : "uuid",
@@ -905,7 +915,7 @@
             "type" : "string"
           },
           "phone" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           }
         },
         "required" : [ "email", "id", "name", "phone" ],

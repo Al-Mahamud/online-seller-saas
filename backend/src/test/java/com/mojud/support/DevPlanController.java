@@ -1,6 +1,7 @@
 package com.mojud.support;
 
 import com.mojud.shared.db.system.SystemDatabase;
+import com.mojud.shared.phone.PhoneNumber;
 import io.swagger.v3.oas.annotations.Hidden;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -50,6 +51,15 @@ class DevPlanController {
                         status.equals("ACTIVE") ? endsAt : status.equals("GRACE") ? nowAt : null,
                         status.equals("GRACE") ? endsAt : null,
                         status.equals("READ_ONLY") ? nowAt : null, businessId)
+                .update();
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Makes this phone's account a platform admin. Admin rights are read at sign-in, so sign in again after. */
+    @PostMapping("/dev/platform-admin")
+    ResponseEntity<Void> makeAdmin(@RequestParam String phone) {
+        database.jdbc().sql("update users set is_platform_admin = true where phone = ?")
+                .param(PhoneNumber.fromInput(phone, "phone").e164())
                 .update();
         return ResponseEntity.noContent().build();
     }

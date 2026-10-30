@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as InvitesRouteImport } from './routes/invites'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
@@ -18,6 +19,11 @@ import { Route as AppMoreRouteImport } from './routes/_app/more'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAuditRouteImport } from './routes/admin/audit'
+import { Route as AdminInvoicesRouteImport } from './routes/admin/invoices'
+import { Route as AdminMetricsRouteImport } from './routes/admin/metrics'
+import { Route as AdminPlansRouteImport } from './routes/admin/plans'
 import { Route as AppBillingIndexRouteImport } from './routes/_app/billing/index'
 import { Route as AppBillingReturnRouteImport } from './routes/_app/billing/return'
 import { Route as AppCodIndexRouteImport } from './routes/_app/cod/index'
@@ -40,6 +46,7 @@ import { Route as AppSettingsDeliveryRouteImport } from './routes/_app/settings/
 import { Route as AppSettingsNotificationsRouteImport } from './routes/_app/settings/notifications'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 import { Route as AppSettingsStaffRouteImport } from './routes/_app/settings/staff'
+import { Route as AdminBusinessesBusinessIdRouteImport } from './routes/admin/businesses/$businessId'
 import { Route as AppBillingInvoicesInvoiceIdRouteImport } from './routes/_app/billing/invoices/$invoiceId'
 import { Route as AppOrdersOrderIdIndexRouteImport } from './routes/_app/orders/$orderId/index'
 import { Route as AppOrdersOrderIdEditRouteImport } from './routes/_app/orders/$orderId/edit'
@@ -50,6 +57,11 @@ const AppRoute = AppRouteImport.update({
 } as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InvitesRoute = InvitesRouteImport.update({
@@ -86,6 +98,31 @@ const AuthSignUpRoute = AuthSignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
   getParentRoute: () => AuthRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInvoicesRoute = AdminInvoicesRouteImport.update({
+  id: '/invoices',
+  path: '/invoices',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMetricsRoute = AdminMetricsRouteImport.update({
+  id: '/metrics',
+  path: '/metrics',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPlansRoute = AdminPlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AppBillingIndexRoute = AppBillingIndexRouteImport.update({
   id: '/billing/',
@@ -198,6 +235,12 @@ const AppSettingsStaffRoute = AppSettingsStaffRouteImport.update({
   path: '/settings/staff',
   getParentRoute: () => AppRoute,
 } as any)
+const AdminBusinessesBusinessIdRoute =
+  AdminBusinessesBusinessIdRouteImport.update({
+    id: '/businesses/$businessId',
+    path: '/businesses/$businessId',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AppBillingInvoicesInvoiceIdRoute =
   AppBillingInvoicesInvoiceIdRouteImport.update({
     id: '/billing/invoices/$invoiceId',
@@ -217,12 +260,18 @@ const AppOrdersOrderIdEditRoute = AppOrdersOrderIdEditRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/invites': typeof InvitesRoute
   '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/invoices': typeof AdminInvoicesRoute
+  '/admin/metrics': typeof AdminMetricsRoute
+  '/admin/plans': typeof AdminPlansRoute
+  '/admin/': typeof AdminIndexRoute
   '/billing/return': typeof AppBillingReturnRoute
   '/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/orders/new': typeof AppOrdersNewRoute
@@ -238,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/settings/notifications': typeof AppSettingsNotificationsRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/staff': typeof AppSettingsStaffRoute
+  '/admin/businesses/$businessId': typeof AdminBusinessesBusinessIdRoute
   '/billing/': typeof AppBillingIndexRoute
   '/cod/': typeof AppCodIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
@@ -257,6 +307,11 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/invoices': typeof AdminInvoicesRoute
+  '/admin/metrics': typeof AdminMetricsRoute
+  '/admin/plans': typeof AdminPlansRoute
+  '/admin': typeof AdminIndexRoute
   '/billing/return': typeof AppBillingReturnRoute
   '/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/orders/new': typeof AppOrdersNewRoute
@@ -272,6 +327,7 @@ export interface FileRoutesByTo {
   '/settings/notifications': typeof AppSettingsNotificationsRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/staff': typeof AppSettingsStaffRoute
+  '/admin/businesses/$businessId': typeof AdminBusinessesBusinessIdRoute
   '/billing': typeof AppBillingIndexRoute
   '/cod': typeof AppCodIndexRoute
   '/customers': typeof AppCustomersIndexRoute
@@ -287,13 +343,19 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
+  '/admin': typeof AdminRouteWithChildren
   '/invites': typeof InvitesRoute
   '/welcome': typeof WelcomeRoute
   '/_app/more': typeof AppMoreRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/invoices': typeof AdminInvoicesRoute
+  '/admin/metrics': typeof AdminMetricsRoute
+  '/admin/plans': typeof AdminPlansRoute
   '/_app/': typeof AppIndexRoute
+  '/admin/': typeof AdminIndexRoute
   '/_app/billing/return': typeof AppBillingReturnRoute
   '/_app/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
@@ -309,6 +371,7 @@ export interface FileRoutesById {
   '/_app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/_app/settings/security': typeof AppSettingsSecurityRoute
   '/_app/settings/staff': typeof AppSettingsStaffRoute
+  '/admin/businesses/$businessId': typeof AdminBusinessesBusinessIdRoute
   '/_app/billing/': typeof AppBillingIndexRoute
   '/_app/cod/': typeof AppCodIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
@@ -324,12 +387,18 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/invites'
     | '/welcome'
     | '/more'
     | '/forgot-password'
     | '/sign-in'
     | '/sign-up'
+    | '/admin/audit'
+    | '/admin/invoices'
+    | '/admin/metrics'
+    | '/admin/plans'
+    | '/admin/'
     | '/billing/return'
     | '/customers/$customerId'
     | '/orders/new'
@@ -345,6 +414,7 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/settings/security'
     | '/settings/staff'
+    | '/admin/businesses/$businessId'
     | '/billing/'
     | '/cod/'
     | '/customers/'
@@ -364,6 +434,11 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/sign-in'
     | '/sign-up'
+    | '/admin/audit'
+    | '/admin/invoices'
+    | '/admin/metrics'
+    | '/admin/plans'
+    | '/admin'
     | '/billing/return'
     | '/customers/$customerId'
     | '/orders/new'
@@ -379,6 +454,7 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/settings/security'
     | '/settings/staff'
+    | '/admin/businesses/$businessId'
     | '/billing'
     | '/cod'
     | '/customers'
@@ -393,13 +469,19 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/_auth'
+    | '/admin'
     | '/invites'
     | '/welcome'
     | '/_app/more'
     | '/_auth/forgot-password'
     | '/_auth/sign-in'
     | '/_auth/sign-up'
+    | '/admin/audit'
+    | '/admin/invoices'
+    | '/admin/metrics'
+    | '/admin/plans'
     | '/_app/'
+    | '/admin/'
     | '/_app/billing/return'
     | '/_app/customers/$customerId'
     | '/_app/orders/new'
@@ -415,6 +497,7 @@ export interface FileRouteTypes {
     | '/_app/settings/notifications'
     | '/_app/settings/security'
     | '/_app/settings/staff'
+    | '/admin/businesses/$businessId'
     | '/_app/billing/'
     | '/_app/cod/'
     | '/_app/customers/'
@@ -430,6 +513,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  AdminRoute: typeof AdminRouteWithChildren
   InvitesRoute: typeof InvitesRoute
   WelcomeRoute: typeof WelcomeRoute
 }
@@ -448,6 +532,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invites': {
@@ -498,6 +589,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/sign-up'
       preLoaderRoute: typeof AuthSignUpRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/invoices': {
+      id: '/admin/invoices'
+      path: '/invoices'
+      fullPath: '/admin/invoices'
+      preLoaderRoute: typeof AdminInvoicesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/metrics': {
+      id: '/admin/metrics'
+      path: '/metrics'
+      fullPath: '/admin/metrics'
+      preLoaderRoute: typeof AdminMetricsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/plans': {
+      id: '/admin/plans'
+      path: '/plans'
+      fullPath: '/admin/plans'
+      preLoaderRoute: typeof AdminPlansRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/_app/billing/': {
       id: '/_app/billing/'
@@ -653,6 +779,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsStaffRouteImport
       parentRoute: typeof AppRoute
     }
+    '/admin/businesses/$businessId': {
+      id: '/admin/businesses/$businessId'
+      path: '/businesses/$businessId'
+      fullPath: '/admin/businesses/$businessId'
+      preLoaderRoute: typeof AdminBusinessesBusinessIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/_app/billing/invoices/$invoiceId': {
       id: '/_app/billing/invoices/$invoiceId'
       path: '/billing/invoices/$invoiceId'
@@ -753,9 +886,30 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface AdminRouteChildren {
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminInvoicesRoute: typeof AdminInvoicesRoute
+  AdminMetricsRoute: typeof AdminMetricsRoute
+  AdminPlansRoute: typeof AdminPlansRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminBusinessesBusinessIdRoute: typeof AdminBusinessesBusinessIdRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAuditRoute: AdminAuditRoute,
+  AdminInvoicesRoute: AdminInvoicesRoute,
+  AdminMetricsRoute: AdminMetricsRoute,
+  AdminPlansRoute: AdminPlansRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  AdminBusinessesBusinessIdRoute: AdminBusinessesBusinessIdRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  AdminRoute: AdminRouteWithChildren,
   InvitesRoute: InvitesRoute,
   WelcomeRoute: WelcomeRoute,
 }

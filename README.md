@@ -31,6 +31,8 @@ With the `local` profile: health at `/healthz`, API docs at `/api/docs`, OpenAPI
 - **Swagger page:** at `/api/docs`, run `GET /api/v1/auth/csrf` once first, so that POST, PUT and DELETE requests are accepted.
 - **Sign-up codes:** these aren't sent. They're printed in the log, and `GET /dev/otp?to=01712345678` returns the last one.
 
+**Platform admins** (the `/admin` screens) are set in the database; there is no screen for it, on purpose. On a server, run this as the system role, then the person signs in again and turns on two-step sign-in: `update users set is_platform_admin = true where phone = '+8801712345678';`. Locally: `curl -X POST "http://localhost:8080/dev/platform-admin?phone=01712345678"`.
+
 Errors are RFC 9457 problem responses with a `code` (see `ErrorCode`) and a `detail` in English or Bangla, chosen by `Accept-Language`.
 
 ## Frontend

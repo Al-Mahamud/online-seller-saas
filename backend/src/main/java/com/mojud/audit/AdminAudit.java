@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * What platform administrators do (admin_audit). The log spans businesses, so it is written with the
@@ -18,8 +19,9 @@ public interface AdminAudit {
      */
     void record(UUID adminId, String action, String targetType, String targetId, UUID businessId, Object... details);
 
-    record Entry(UUID id, UUID adminId, String action, String targetType, String targetId, UUID businessId,
-            Map<String, Object> details, Instant at) {
+    /** {@code adminName}: null once the person's account is gone. */
+    record Entry(UUID id, UUID adminId, @Nullable String adminName, String action, String targetType, String targetId,
+            @Nullable UUID businessId, Map<String, Object> details, Instant at) {
     }
 
     /** Newest first; {@code businessId} null for every entry. */

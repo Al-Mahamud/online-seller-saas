@@ -1967,10 +1967,11 @@ export interface components {
             action: string;
             /** Format: uuid */
             adminId: string;
+            adminName: string | null;
             /** Format: date-time */
             at: string;
             /** Format: uuid */
-            businessId: string;
+            businessId: string | null;
             details: {
                 [key: string]: unknown;
             };
@@ -2018,7 +2019,7 @@ export interface components {
             businesses: number;
             /** Format: int64 */
             businesses7d: number;
-            conversion: number;
+            conversion: number | null;
             /** Format: int64 */
             everPaid: number;
             /** Format: int64 */
@@ -2111,6 +2112,7 @@ export interface components {
             amount: number;
             /** Format: uuid */
             businessId: string;
+            businessName: string;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -2134,21 +2136,21 @@ export interface components {
             kind: string;
             number: string;
             /** Format: date-time */
-            paidAt: string;
+            paidAt: string | null;
             payBy: string;
             planCode: string;
             status: string;
         };
         BillingAdministrationOverview: {
             /** Format: date-time */
-            currentPeriodEnd: string;
+            currentPeriodEnd: string | null;
             invoices: components["schemas"]["BillingAdministrationInvoiceSummary"][];
-            pendingPlanCode: string;
+            pendingPlanCode: string | null;
             planCode: string;
             status: string;
-            suspendedFrom: string;
+            suspendedFrom: string | null;
             /** Format: date-time */
-            trialEndsAt: string;
+            trialEndsAt: string | null;
             usage: {
                 [key: string]: components["schemas"]["BillingAdministrationUsage"];
             };
@@ -2167,15 +2169,15 @@ export interface components {
         };
         BillingAdministrationSubscriptionSummary: {
             /** Format: date-time */
-            currentPeriodEnd: string;
+            currentPeriodEnd: string | null;
             planCode: string;
             status: string;
             /** Format: date-time */
-            trialEndsAt: string;
+            trialEndsAt: string | null;
         };
         BillingAdministrationUsage: {
             /** Format: int32 */
-            limit: number;
+            limit: number | null;
             /** Format: int64 */
             used: number;
         };
@@ -2242,7 +2244,7 @@ export interface components {
             deletionDueAt: string;
         };
         BusinessDirectoryBusinessSummary: {
-            address: string;
+            address: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -2250,16 +2252,16 @@ export interface components {
             /** Format: int32 */
             members: number;
             name: string;
-            owner: components["schemas"]["BusinessDirectoryOwner"];
-            phone: string;
+            owner: components["schemas"]["BusinessDirectoryOwner"] | null;
+            phone: string | null;
             status: string;
         };
         BusinessDirectoryOwner: {
-            email: string;
+            email: string | null;
             /** Format: uuid */
             id: string;
             name: string;
-            phone: string;
+            phone: string | null;
         };
         BusinessLogoRequest: {
             /** Format: uuid */

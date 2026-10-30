@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Billing for platform administration (implementation-plan.md 12a): what a business is on and uses,
@@ -12,19 +13,19 @@ import java.util.UUID;
  */
 public interface BillingAdministration {
 
-    record SubscriptionSummary(String planCode, String status, Instant trialEndsAt, Instant currentPeriodEnd) {
+    record SubscriptionSummary(String planCode, String status, @Nullable Instant trialEndsAt, @Nullable Instant currentPeriodEnd) {
     }
 
     /** {@code limit} null: unlimited. */
-    record Usage(long used, Integer limit) {
+    record Usage(long used, @Nullable Integer limit) {
     }
 
     record InvoiceSummary(UUID id, String number, String kind, String planCode, long amount, String status, String payBy,
-            Instant createdAt, Instant paidAt) {
+            Instant createdAt, @Nullable Instant paidAt) {
     }
 
-    record Overview(String planCode, String status, Instant trialEndsAt, Instant currentPeriodEnd, String pendingPlanCode,
-            String suspendedFrom, Map<String, Usage> usage, List<InvoiceSummary> invoices) {
+    record Overview(String planCode, String status, @Nullable Instant trialEndsAt, @Nullable Instant currentPeriodEnd,
+            @Nullable String pendingPlanCode, @Nullable String suspendedFrom, Map<String, Usage> usage, List<InvoiceSummary> invoices) {
     }
 
     /** {@code limits}: metric key to limit (null unlimited); prices in poisha. */

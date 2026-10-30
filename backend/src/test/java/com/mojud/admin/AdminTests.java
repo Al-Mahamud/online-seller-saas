@@ -153,6 +153,7 @@ class AdminTests {
             assertThat(offered.<List<String>>json("$[?(@.code == 'STARTER')].nameEn")).containsExactly("Starter Plus");
             assertThat(offered.<List<Integer>>json("$[?(@.code == 'STARTER')].priceMonthly")).containsExactly(120000);
             assertThat(admin.get("/api/v1/admin/audit").<String>json("$[0].action")).isEqualTo("plan.edited");
+            assertThat(admin.get("/api/v1/admin/audit").<String>json("$[0].adminName")).isNotBlank();
             admin.put("/api/v1/admin/plans/TRIAL", Map.of("priceMonthly", 0, "isPublic", true, "exports", true)).expectStatus(200);
             assertThat(owner.get("/api/v1/plans").<List<String>>json("$[*].code")).doesNotContain("TRIAL");
             admin.put("/api/v1/admin/plans/NOPE", Map.of("priceMonthly", 1, "isPublic", true, "exports", true))

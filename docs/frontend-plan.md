@@ -111,7 +111,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | F7 Today, reports and exports | One commit | Done |
 | F8 Billing | One commit | Done |
 | F9 Notifications | One commit | Done |
-| F10–F11 | | Not started |
+| F10 Platform admin | One commit | Done |
+| F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -506,6 +507,20 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Platform:** edit plans, mark bank transfers paid, metrics, the admin audit log.
 
 **Checked by:** e2e: an admin without two-step sees the reminder, not the data; with it, suspending a business shows that business the suspended banner.
+
+**As built (F10):**
+- **`/admin`, with its own frame**, outside the shop screens, since an admin may run no shop. Reached from More, shown only to platform admins; anyone else who goes there lands on Today.
+- **Getting in:** the server decides. The frame asks it first and shows no data until it agrees. Refused, it says why: two-step sign-in is off (with the way to turn it on), or this session began before the rights were given (sign in again).
+- **Businesses:** search by name or the owner's phone or email. Details: owner, member count, subscription, usage, invoices and the admin actions on it. Suspend with a reason and lift it, extend a trial, set a plan until a date.
+  - Setting a plan makes a business active, so it isn't offered over a suspension: lift that first.
+  - The plan said "members": the backend gives the count, not the list, which has been enough so far.
+- **Bank transfers:** those waiting, with the business's name, and marking one paid with the bank's reference. Also the month's ledger as CSV, for the accountant (not in the plan; the endpoint was there).
+- **Plans:** names, price, whether offered, downloads and every limit. An empty limit is no limit.
+- **Metrics:** tiles for revenue, paying, conversion, trials, read-only, suspended, businesses, active and users.
+- **Admin log:** who did what, with the details and a link to the business.
+- **Words:** in `features/admin/texts.ts`, both languages, not in `i18n/*.json`: those load on every page for every seller. `en` has `bn`'s type, so the two can't drift apart.
+- **Backend:** the admin's name on log entries, the business's name on invoices, `@Nullable` on what these screens read, and `/dev/platform-admin` in test sources.
+- **E2E (`admin.spec.ts`):** the reminder and no data without two-step; non-admins kept out; searching by phone and name; suspending and lifting, seen from the seller's own browser; extending a trial by exactly the days asked; setting a plan; marking a transfer paid, with the plan starting and the log entry; the ledger; metrics; editing a plan. 184 tests across both screen sizes.
 
 ### F11: Launch polish (3 days)
 
