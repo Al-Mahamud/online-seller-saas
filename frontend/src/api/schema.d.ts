@@ -260,6 +260,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["logOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/options": {
         parameters: {
             query?: never;
@@ -1997,6 +2013,9 @@ export interface components {
             login: string;
             newPassword: string;
         };
+        AuthSecondStep: {
+            twoFactorRequired: boolean;
+        };
         AuthSecondStepRequest: {
             code: string;
         };
@@ -3275,7 +3294,7 @@ export interface components {
         TwoFactorStatus: {
             enabled: boolean;
             /** Format: date-time */
-            enabledAt: string;
+            enabledAt: string | null;
             /** Format: int32 */
             recoveryCodesLeft: number;
         };
@@ -3638,7 +3657,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSecondStep"];
                 };
             };
         };
@@ -3664,6 +3692,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
                 };
+            };
+        };
+    };
+    logOut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -2,13 +2,27 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createQueryClient } from "@/api/query";
+import { meQuery } from "@/api/session";
 import { setLanguage } from "@/i18n";
 import { createAppRouter } from "@/router";
 
-async function renderApp(path = "/") {
+const me = {
+  id: "01a18877-ca42-75fd-abc5-98a57110a442",
+  name: "Test Seller",
+  phone: "+8801712345678",
+  email: null,
+  phoneVerified: true,
+  emailVerified: false,
+  locale: "bn",
+  platformAdmin: false,
+  twoFactorEnabled: false,
+};
+
+async function renderApp(path = "/", account: typeof me | null = me) {
   const queryClient = createQueryClient();
+  queryClient.setQueryData(meQuery.queryKey, account);
   const router = createAppRouter(queryClient, createMemoryHistory({ initialEntries: [path] }));
   await router.load();
   render(
@@ -20,6 +34,7 @@ async function renderApp(path = "/") {
 }
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await setLanguage("bn");
 });
 
@@ -37,6 +52,18 @@ describe("app shell", () => {
   });
 
   it("switches to English and back", async () => {
+    const saved: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: Request) => {
+        // biome-ignore lint/suspicious/noDocumentCookie: stands in for the server's Set-Cookie.
+        document.cookie = "XSRF-TOKEN=token; path=/";
+        if (request.method === "PATCH") {
+          saved.push(await request.clone().json());
+        }
+        return new Response(JSON.stringify(me), { headers: { "Content-Type": "application/json" } });
+      }),
+    );
     await renderApp();
     const user = userEvent.setup();
 
@@ -44,6 +71,7 @@ describe("app shell", () => {
 
     expect(await screen.findByRole("heading", { name: "Today" })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe("en");
+    await vi.waitFor(() => expect(saved).toEqual([{ locale: "en" }]));
     await user.click(screen.getAllByRole("button", { name: "বাংলা" })[0] as HTMLElement);
     expect(await screen.findByRole("heading", { name: "আজ" })).toBeInTheDocument();
   });
@@ -60,6 +88,14 @@ describe("app shell", () => {
     await renderApp();
 
     expect(screen.getByRole("link", { name: "নতুন অর্ডার" })).toHaveAttribute("href", "/orders/new");
+  });
+
+  it("sends someone signed out to sign-in, remembering the page", async () => {
+    const router = await renderApp("/products", null);
+
+    expect(router.state.location.pathname).toBe("/sign-in");
+    expect(router.state.location.search).toEqual({ redirect: "/products" });
+    expect(await screen.findByRole("heading", { name: "আবার স্বাগতম" })).toBeInTheDocument();
   });
 
   it("says when a page does not exist", async () => {

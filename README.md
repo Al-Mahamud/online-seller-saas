@@ -54,4 +54,6 @@ npm run dev        # http://localhost:5173; API calls go to the backend on port 
 
 **When the API changes:** the backend's `OpenApiSnapshotTests` fails and rewrites `frontend/src/api/openapi.json`. Run `npm run api:types`, then commit both files.
 
-**Adding a component:** run `npx shadcn@4.23.0 add <name>`. The source lands in `src/components/ui/`, where it's ours to change.
+**Adding a component:** run `npx shadcn@4.23.0 add <name>`. The source lands in `src/components/ui/`, where it's ours to change. Then:
+- answer "no" if it offers to overwrite `button.tsx` or `sonner.tsx`, which we've changed;
+- the tool imports `cn` from an npm package of that name: run `npm uninstall cn` and change the import to `@/lib/utils`.

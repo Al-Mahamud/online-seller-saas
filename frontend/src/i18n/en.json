@@ -18,11 +18,77 @@
   "page": {
     "comingSoon": "This part is coming soon.",
     "notFound": "This page doesn't exist.",
-    "backToToday": "Back to Today"
+    "backToToday": "Back to Today",
+    "retry": "Try again"
   },
   "error": {
     "network": "Can't reach the server. Check your internet connection and try again.",
     "rateLimited": "Too many tries. Try again in {{seconds}} seconds.",
     "unexpected": "Something went wrong. Please try again."
+  },
+  "account": {
+    "signOut": "Sign out"
+  },
+  "field": {
+    "required": "Please fill this in.",
+    "sixDigits": "Enter the 6-digit code.",
+    "passwordShort": "The password must be at least 8 characters.",
+    "passwordLong": "The password can't be longer than 128 characters.",
+    "nameLong": "The name can't be longer than 120 characters.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
+  },
+  "auth": {
+    "login": "Phone number or email",
+    "phone": "Phone number",
+    "email": "Email",
+    "password": "Password",
+    "code": "6-digit code",
+    "sendCode": "Send code",
+    "resend": "Send the code again",
+    "resendIn": "You can send it again in {{seconds}} seconds",
+    "codeSentIfAccount": "If there's an account with this number or email, we've sent it a code. It works for 5 minutes.",
+    "useOtherLogin": "Use another number or email",
+    "signIn": {
+      "title": "Welcome back",
+      "subtitle": "Your stock, orders and deliveries in one place.",
+      "submit": "Sign in",
+      "withCode": "Sign in with a code",
+      "withPassword": "Sign in with a password",
+      "forgot": "Forgot your password?",
+      "newHere": "New here? Try Pro free for 14 days.",
+      "createAccount": "Create an account"
+    },
+    "twoStep": {
+      "title": "Two-step sign-in",
+      "description": "Enter the 6-digit code from your authenticator app. If you don't have your phone, enter a recovery code.",
+      "label": "App code or recovery code",
+      "submit": "Confirm"
+    },
+    "signUp": {
+      "title": "New account",
+      "subtitle": "Try Pro free for 14 days.",
+      "name": "Your name",
+      "emailOptional": "Email (optional)",
+      "passwordHint": "At least 8 characters",
+      "codeTo": "Where should we send the code?",
+      "codeToPhone": "Phone (SMS)",
+      "continue": "Continue",
+      "unavailable": "New accounts can't be created right now. Please try again a little later.",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "codeTitle": "Enter the code",
+      "codeSent": "We've sent a 6-digit code to {{to}}. If it doesn't arrive, there may already be an account with it: try signing in.",
+      "submit": "Create account",
+      "editDetails": "Change my details"
+    },
+    "forgot": {
+      "title": "Forgot your password?",
+      "description": "Enter your phone number or email and we'll send you a code.",
+      "newPassword": "New password",
+      "submit": "Change password",
+      "done": "Your password has been changed. Now sign in.",
+      "backToSignIn": "Back to sign in"
+    }
   }
 }

@@ -2,6 +2,7 @@ import { Link, type LinkProps } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { Brand } from "./Brand";
 import { LanguageToggle } from "./LanguageToggle";
 
 type Tab = { to: LinkProps["to"]; label: "nav.today" | "nav.orders" | "nav.products" | "nav.more"; exact?: boolean };
@@ -13,18 +14,11 @@ const TABS: Tab[] = [
   { to: "/more", label: "nav.more" },
 ];
 
-/** The app's name and mark; the business switcher takes this place once there are businesses (F2). */
-function Brand() {
-  const { t } = useTranslation();
+/** The business switcher takes this place once there are businesses (F2). */
+function HomeLink() {
   return (
-    <Link to="/" className="flex min-h-11 items-center gap-2 rounded-lg text-foreground no-underline">
-      <span
-        aria-hidden="true"
-        className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground"
-      >
-        ম
-      </span>
-      <span className="text-base font-semibold">{t("app.name")}</span>
+    <Link to="/" className="flex min-h-11 items-center rounded-lg no-underline">
+      <Brand />
     </Link>
   );
 }
@@ -43,7 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="sticky top-0 hidden h-dvh w-58 shrink-0 flex-col gap-1 border-r bg-card px-3.5 py-5 md:flex"
       >
         <div className="mb-3.5 px-1">
-          <Brand />
+          <HomeLink />
         </div>
         {TABS.map((tab) => (
           <Link
@@ -60,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex items-center justify-between gap-2.5 border-b bg-card px-4 py-1.5 md:hidden">
-          <Brand />
+          <HomeLink />
           <LanguageToggle />
         </header>
 

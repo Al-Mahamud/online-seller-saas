@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ComingSoon } from "@/components/layout/ComingSoon";
 
-export const Route = createFileRoute("/orders/new")({
+export const Route = createFileRoute("/_app/orders/new")({
   component: NewOrder,
 });
 

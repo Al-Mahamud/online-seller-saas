@@ -102,7 +102,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | Phase | Sub-phases | Status |
 |---|---|---|
 | F0 Skeleton, design, API client, CI, deploy | F0a skeleton, shell, API client · F0b end-to-end tests · F0c web image and deploy | Done |
-| F1–F11 | | Not started |
+| F1 Signing in and the account | F1a sign-up, sign-in, forgot password, pages behind sign-in · F1b account settings, two-step sign-in | F1a done |
+| F2–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -186,6 +187,33 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
   - two-step sign-in: QR code, the 10 recovery codes shown once to save or print, turning it off.
 
 **Checked by:** e2e: sign up with an email code, sign out, sign in by password, by code, and with two-step on (codes computed in the test as the backend tests do); wrong codes show the server's message in both languages.
+
+**As built (F1a):**
+- **Routes:**
+  - `_app` holds everything behind sign-in. Signed out, it goes to `/sign-in?redirect=<page>`, and back after signing in; `safeRedirect` allows only paths on this site.
+  - `_auth` holds `/sign-in`, `/sign-up` and `/forgot-password`, for people not signed in.
+- **Session:**
+  - `meQuery` is the account, or null when signed out, and the guards read it from the cache.
+  - When any answer says `auth.required`, `onSignedOut` clears everything in memory and goes to sign-in, keeping the page.
+  - A failed load shows `RouteError` with a retry.
+- **Language:** the account's language wins once signed in, because the server answers in it; the language button also saves it (`PATCH /me`).
+- **Forms:**
+  - react-hook-form with zod, in `src/components/form`: `TextField`, `PasswordField` (show/hide), `CodeField`, `FormError`.
+  - `showServerError` puts the server's problems under their fields or above the form.
+  - Our messages are text keys, so an error on screen follows the language.
+  - Bangla digits in phone numbers and codes become Latin before sending.
+- **Sign-up:**
+  - Details, then the code; the choice of phone or email appears only when the server offers both, and with none the page says sign-up is unavailable.
+  - A refused detail leads back to the details, with the problem under its field.
+- **Sign-in:**
+  - By password or code; the two-step screen (`auth.two_factor_expired` starts over) is built here and checked in F1b, when an account can turn it on.
+  - Resending a code waits out the server's minute.
+- **Sign-out:** on More for now.
+- **Backend:** the API description now includes `POST /auth/logout` (Spring Security's, added by hand) and both answers of `POST /auth/login`.
+- **Size check:** now counts what a first visit really loads, every page's shared code plus the heaviest page: 189 KB of the 250 KB budget.
+- **E2E:**
+  - `public.spec.ts` needs no test backend, so the deploy drill runs it; `auth.spec.ts` and `shell.spec.ts` need `/dev/otp`.
+  - Every test fails on a console error, apart from refused API calls, which are normal.
 
 ### F2: Business, team and settings (3 days)
 

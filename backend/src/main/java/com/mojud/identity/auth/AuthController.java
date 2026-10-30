@@ -8,6 +8,9 @@ import com.mojud.identity.otp.OtpService;
 import com.mojud.shared.email.EmailAddress;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.phone.PhoneNumber;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -132,6 +135,8 @@ class AuthController {
      * 200 with the account when signed in; 202 {@code {"twoFactorRequired": true}} when the account
      * has two-step sign-in, to be finished within five minutes.
      */
+    @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = MeResponse.class)))
+    @ApiResponse(responseCode = "202", content = @Content(schema = @Schema(implementation = SecondStep.class)))
     @PostMapping("/login")
     ResponseEntity<Object> logIn(@Valid @RequestBody LoginRequest body, HttpServletRequest request,
             HttpServletResponse response) {

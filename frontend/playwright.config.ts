@@ -10,7 +10,7 @@ import { defineConfig } from "@playwright/test";
  *
  * With E2E_BASE_URL set, the tests run against a server that is already up instead, such as the
  * deploy drill's (https://localhost, behind Caddy with its real headers); only tests that need no
- * test backend apply there (e2e/shell.spec.ts).
+ * test backend apply there (e2e/public.spec.ts).
  */
 const ci = !!process.env.CI;
 const external = process.env.E2E_BASE_URL;

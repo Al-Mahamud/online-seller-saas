@@ -1,7 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Link, Outlet } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { AppShell } from "@/components/layout/AppShell";
 import { Toaster } from "@/components/ui/sonner";
 
 export interface RouterContext {
@@ -16,9 +15,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function Root() {
   return (
     <>
-      <AppShell>
-        <Outlet />
-      </AppShell>
+      <Outlet />
       <Toaster position="top-center" />
     </>
   );
@@ -27,11 +24,11 @@ function Root() {
 function NotFound() {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col items-start gap-3">
-      <p>{t("page.notFound")}</p>
-      <Link to="/" className="font-semibold text-primary">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
+      <h1 className="text-xl font-semibold">{t("page.notFound")}</h1>
+      <Link to="/" className="flex min-h-11 items-center font-semibold text-primary">
         {t("page.backToToday")}
       </Link>
-    </div>
+    </main>
   );
 }

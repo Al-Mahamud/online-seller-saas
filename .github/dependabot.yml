@@ -35,8 +35,11 @@ updates:
     directory: /deploy/backup
     schedule:
       interval: weekly
-  # The web app image's bases (Node for the build, Caddy to serve).
+  # The web app image's bases (Node for the build, Caddy to serve). Node's major follows CI's.
   - package-ecosystem: docker
     directory: /frontend
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]

@@ -9,9 +9,18 @@ import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createQueryClient } from "./api/query";
+import { signedOut } from "./api/session";
+import { safeRedirect } from "./lib/redirect";
 import { createAppRouter } from "./router";
 
-const queryClient = createQueryClient();
+const queryClient = createQueryClient({
+  // The session ended while the app was open: to sign-in, and back here afterwards.
+  onSignedOut: () => {
+    const redirect = router.state.location.href;
+    signedOut(queryClient);
+    void router.navigate({ to: "/sign-in", search: { redirect: safeRedirect(redirect) }, replace: true });
+  },
+});
 const router = createAppRouter(queryClient);
 
 const root = document.getElementById("root");

@@ -1,22 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { signUp } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
+import { expect, test } from "./support/test";
 
-// Script errors and blocked resources (a Content-Security-Policy too strict, in the deploy drill)
-// show up in the console.
-let consoleErrors: string[] = [];
-
-test.beforeEach(({ page }) => {
-  consoleErrors = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") {
-      consoleErrors.push(message.text());
-    }
-  });
-  page.on("pageerror", (error) => consoleErrors.push(error.message));
-});
-
-test.afterEach(() => {
-  expect(consoleErrors).toEqual([]);
+test.beforeEach(async ({ page }) => {
+  await signUp(page.request);
 });
 
 /** The navigation people see: the bottom tabs on a phone, the sidebar on a laptop. */
@@ -50,13 +37,17 @@ test("moves between tabs and marks the open one", async ({ page }) => {
   await expect(navigation.getByRole("link", { name: "আজ" })).not.toHaveAttribute("aria-current", "page");
 });
 
-test("switches to English and remembers it", async ({ page }) => {
+test("switches to English and saves it on the account", async ({ page }) => {
   await page.goto("/orders");
 
+  const saved = page.waitForResponse(
+    (response) => response.url().endsWith("/api/v1/me") && response.request().method() === "PATCH",
+  );
   await page.getByRole("button", { name: "English" }).click();
 
   await expect(page.getByRole("heading", { level: 1, name: "Orders" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await saved;
   await page.reload();
   await expect(page.getByRole("heading", { level: 1, name: "Orders" })).toBeVisible();
   await expectAccessible(page);

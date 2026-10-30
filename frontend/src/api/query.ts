@@ -3,44 +3,56 @@ import { toast } from "sonner";
 import i18n from "@/i18n";
 import { ApiError, errorAction } from "./errors";
 
-/**
- * Errors every screen would show the same way become a toast here. The others are for the screen
- * (field problems under their inputs) or for the app as a whole: signing in (F1), choosing a
- * business (F2), the upgrade dialog and the read-only banner (F8).
- */
-export function showError(error: unknown) {
+/** What to say about an error that has no better place: the server's message, or our own when it sent none. */
+export function errorText(error: unknown): string {
   const action = errorAction(error);
   switch (action.kind) {
     case "network":
-      toast.error(i18n.t("error.network"));
-      return;
+      return i18n.t("error.network");
     case "rate-limited":
-      toast.error(
-        action.seconds ? i18n.t("error.rateLimited", { seconds: action.seconds }) : i18n.t("error.unexpected"),
-      );
-      return;
+      return action.seconds ? i18n.t("error.rateLimited", { seconds: action.seconds }) : i18n.t("error.unexpected");
     case "message":
-      toast.error(action.detail ?? i18n.t("error.unexpected"));
-      return;
+      return action.detail ?? i18n.t("error.unexpected");
+    case "fields":
+      return action.detail || i18n.t("error.unexpected");
+    default:
+      return error instanceof ApiError && error.detail ? error.detail : i18n.t("error.unexpected");
   }
 }
 
-/** A mutation that shows its own errors (a form with fields) sets `meta: { showsOwnErrors: true }`. */
+/**
+ * Errors every screen would show the same way become a toast here. The others are for the screen
+ * (field problems under their inputs) or for the app as a whole: choosing a business (F2), the
+ * upgrade dialog and the read-only banner (F8).
+ */
+function showError(error: unknown) {
+  const { kind } = errorAction(error);
+  if (kind === "network" || kind === "rate-limited" || kind === "message") {
+    toast.error(errorText(error));
+  }
+}
+
+/** A query or mutation that shows its own errors (a form with fields) sets `meta: { showsOwnErrors: true }`. */
 declare module "@tanstack/react-query" {
   interface Register {
+    queryMeta: { showsOwnErrors?: boolean };
     mutationMeta: { showsOwnErrors?: boolean };
   }
 }
 
-export function createQueryClient() {
+/** `onSignedOut`: the server said the session is gone (expired, or signed out elsewhere). */
+export function createQueryClient({ onSignedOut }: { onSignedOut?: () => void } = {}) {
+  const handle = (error: unknown, showsOwnErrors: boolean | undefined) => {
+    if (errorAction(error).kind === "sign-in") {
+      onSignedOut?.();
+    } else if (!showsOwnErrors) {
+      showError(error);
+    }
+  };
   return new QueryClient({
-    queryCache: new QueryCache({ onError: showError }),
+    queryCache: new QueryCache({ onError: (error, query) => handle(error, query.meta?.showsOwnErrors) }),
     mutationCache: new MutationCache({
-      onError: (error, _variables, _context, mutation) => {
-        if (!mutation.meta?.showsOwnErrors) {
-          showError(error);
-        }
-      },
+      onError: (error, _variables, _context, mutation) => handle(error, mutation.meta?.showsOwnErrors),
     }),
     defaultOptions: {
       queries: {

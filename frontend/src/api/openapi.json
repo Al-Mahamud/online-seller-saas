@@ -413,6 +413,15 @@
         "required" : [ "code", "login", "newPassword" ],
         "type" : "object"
       },
+      "AuthSecondStep" : {
+        "properties" : {
+          "twoFactorRequired" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "twoFactorRequired" ],
+        "type" : "object"
+      },
       "AuthSecondStepRequest" : {
         "properties" : {
           "code" : {
@@ -3878,7 +3887,7 @@
           },
           "enabledAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "recoveryCodesLeft" : {
             "format" : "int32",
@@ -4359,11 +4368,21 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "type" : "object"
+                  "$ref" : "#/components/schemas/MeResponse"
                 }
               }
             },
             "description" : "OK"
+          },
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuthSecondStep"
+                }
+              }
+            },
+            "description" : "Accepted"
           }
         },
         "tags" : [ "auth-controller" ]
@@ -4392,6 +4411,17 @@
               }
             },
             "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/v1/auth/logout" : {
+      "post" : {
+        "operationId" : "logOut",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
           }
         },
         "tags" : [ "auth-controller" ]

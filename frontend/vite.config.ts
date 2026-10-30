@@ -14,6 +14,8 @@ export default defineConfig({
   resolve: {
     alias: { "@": path.resolve(import.meta.dirname, "src") },
   },
+  // Lists which files each page needs, for the size check (scripts/check-size.mjs).
+  build: { manifest: true },
   server: {
     port: 5173,
     proxy: {

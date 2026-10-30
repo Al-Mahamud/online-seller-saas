@@ -3,8 +3,13 @@ package com.mojud.shared.web;
 import io.swagger.v3.core.jackson.ModelResolver;
 import io.swagger.v3.core.util.Json31;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.ObjectSchema;
+import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.responses.ApiResponses;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,6 +42,15 @@ class OpenApiConfig {
      * Replaces springdoc's default model resolver (same class, so springdoc swaps it in) to use
      * {@link ApiTypeNames}. First in order, so springdoc's own converters still run before it.
      */
+    /** Sign-out is Spring Security's filter (SecurityConfig), not a controller, so springdoc cannot see it. */
+    @Bean
+    OpenApiCustomizer logoutEndpoint() {
+        return openApi -> openApi.path("/api/v1/auth/logout", new PathItem().post(new Operation()
+                .operationId("logOut")
+                .addTagsItem("auth-controller")
+                .responses(new ApiResponses().addApiResponse("204", new ApiResponse().description("No Content")))));
+    }
+
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     ModelResolver apiModelResolver() {

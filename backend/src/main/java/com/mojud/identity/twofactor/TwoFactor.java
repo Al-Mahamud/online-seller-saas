@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -40,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TwoFactor {
 
-    public record Status(boolean enabled, Instant enabledAt, int recoveryCodesLeft) {
+    public record Status(boolean enabled, @Nullable Instant enabledAt, int recoveryCodesLeft) {
     }
 
     /** {@code secret} in base32, to type in; {@code otpauthUri} for a QR code. */

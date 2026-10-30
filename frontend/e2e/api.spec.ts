@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { signUp } from "./support/accounts";
+import { expect, test } from "./support/test";
 
 /** The app and the API share one origin (frontend-plan.md, "How the app talks to the API"). */
 test("reaches the API on the app's own origin", async ({ request }) => {

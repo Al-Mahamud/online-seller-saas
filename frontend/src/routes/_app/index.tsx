@@ -2,12 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ComingSoon } from "@/components/layout/ComingSoon";
 
-export const Route = createFileRoute("/products")({
-  component: Products,
+export const Route = createFileRoute("/_app/")({
+  component: Today,
 });
 
-/** Products and stock (F3). */
-function Products() {
+/** The dashboard (F7). */
+function Today() {
   const { t } = useTranslation();
-  return <ComingSoon title={t("nav.products")} />;
+  return <ComingSoon title={t("nav.today")} />;
 }
