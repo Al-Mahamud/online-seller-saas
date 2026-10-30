@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 import com.mojud.tenancy.BusinessProfile;
 import java.nio.charset.StandardCharsets;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -34,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 class BillingController {
 
     /** {@code limit} null: unlimited. */
-    record Usage(long used, Integer limit) {
+    record Usage(long used, @Nullable Integer limit) {
     }
 
     /** {@code priceMonthly} in poisha; {@code limits}: metric key to limit (null unlimited). */
@@ -46,8 +47,13 @@ class BillingController {
         }
     }
 
-    record Billing(PlanView plan, String status, Instant trialEndsAt, Instant currentPeriodEnd, String pendingPlanCode,
-            Map<String, Usage> usage) {
+    record Billing(PlanView plan, String status, @Nullable Instant trialEndsAt, @Nullable Instant currentPeriodEnd,
+            @Nullable Instant graceEndsAt, @Nullable String pendingPlanCode, Map<String, Usage> usage) {
+    }
+
+    /** What every member's screen needs to know: the banners. */
+    record Status(String status, @Nullable Instant trialEndsAt, @Nullable Instant currentPeriodEnd,
+            @Nullable Instant graceEndsAt) {
     }
 
     private final Subscriptions subscriptions;
@@ -84,7 +90,26 @@ class BillingController {
                 plan.limit(Metric.ORDERS_PER_MONTH)));
         usage.put(Metric.STAFF_SEATS.key(), new Usage(team.staffSeatsUsed(), plan.limit(Metric.STAFF_SEATS)));
         return new Billing(PlanView.of(plan), subscription.status(), subscription.trialEndsAt(),
-                subscription.currentPeriodEnd(), subscription.pendingPlanCode(), usage);
+                subscription.currentPeriodEnd(), subscription.graceEndsAt(), subscription.pendingPlanCode(), usage);
+    }
+
+    @GetMapping("/api/v1/billing/status")
+    @RequiresRole(BusinessRole.STAFF)
+    @Transactional(readOnly = true)
+    Status status() {
+        Subscriptions.Subscription subscription = subscriptions.current();
+        return new Status(subscription.status(), subscription.trialEndsAt(), subscription.currentPeriodEnd(),
+                subscription.graceEndsAt());
+    }
+
+    /**
+     * What a payment would come to, as checkout or upgrade would charge it: {@code months} (1, 6 or
+     * 12) of a plan, or without them, an upgrade for the rest of the running period, prorated.
+     */
+    @GetMapping("/api/v1/billing/quote")
+    @RequiresRole(BusinessRole.OWNER)
+    Invoices.Quote quote(@RequestParam String planCode, @RequestParam(required = false) Integer months) {
+        return invoices.quote(planCode, months);
     }
 
     record ChooseRequest(@NotNull String planCode) {

@@ -1,24 +1,33 @@
 package com.mojud.support;
 
 import io.swagger.v3.oas.annotations.Hidden;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * A stand-in for SSLCommerz in tests (and local runs), answering like its session, validation and
  * transaction query APIs. Tests open sessions through checkout, then "pay" here and send the IPN
- * themselves, as the gateway would. Exists only in test sources.
+ * themselves, as the gateway would. A browser (the web app's tests, or someone trying it locally) gets
+ * a small page in place of the gateway's, whose links do all of that. Exists only in test sources.
  */
 // Test-only: kept out of the API description the frontend is generated from.
 @Hidden
@@ -43,7 +52,56 @@ public class FakeSslCommerz {
         }
         sessions.put(fields.get("tran_id"), fields);
         return Map.of("status", "SUCCESS", "sessionkey", "S" + fields.get("tran_id"),
-                "GatewayPageURL", "https://sandbox.sslcommerz.com/EasyCheckOut/test" + fields.get("tran_id"));
+                "GatewayPageURL", ServletUriComponentsBuilder.fromCurrentContextPath().toUriString()
+                        + "/api/v1/public/gateway/fake-sslcommerz/checkout/" + fields.get("tran_id"));
+    }
+
+    /** The gateway's page, for a browser. Links rather than a form: the API's own headers would stop a form's redirect. */
+    @GetMapping("/checkout/{tranId}")
+    ResponseEntity<String> checkout(@PathVariable String tranId) {
+        Map<String, String> session = sessions.get(tranId);
+        if (session == null) {
+            return ResponseEntity.notFound().build();
+        }
+        String page = """
+                <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Test gateway</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1"></head>
+                <body><h1>Test gateway</h1><p>Not real money: this page exists only in test runs.</p>
+                <p>Amount: BDT %s</p><p><a href="%s/pay">Pay</a></p><p><a href="%s/fail">Fail</a></p><p><a href="%s/cancel">Cancel</a></p>
+                </body></html>
+                """.formatted(session.get("total_amount"), tranId, tranId, tranId);
+        return ResponseEntity.ok().contentType(new MediaType("text", "html", StandardCharsets.UTF_8))
+                .header("Content-Security-Policy", "default-src 'none'").body(page);
+    }
+
+    /** The customer's choice on that page: the IPN goes out as the gateway's would, then the browser goes back. */
+    @GetMapping("/checkout/{tranId}/{choice}")
+    ResponseEntity<Void> choose(@PathVariable String tranId, @PathVariable String choice) {
+        Map<String, String> session = sessions.get(tranId);
+        if (session == null) {
+            return ResponseEntity.notFound().build();
+        }
+        LinkedMultiValueMap<String, String> ipn = new LinkedMultiValueMap<>();
+        ipn.add("tran_id", tranId);
+        String back;
+        switch (choice) {
+            case "pay" -> {
+                ipn.add("status", "VALID");
+                ipn.add("val_id", pay(tranId, session.get("total_amount"), "BDT", "VALID"));
+                back = session.get("success_url");
+            }
+            case "cancel" -> {
+                ipn.add("status", "CANCELLED");
+                back = session.get("cancel_url");
+            }
+            default -> {
+                ipn.add("status", "FAILED");
+                back = session.get("fail_url");
+            }
+        }
+        RestClient.create().post().uri(session.get("ipn_url")).contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(ipn).retrieve().toBodilessEntity();
+        return ResponseEntity.status(HttpStatus.SEE_OTHER).header(HttpHeaders.LOCATION, back).build();
     }
 
     @GetMapping("/validator/api/validationserverAPI.php")

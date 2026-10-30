@@ -11,6 +11,7 @@ import { Section } from "@/components/layout/Section";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCanWrite } from "@/features/billing/status";
 import { customerSearch } from "@/features/customers/api";
 import { PlacePicker, type PlaceValue } from "@/features/delivery/PlacePicker";
 import { latinDigits } from "@/lib/digits";
@@ -82,6 +83,7 @@ export function OrderForm({ order, initialPhone }: { order?: Order; initialPhone
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const customerFixed = order?.status === "CONFIRMED";
+  const canWrite = useCanWrite();
 
   const [phone, setPhone] = useState(order?.customer.phone ?? initialPhone ?? "");
   const [name, setName] = useState(order?.customer.name ?? "");
@@ -376,6 +378,11 @@ export function OrderForm({ order, initialPhone }: { order?: Order; initialPhone
 
   return (
     <div ref={box} className="flex flex-col gap-4">
+      {!canWrite && (
+        <Alert variant="destructive">
+          <AlertDescription>{t("orders.readOnlyForm")}</AlertDescription>
+        </Alert>
+      )}
       <Section title={t("orders.customer")}>
         {customerFixed ? (
           <p>
@@ -554,15 +561,15 @@ export function OrderForm({ order, initialPhone }: { order?: Order; initialPhone
       )}
       <div className="flex flex-col gap-2 sm:flex-row-reverse sm:justify-start">
         {order?.status === "CONFIRMED" ? (
-          <Button disabled={save.isPending} onClick={() => submit(false)}>
+          <Button disabled={save.isPending || !canWrite} onClick={() => submit(false)}>
             {t("orders.saveChanges")}
           </Button>
         ) : (
           <>
-            <Button disabled={save.isPending} onClick={() => submit(true)}>
+            <Button disabled={save.isPending || !canWrite} onClick={() => submit(true)}>
               {t("orders.saveConfirm")}
             </Button>
-            <Button variant="outline" disabled={save.isPending} onClick={() => submit(false)}>
+            <Button variant="outline" disabled={save.isPending || !canWrite} onClick={() => submit(false)}>
               {t("orders.saveDraft")}
             </Button>
           </>

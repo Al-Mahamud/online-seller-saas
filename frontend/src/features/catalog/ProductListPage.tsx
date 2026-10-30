@@ -7,6 +7,7 @@ import { LoadMore } from "@/components/layout/LoadMore";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SearchBox } from "@/components/layout/SearchBox";
 import { Button } from "@/components/ui/button";
+import { useCanWrite } from "@/features/billing/status";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { categoriesQuery, flatCategories, lowStockQuery, type ProductSummary, productsQuery, tagsQuery } from "./api";
@@ -19,6 +20,7 @@ export function ProductListPage() {
   const { t } = useTranslation();
   const format = useFormat();
   const business = useBusiness();
+  const canWrite = useCanWrite();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   const products = useInfiniteQuery(productsQuery(filters));
@@ -29,7 +31,7 @@ export function ProductListPage() {
   return (
     <div className="flex flex-col gap-3">
       <PageHeader title={t("nav.products")}>
-        {hasRole(business, "MANAGER") && (
+        {hasRole(business, "MANAGER") && canWrite && (
           <div className="flex gap-2">
             <Button asChild variant="outline">
               <Link to="/products/import">{t("imports.fromExcel")}</Link>

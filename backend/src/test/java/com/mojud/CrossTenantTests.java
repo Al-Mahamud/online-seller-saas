@@ -345,6 +345,8 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/exports/customers.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/customers.csv"), a));
         // Billing: B's plan and usage are B's own.
         CASES.put("GET /api/v1/billing", (a, b) -> expectNoLeak(b.owner().get("/api/v1/billing"), a));
+        CASES.put("GET /api/v1/billing/status", (a, b) -> expectNoLeak(b.owner().get("/api/v1/billing/status"), a));
+        CASES.put("GET /api/v1/billing/quote", (a, b) -> expectNoLeak(b.owner().get("/api/v1/billing/quote?planCode=STARTER&months=1"), a));
         CASES.put("PUT /api/v1/billing/plan", (a, b) -> {
             // B's choice is about B; on a trial it needs a payment first.
             b.owner().put("/api/v1/billing/plan", Map.of("planCode", "STARTER")).expectError(409, "billing.payment_needed");
@@ -459,6 +461,9 @@ class CrossTenantTests {
         CASES.put("GET /dev/otp", notBusinessData("exists only in test sources and local runs"));
         CASES.put("GET /dev/invite", notBusinessData("exists only in test sources and local runs"));
         CASES.put("POST /dev/plan", notBusinessData("exists only in test sources and local runs"));
+        CASES.put("POST /dev/subscription", notBusinessData("exists only in test sources and local runs"));
+        CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/checkout/{tranId}", notBusinessData("the fake gateway"));
+        CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/checkout/{tranId}/{choice}", notBusinessData("the fake gateway"));
         CASES.put("POST /api/v1/public/gateway/fake-sslcommerz/gwprocess/v4/api.php", notBusinessData("the fake gateway"));
         CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/validator/api/validationserverAPI.php", notBusinessData("the fake gateway"));
         CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/validator/api/merchantTransIDvalidationAPI.php",

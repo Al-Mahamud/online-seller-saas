@@ -19,6 +19,7 @@ import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-pa
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AppBillingIndexRouteImport } from './routes/_app/billing/index'
+import { Route as AppBillingReturnRouteImport } from './routes/_app/billing/return'
 import { Route as AppCodIndexRouteImport } from './routes/_app/cod/index'
 import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCustomersCustomerIdRouteImport } from './routes/_app/customers/$customerId'
@@ -37,6 +38,7 @@ import { Route as AppSettingsCategoriesRouteImport } from './routes/_app/setting
 import { Route as AppSettingsDeliveryRouteImport } from './routes/_app/settings/delivery'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 import { Route as AppSettingsStaffRouteImport } from './routes/_app/settings/staff'
+import { Route as AppBillingInvoicesInvoiceIdRouteImport } from './routes/_app/billing/invoices/$invoiceId'
 import { Route as AppOrdersOrderIdIndexRouteImport } from './routes/_app/orders/$orderId/index'
 import { Route as AppOrdersOrderIdEditRouteImport } from './routes/_app/orders/$orderId/edit'
 
@@ -86,6 +88,11 @@ const AuthSignUpRoute = AuthSignUpRouteImport.update({
 const AppBillingIndexRoute = AppBillingIndexRouteImport.update({
   id: '/billing/',
   path: '/billing/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBillingReturnRoute = AppBillingReturnRouteImport.update({
+  id: '/billing/return',
+  path: '/billing/return',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCodIndexRoute = AppCodIndexRouteImport.update({
@@ -178,6 +185,12 @@ const AppSettingsStaffRoute = AppSettingsStaffRouteImport.update({
   path: '/settings/staff',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBillingInvoicesInvoiceIdRoute =
+  AppBillingInvoicesInvoiceIdRouteImport.update({
+    id: '/billing/invoices/$invoiceId',
+    path: '/billing/invoices/$invoiceId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppOrdersOrderIdIndexRoute = AppOrdersOrderIdIndexRouteImport.update({
   id: '/orders/$orderId/',
   path: '/orders/$orderId/',
@@ -197,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/billing/return': typeof AppBillingReturnRoute
   '/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
@@ -216,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/orders/': typeof AppOrdersIndexRoute
   '/products/': typeof AppProductsIndexRoute
   '/reports/': typeof AppReportsIndexRoute
+  '/billing/invoices/$invoiceId': typeof AppBillingInvoicesInvoiceIdRoute
   '/orders/$orderId/edit': typeof AppOrdersOrderIdEditRoute
   '/orders/$orderId/': typeof AppOrdersOrderIdIndexRoute
 }
@@ -227,6 +242,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/billing/return': typeof AppBillingReturnRoute
   '/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
@@ -246,6 +262,7 @@ export interface FileRoutesByTo {
   '/orders': typeof AppOrdersIndexRoute
   '/products': typeof AppProductsIndexRoute
   '/reports': typeof AppReportsIndexRoute
+  '/billing/invoices/$invoiceId': typeof AppBillingInvoicesInvoiceIdRoute
   '/orders/$orderId/edit': typeof AppOrdersOrderIdEditRoute
   '/orders/$orderId': typeof AppOrdersOrderIdIndexRoute
 }
@@ -260,6 +277,7 @@ export interface FileRoutesById {
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/billing/return': typeof AppBillingReturnRoute
   '/_app/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/products/$productId': typeof AppProductsProductIdRoute
@@ -279,6 +297,7 @@ export interface FileRoutesById {
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/products/': typeof AppProductsIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
+  '/_app/billing/invoices/$invoiceId': typeof AppBillingInvoicesInvoiceIdRoute
   '/_app/orders/$orderId/edit': typeof AppOrdersOrderIdEditRoute
   '/_app/orders/$orderId/': typeof AppOrdersOrderIdIndexRoute
 }
@@ -292,6 +311,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/sign-in'
     | '/sign-up'
+    | '/billing/return'
     | '/customers/$customerId'
     | '/orders/new'
     | '/products/$productId'
@@ -311,6 +331,7 @@ export interface FileRouteTypes {
     | '/orders/'
     | '/products/'
     | '/reports/'
+    | '/billing/invoices/$invoiceId'
     | '/orders/$orderId/edit'
     | '/orders/$orderId/'
   fileRoutesByTo: FileRoutesByTo
@@ -322,6 +343,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/sign-in'
     | '/sign-up'
+    | '/billing/return'
     | '/customers/$customerId'
     | '/orders/new'
     | '/products/$productId'
@@ -341,6 +363,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/products'
     | '/reports'
+    | '/billing/invoices/$invoiceId'
     | '/orders/$orderId/edit'
     | '/orders/$orderId'
   id:
@@ -354,6 +377,7 @@ export interface FileRouteTypes {
     | '/_auth/sign-in'
     | '/_auth/sign-up'
     | '/_app/'
+    | '/_app/billing/return'
     | '/_app/customers/$customerId'
     | '/_app/orders/new'
     | '/_app/products/$productId'
@@ -373,6 +397,7 @@ export interface FileRouteTypes {
     | '/_app/orders/'
     | '/_app/products/'
     | '/_app/reports/'
+    | '/_app/billing/invoices/$invoiceId'
     | '/_app/orders/$orderId/edit'
     | '/_app/orders/$orderId/'
   fileRoutesById: FileRoutesById
@@ -454,6 +479,13 @@ declare module '@tanstack/react-router' {
       path: '/billing'
       fullPath: '/billing/'
       preLoaderRoute: typeof AppBillingIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/billing/return': {
+      id: '/_app/billing/return'
+      path: '/billing/return'
+      fullPath: '/billing/return'
+      preLoaderRoute: typeof AppBillingReturnRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cod/': {
@@ -582,6 +614,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsStaffRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/billing/invoices/$invoiceId': {
+      id: '/_app/billing/invoices/$invoiceId'
+      path: '/billing/invoices/$invoiceId'
+      fullPath: '/billing/invoices/$invoiceId'
+      preLoaderRoute: typeof AppBillingInvoicesInvoiceIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/orders/$orderId/': {
       id: '/_app/orders/$orderId/'
       path: '/orders/$orderId'
@@ -602,6 +641,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppMoreRoute: typeof AppMoreRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppBillingReturnRoute: typeof AppBillingReturnRoute
   AppCustomersCustomerIdRoute: typeof AppCustomersCustomerIdRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
   AppProductsProductIdRoute: typeof AppProductsProductIdRoute
@@ -621,6 +661,7 @@ interface AppRouteChildren {
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
   AppProductsIndexRoute: typeof AppProductsIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
+  AppBillingInvoicesInvoiceIdRoute: typeof AppBillingInvoicesInvoiceIdRoute
   AppOrdersOrderIdEditRoute: typeof AppOrdersOrderIdEditRoute
   AppOrdersOrderIdIndexRoute: typeof AppOrdersOrderIdIndexRoute
 }
@@ -628,6 +669,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppMoreRoute: AppMoreRoute,
   AppIndexRoute: AppIndexRoute,
+  AppBillingReturnRoute: AppBillingReturnRoute,
   AppCustomersCustomerIdRoute: AppCustomersCustomerIdRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
   AppProductsProductIdRoute: AppProductsProductIdRoute,
@@ -647,6 +689,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOrdersIndexRoute: AppOrdersIndexRoute,
   AppProductsIndexRoute: AppProductsIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
+  AppBillingInvoicesInvoiceIdRoute: AppBillingInvoicesInvoiceIdRoute,
   AppOrdersOrderIdEditRoute: AppOrdersOrderIdEditRoute,
   AppOrdersOrderIdIndexRoute: AppOrdersOrderIdIndexRoute,
 }

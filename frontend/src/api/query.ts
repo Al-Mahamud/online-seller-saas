@@ -29,12 +29,16 @@ export function errorMessages(error: unknown): string {
 /**
  * Errors every screen would show the same way become a toast here. The others are for the screen
  * (field problems under their inputs) or for the app as a whole: choosing a business (F2), the
- * upgrade dialog and the read-only banner (F8).
+ * upgrade dialog.
  */
 function showError(error: unknown) {
   const { kind } = errorAction(error);
   if (kind === "network" || kind === "rate-limited" || kind === "message") {
     toast.error(errorText(error));
+  }
+  // Every screen's requests can be refused together, and one message says it all.
+  if (kind === "read-only") {
+    toast.error(errorText(error), { id: "read-only" });
   }
 }
 
@@ -50,15 +54,18 @@ declare module "@tanstack/react-query" {
  * `onSignedOut`: the server said the session is gone (expired, or signed out elsewhere).
  * `onAccessChanged`: the server said no business is selected, or refused on the role: a member's
  * business or role may have changed. `onPlanLimit`: the business's plan doesn't allow this.
+ * `onSubscriptionRefused`: refused for being read-only or suspended, which the banner should now say.
  */
 export function createQueryClient({
   onSignedOut,
   onAccessChanged,
   onPlanLimit,
+  onSubscriptionRefused,
 }: {
   onSignedOut?: () => void;
   onAccessChanged?: () => void;
   onPlanLimit?: (limit: { metric: string | null; limit: number | null }) => void;
+  onSubscriptionRefused?: () => void;
 } = {}) {
   const handle = (error: unknown, showsOwnErrors: boolean | undefined) => {
     const action = errorAction(error);
@@ -69,6 +76,9 @@ export function createQueryClient({
     }
     if (action.kind === "upgrade") {
       onPlanLimit?.({ metric: action.metric, limit: action.limit });
+    }
+    if (kind === "read-only") {
+      onSubscriptionRefused?.();
     }
     if (kind === "pick-business" || (error instanceof ApiError && error.status === 403)) {
       onAccessChanged?.();

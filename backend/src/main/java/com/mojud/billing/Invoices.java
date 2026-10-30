@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
@@ -59,11 +60,16 @@ class Invoices implements PaymentConfirmations {
 
     /** Money in poisha. */
     record InvoiceView(UUID id, String number, String kind, String planCode, int months, long amount, long vatAmount,
-            String status, String payBy, Instant periodStart, Instant periodEnd, Instant createdAt, Instant paidAt) {
+            String status, String payBy, @Nullable Instant periodStart, @Nullable Instant periodEnd, Instant createdAt,
+            @Nullable Instant paidAt, @Nullable String bankTransfer) {
     }
 
     /** {@code gatewayUrl} for the gateway; {@code bankTransfer} (how to pay) for a bank transfer. */
-    record Checkout(UUID invoiceId, String number, long amount, String gatewayUrl, String bankTransfer) {
+    record Checkout(UUID invoiceId, String number, long amount, @Nullable String gatewayUrl, @Nullable String bankTransfer) {
+    }
+
+    /** {@code amount} with VAT, and the VAT in it, in poisha. */
+    record Quote(long amount, long vatAmount) {
     }
 
     /** Published when an invoice is paid, inside that transaction (for receipts). */
@@ -131,17 +137,35 @@ class Invoices implements PaymentConfirmations {
 
     /** Pays for {@code months} of a plan: a renewal, a first plan after the trial, or coming back from read-only. */
     Checkout checkout(String planCode, int months, PayBy payBy) {
+        return open("SUBSCRIPTION", publicPlan(planCode), months, periodCharge(planCode, months), payBy);
+    }
+
+    /** What {@link #checkout} (months given) or {@link #upgrade} (none) would charge now. */
+    Quote quote(String planCode, Integer months) {
+        long[] charge = months != null ? periodCharge(planCode, months) : upgradeCharge(planCode);
+        return new Quote(charge[0], charge[1]);
+    }
+
+    /** Only an administrator lifts a suspension, so paying is not offered to a suspended business. */
+    private void requireNotSuspended(Subscriptions.Subscription subscription) {
+        if (subscription.status().equals("SUSPENDED")) {
+            throw new ApiException(ErrorCode.SUBSCRIPTION_SUSPENDED);
+        }
+    }
+
+    private long[] periodCharge(String planCode, int months) {
         if (!MONTHS.contains(months)) {
             throw ApiException.invalidField("months", "field.invalid_value");
         }
         Plans.Plan plan = publicPlan(planCode);
         Subscriptions.Subscription subscription = subscriptions.current();
+        requireNotSuspended(subscription);
         if (subscription.status().equals("ACTIVE") && !plan.code().equals(subscription.planCode())) {
             // While a paid period runs, payments extend that plan; another plan is an upgrade, or a
             // downgrade waiting for the renewal.
             throw new ApiException(ErrorCode.BILLING_USE_UPGRADE);
         }
-        return open("SUBSCRIPTION", plan, months, withVat(periodPrice(plan, months)), payBy);
+        return withVat(periodPrice(plan, months));
     }
 
     /**
@@ -149,8 +173,13 @@ class Invoices implements PaymentConfirmations {
      * period (backend-plan.md §9). The plan changes when this invoice is paid; the period end stays.
      */
     Checkout upgrade(String planCode, PayBy payBy) {
+        return open("UPGRADE", publicPlan(planCode), 0, upgradeCharge(planCode), payBy);
+    }
+
+    private long[] upgradeCharge(String planCode) {
         Plans.Plan target = publicPlan(planCode);
         Subscriptions.Subscription subscription = subscriptions.current();
+        requireNotSuspended(subscription);
         Plans.Plan current = plans.get(subscription.planCode());
         if (!subscription.status().equals("ACTIVE") || subscription.currentPeriodStart() == null
                 || subscription.currentPeriodEnd() == null) {
@@ -168,7 +197,7 @@ class Invoices implements PaymentConfirmations {
         if (charge <= 0) {
             throw new ApiException(ErrorCode.BILLING_USE_UPGRADE);
         }
-        return open("UPGRADE", target, 0, withVat(charge), payBy);
+        return withVat(charge);
     }
 
     /**
@@ -206,8 +235,7 @@ class Invoices implements PaymentConfirmations {
             return invoiceNumber;
         });
         if (payBy == PayBy.BANK_TRANSFER) {
-            return new Checkout(invoiceId, number, price[0], null, environment.getProperty(
-                    "mojud.billing.bank-transfer.instructions", "") + " Reference: " + number);
+            return new Checkout(invoiceId, number, price[0], null, bankTransfer(number));
         }
         SslCommerzClient.Session session;
         try {
@@ -221,6 +249,10 @@ class Invoices implements PaymentConfirmations {
             throw new ApiException(ErrorCode.BILLING_GATEWAY_ERROR).withDetail("reason", session.failedReason());
         }
         return new Checkout(invoiceId, number, price[0], session.gatewayUrl(), null);
+    }
+
+    private String bankTransfer(String invoiceNumber) {
+        return environment.getProperty("mojud.billing.bank-transfer.instructions", "") + " Reference: " + invoiceNumber;
     }
 
     private Map<String, String> sessionFields(String kind, Plans.Plan plan, int months, long amount, String tranId,
@@ -372,7 +404,10 @@ class Invoices implements PaymentConfirmations {
                 .query((rs, n) -> new InvoiceView(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
                         rs.getString(4), rs.getInt(5), rs.getLong(6), rs.getLong(7), rs.getString(8), rs.getString(9),
                         instant(rs.getTimestamp(10)), instant(rs.getTimestamp(11)), rs.getTimestamp(12).toInstant(),
-                        instant(rs.getTimestamp(13))))
+                        instant(rs.getTimestamp(13)),
+                        // Still to be paid by transfer: how, for whoever comes back to the invoice.
+                        rs.getString(8).equals("OPEN") && PayBy.BANK_TRANSFER.name().equals(rs.getString(9))
+                                ? bankTransfer(rs.getString(2)) : null))
                 .list();
     }
 

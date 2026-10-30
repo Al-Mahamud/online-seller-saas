@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { SearchBox } from "@/components/layout/SearchBox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useCanWrite } from "@/features/billing/status";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type BulkResult, type OrderSummary, orderCountsQuery, ordersChanged, ordersQuery, slipsUrl } from "./api";
@@ -65,6 +66,7 @@ export function OrdersPage() {
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   const queryClient = useQueryClient();
+  const canWrite = useCanWrite();
   const orders = useInfiniteQuery(ordersQuery(filters));
   const items = orders.data?.pages.flatMap((page) => page.items) ?? [];
   const [selected, setSelected] = useState<Map<string, OrderSummary>>(new Map());
@@ -128,12 +130,14 @@ export function OrdersPage() {
           <Button asChild variant="outline">
             <Link to="/cod">{t("cod.title")}</Link>
           </Button>
-          <Button asChild className="hidden md:inline-flex">
-            <Link to="/orders/new">
-              <Plus aria-hidden="true" />
-              {t("orders.new")}
-            </Link>
-          </Button>
+          {canWrite && (
+            <Button asChild className="hidden md:inline-flex">
+              <Link to="/orders/new">
+                <Plus aria-hidden="true" />
+                {t("orders.new")}
+              </Link>
+            </Button>
+          )}
         </div>
       </PageHeader>
       <SearchBox

@@ -3,6 +3,8 @@ import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { hasRole, useBusiness } from "@/api/business";
+import { SubscriptionBanner } from "@/features/billing/SubscriptionBanner";
+import { useCanWrite } from "@/features/billing/status";
 import { BusinessSwitcher } from "@/features/business/BusinessSwitcher";
 import { DeletionBanner } from "@/features/business/DeletionBanner";
 import { LanguageToggle } from "./LanguageToggle";
@@ -30,9 +32,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   // It would only cover the buttons of the account pages, and an order's own.
   const { pathname } = useLocation();
   const business = useBusiness();
+  const canWrite = useCanWrite();
   const onProducts = /^\/products\/?$/.test(pathname);
-  const showsNewOrder = !/^\/(more|settings|billing|orders\/|cod|reports|products)/.test(pathname);
-  const showsNewProduct = onProducts && hasRole(business, "MANAGER");
+  const showsNewOrder = canWrite && !/^\/(more|settings|billing|orders\/|cod|reports|products)/.test(pathname);
+  const showsNewProduct = canWrite && onProducts && hasRole(business, "MANAGER");
   return (
     <div className="min-h-dvh md:flex">
       <nav
@@ -61,6 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <LanguageToggle />
         </header>
 
+        <SubscriptionBanner />
         <DeletionBanner />
         <main className="flex-1 px-4 pt-4 pb-28 md:px-10 md:pt-8 md:pb-12">{children}</main>
       </div>

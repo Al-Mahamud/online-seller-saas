@@ -2,6 +2,10 @@ package com.mojud.support;
 
 import com.mojud.shared.db.system.SystemDatabase;
 import io.swagger.v3.oas.annotations.Hidden;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +24,34 @@ class DevPlanController {
 
     DevPlanController(SystemDatabase database) {
         this.database = database;
+    }
+
+    /**
+     * Puts the business in a subscription status, as time and the daily job would. {@code days}: until
+     * the trial, period or grace ends.
+     */
+    @PostMapping("/dev/subscription")
+    ResponseEntity<Void> setSubscription(@RequestParam UUID businessId, @RequestParam String status,
+            @RequestParam(defaultValue = "STARTER") String plan, @RequestParam(defaultValue = "10") int days) {
+        Instant now = Instant.now();
+        Instant ends = now.plus(Duration.ofDays(days));
+        Timestamp nowAt = Timestamp.from(now);
+        Timestamp endsAt = Timestamp.from(ends);
+        Timestamp periodStart = Timestamp.from(ends.atZone(ZoneOffset.UTC).minusMonths(1).toInstant());
+        database.jdbc().sql("""
+                        update subscriptions set plan_code = ?, status = ?, suspended_from = ?,
+                               trial_ends_at = ?, current_period_start = ?, current_period_end = ?, grace_ends_at = ?,
+                               read_only_since = ?
+                        where business_id = ?
+                        """)
+                .params(status.equals("TRIALING") ? "TRIAL" : plan, status, status.equals("SUSPENDED") ? "READ_ONLY" : null,
+                        status.equals("TRIALING") ? endsAt : null,
+                        status.equals("ACTIVE") ? periodStart : null,
+                        status.equals("ACTIVE") ? endsAt : status.equals("GRACE") ? nowAt : null,
+                        status.equals("GRACE") ? endsAt : null,
+                        status.equals("READ_ONLY") ? nowAt : null, businessId)
+                .update();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/dev/plan")

@@ -312,7 +312,7 @@ Endpoint groups (complete list will be in the OpenAPI spec):
 | ACTIVE | Paid period running | Everything within plan limits |
 | GRACE | Up to 7 days after the period ended unpaid | Everything, with a banner and daily reminder |
 | READ_ONLY | Grace over, or trial over without payment | Read, export, pay. Every other write returns 402 `subscription.read_only`. |
-| SUSPENDED | Admin action | Owner can log in to billing and support only |
+| SUSPENDED | Admin action | Owner can log in to read billing and reach support, and can't start a payment: only an admin lifts it |
 
 A daily job moves businesses between these statuses and sends reminders 7, 3 and 1 day before the end. READ_ONLY businesses get warnings at 60 and 85 days; data is deleted at 90 days (job ships disabled until you approve the wording).
 

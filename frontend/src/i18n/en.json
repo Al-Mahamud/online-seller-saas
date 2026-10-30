@@ -137,7 +137,8 @@
     "paymentSaved": "Payment added.",
     "cancelTitle": "Cancel {{number}}?",
     "address": "Address",
-    "byDate": "Filter by date"
+    "byDate": "Filter by date",
+    "readOnlyForm": "The shop is read-only, so new orders can't be taken."
   },
   "page": {
     "comingSoon": "This part is coming soon.",
@@ -598,7 +599,96 @@
     "deleteTagDescription": "The products stay; only this tag comes off them."
   },
   "billing": {
-    "title": "Plans and payment"
+    "title": "Plan and payment",
+    "yourPlan": "Your plan",
+    "ownerPays": "Only the owner can change the plan or pay.",
+    "status": {
+      "TRIALING": "Free trial",
+      "ACTIVE": "Active",
+      "GRACE": "Payment due",
+      "READ_ONLY": "Read-only",
+      "SUSPENDED": "Suspended"
+    },
+    "trialUntil": "Trial runs until {{date}}",
+    "graceUntil": "Pay by {{date}}",
+    "paidUntil": "Paid until {{date}}",
+    "changesTo": "Changes to {{plan}} on {{date}}",
+    "usedOf": "{{used}} of {{limit}}",
+    "usedOfNoLimit": "{{used}} (no limit)",
+    "choosePlan": "Choose a plan",
+    "perMonth": "a month",
+    "limit": {
+      "variants": "{{count}} variants",
+      "variantsAny": "Unlimited variants",
+      "orders": "{{count}} orders a month",
+      "ordersAny": "Unlimited orders",
+      "staff": "{{count}} team members",
+      "staffAny": "Unlimited team members",
+      "reports": "Reports for the last {{count}} days",
+      "reportsAny": "Reports for all time",
+      "exports": "Downloads included",
+      "noExports": "No downloads"
+    },
+    "choose": "Choose this plan",
+    "renew": "Renew",
+    "upgrade": "Upgrade",
+    "downgrade": "Change at next renewal",
+    "keepCurrent": "Keep the current plan",
+    "downgradeTitle": "Move to {{plan}}?",
+    "downgradeDescription": "Your current plan runs until {{date}}, and this one starts then.",
+    "downgradeSet": "The plan will change at the next renewal.",
+    "downgradeCancelled": "You're staying on the current plan.",
+    "payTitle": "Pay for {{plan}}",
+    "upgradeTitle": "Upgrade to {{plan}}",
+    "upgradeHint": "You pay only the difference for the days left. The end date stays the same.",
+    "forHowLong": "For how long",
+    "months": {
+      "1": "1 month",
+      "6": "6 months",
+      "12": "12 months (2 months free)"
+    },
+    "payHow": "How to pay",
+    "payBy": {
+      "SSLCOMMERZ": "Online: bKash, Nagad, card",
+      "BANK_TRANSFER": "Bank transfer"
+    },
+    "total": "Total",
+    "vatIncluded": "Includes {{amount}} VAT",
+    "vat": "VAT",
+    "goToPayment": "Go to payment",
+    "getInstructions": "See the bank details",
+    "invoices": "Invoices",
+    "noInvoices": "No invoices yet.",
+    "invoiceStatus": {
+      "OPEN": "Not paid yet",
+      "PAID": "Paid",
+      "VOID": "Cancelled",
+      "REFUNDED": "Refunded"
+    },
+    "invoiceDetails": "Details",
+    "plan": "Plan",
+    "period": "Period",
+    "print": "Print",
+    "transferTitle": "Send {{amount}} to the bank",
+    "transferNext": "When the money arrives, we'll turn the plan on and let you know.",
+    "gatewayNotDone": "This payment wasn't completed. To try again, start from the plans page.",
+    "banner": {
+      "trialEnding": "Your free trial ends on {{date}}. To carry on, choose a plan.",
+      "grace": "Your plan has ended. Pay by {{date}}, or the shop becomes read-only.",
+      "readOnly": "The shop is read-only: nothing can be changed. To turn it back on, choose a plan.",
+      "readOnlyStaff": "The shop is read-only: nothing can be changed. Ask the owner to choose a plan.",
+      "suspended": "This business has been suspended. Please contact support.",
+      "action": "See plans"
+    },
+    "return": {
+      "title": "Payment",
+      "paid": "{{amount}} received. Thank you!",
+      "waiting": "Waiting for the payment to be confirmed. This page will change by itself.",
+      "slow": "Confirmation is taking a while. You can carry on with other work; the plan turns on by itself once it's paid.",
+      "failed": "The payment didn't go through. If money was taken, the gateway will return it. You can try again.",
+      "cancelled": "You cancelled the payment. No money was taken.",
+      "back": "Go to the plans page"
+    }
   },
   "planLimit": {
     "title": "You've reached your plan's limit",
@@ -613,7 +703,8 @@
       "other": "this feature"
     },
     "reportDays": "Your plan shows reports for the last {{limit}} days. To see further back, change your plan.",
-    "noExports": "Your plan has no downloads. To download, change your plan."
+    "noExports": "Your plan has no downloads. To download, change your plan.",
+    "askOwner": "Ask the owner to change the plan."
   },
   "imports": {
     "fromExcel": "Import from Excel",

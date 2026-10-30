@@ -78,6 +78,7 @@ class BillingFlowTests {
         paidPeriod("STARTER", start, end);
 
         ApiResponse upgrade = owner.post("/api/v1/billing/upgrade", Map.of("planCode", "PRO")).expectStatus(201);
+        assertThat(owner.get("/api/v1/billing/quote?planCode=PRO").<Integer>json("$.amount")).isEqualTo(upgrade.<Integer>json("$.amount"));
 
         // ৳2,000 × 20 ÷ 30 = ৳1,333.33, rounded up to ৳1,334.
         assertThat(upgrade.<Integer>json("$.amount")).isEqualTo(133400);
@@ -128,6 +129,8 @@ class BillingFlowTests {
         assertThat(checkout.<Object>json("$.gatewayUrl")).isNull();
         assertThat(checkout.<String>json("$.bankTransfer")).contains("Reference: " + checkout.json("$.number"));
         assertThat(checkout.<Integer>json("$.amount")).isEqualTo(1794000);
+        // Whoever comes back to the invoice can still read how to pay.
+        assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.bankTransfer")).isEqualTo(checkout.<String>json("$.bankTransfer"));
 
         ApiClient admin = admin();
         assertThat(admin.get("/api/v1/admin/billing/invoices?status=OPEN").<List<String>>json("$[*].id")).contains(invoice);

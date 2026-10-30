@@ -31,7 +31,7 @@ class Subscriptions {
     static final Duration TRIAL = Duration.ofDays(14);
 
     record Subscription(String planCode, String status, Instant trialEndsAt, Instant currentPeriodStart,
-            Instant currentPeriodEnd, String pendingPlanCode) {
+            Instant currentPeriodEnd, String pendingPlanCode, Instant graceEndsAt) {
     }
 
     private final JdbcClient jdbc;
@@ -95,7 +95,9 @@ class Subscriptions {
     /**
      * A paid invoice for {@code months} of {@code planCode}: the subscription becomes ACTIVE on that
      * plan. The new period follows a period still running, or a trial still running (its days are
-     * not lost); otherwise it starts now. A waiting downgrade is settled by what was paid for.
+     * not lost); otherwise it starts now. A waiting downgrade is settled by what was paid for. A
+     * payment that arrives while the business is suspended counts, and the suspension stands: only
+     * an administrator lifts it, and it then comes back ACTIVE.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     Period extend(String planCode, int months) {
@@ -116,7 +118,9 @@ class Subscriptions {
         }
         Instant end = start.atZone(DhakaTime.ZONE).plusMonths(months).toInstant();
         jdbc.sql("""
-                        update subscriptions set plan_code = ?, status = 'ACTIVE',
+                        update subscriptions set plan_code = ?,
+                               status = case when status = 'SUSPENDED' then 'SUSPENDED' else 'ACTIVE' end,
+                               suspended_from = case when status = 'SUSPENDED' then 'ACTIVE' else suspended_from end,
                                current_period_start = case when ? then current_period_start else ? end,
                                current_period_end = ?, grace_ends_at = null, read_only_since = null,
                                pending_plan_code = null, updated_at = ?, version = version + 1
@@ -145,12 +149,13 @@ class Subscriptions {
     Subscription current() {
         UUID business = TenantScope.current().orElseThrow();
         Optional<Subscription> found = jdbc.sql("""
-                        select plan_code, status, trial_ends_at, current_period_start, current_period_end, pending_plan_code
+                        select plan_code, status, trial_ends_at, current_period_start, current_period_end, pending_plan_code,
+                               grace_ends_at
                         from subscriptions where business_id = ?
                         """)
                 .param(business)
                 .query((rs, n) -> new Subscription(rs.getString(1), rs.getString(2), instant(rs.getTimestamp(3)),
-                        instant(rs.getTimestamp(4)), instant(rs.getTimestamp(5)), rs.getString(6)))
+                        instant(rs.getTimestamp(4)), instant(rs.getTimestamp(5)), rs.getString(6), instant(rs.getTimestamp(7))))
                 .optional();
         return found.orElseThrow(() -> new IllegalStateException("Business " + business + " has no subscription"));
     }

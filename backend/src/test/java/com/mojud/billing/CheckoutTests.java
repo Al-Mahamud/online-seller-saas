@@ -12,6 +12,7 @@ import com.mojud.support.IntegrationTest;
 import com.mojud.support.TestAccounts;
 import com.mojud.support.TestBusinesses;
 import com.mojud.support.TestClock;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -75,7 +76,7 @@ class CheckoutTests {
         String invoice = checkout.json("$.invoiceId");
         assertThat(checkout.<String>json("$.number")).startsWith("MJ-");
         assertThat(checkout.<Integer>json("$.amount")).isEqualTo(99000);
-        assertThat(checkout.<String>json("$.gatewayUrl")).startsWith("https://sandbox.sslcommerz.com/");
+        assertThat(checkout.<String>json("$.gatewayUrl")).contains("/fake-sslcommerz/checkout/");
         String tranId = gateway.tranIdOf(invoice);
         Map<String, String> session = gateway.session(tranId);
         assertThat(session).containsEntry("total_amount", "990.00").containsEntry("currency", "BDT")
@@ -101,6 +102,48 @@ class CheckoutTests {
         sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn", ipn).expectStatus(200);
         assertThat(Instant.parse(owner.get("/api/v1/billing").json("$.currentPeriodEnd"))).isEqualTo(end);
         assertThat(callbacks(tranId)).isEqualTo(2);
+    }
+
+    @Test
+    void theQuoteIsWhatCheckoutCharges() {
+        ApiResponse quote = owner.get("/api/v1/billing/quote?planCode=STARTER&months=6").expectStatus(200);
+        ApiResponse checkout = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 6)).expectStatus(201);
+        assertThat(quote.<Integer>json("$.amount")).isEqualTo(checkout.<Integer>json("$.amount")).isEqualTo(594000);
+        owner.get("/api/v1/billing/quote?planCode=STARTER&months=2").expectError(400, "validation.failed");
+        // No running period to upgrade yet.
+        owner.get("/api/v1/billing/quote?planCode=PRO").expectError(409, "billing.payment_needed");
+    }
+
+    @Test
+    void aPaymentArrivingDuringASuspensionCountsAndTheSuspensionStands() {
+        String invoice = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201)
+                .json("$.invoiceId");
+        String tranId = gateway.tranIdOf(invoice);
+        systemDatabase.jdbc().sql("update subscriptions set suspended_from = status, status = 'SUSPENDED' where business_id = ?")
+                .param(business).update();
+
+        sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn",
+                ipn(tranId, gateway.pay(tranId, "990.00", "BDT", "VALID"), "990.00")).expectStatus(200);
+
+        assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.status")).isEqualTo("PAID");
+        ApiResponse billing = owner.get("/api/v1/billing");
+        assertThat(billing.<String>json("$.status")).isEqualTo("SUSPENDED");
+        assertThat(billing.<String>json("$.plan.code")).isEqualTo("STARTER");
+        assertThat(systemDatabase.jdbc().sql("select suspended_from from subscriptions where business_id = ?").param(business)
+                .query(String.class).single()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void theStandInPagePaysAsTheGatewayWould() {
+        ApiResponse checkout = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201);
+        String invoice = checkout.json("$.invoiceId");
+        String page = checkout.json("$.gatewayUrl");
+        assertThat(new String(sslcommerz.download(page.substring(page.indexOf("/api/v1/"))).body(), StandardCharsets.UTF_8)).contains("990.00");
+
+        assertThat(sslcommerz.download(page.substring(page.indexOf("/api/v1/")) + "/pay").statusCode()).isEqualTo(303);
+
+        assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.status")).isEqualTo("PAID");
+        assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("ACTIVE");
     }
 
     @Test

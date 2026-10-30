@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { hasRole, useBusiness } from "@/api/business";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +18,7 @@ import { listenForPlanLimit, type PlanLimit } from "./planLimit";
 export function PlanLimitDialog() {
   const { t, i18n } = useTranslation();
   const format = useFormat();
+  const business = useBusiness();
   const [limit, setLimit] = useState<PlanLimit>();
   useEffect(() => listenForPlanLimit(setLimit), []);
   if (!limit) {
@@ -38,15 +40,20 @@ export function PlanLimitDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("planLimit.title")}</DialogTitle>
-          <DialogDescription>{text}</DialogDescription>
+          <DialogDescription>
+            {text}
+            {!hasRole(business, "MANAGER") && ` ${t("planLimit.askOwner")}`}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={close}>
             {t("page.close")}
           </Button>
-          <Button asChild onClick={close}>
-            <Link to="/billing">{t("planLimit.seePlans")}</Link>
-          </Button>
+          {hasRole(business, "MANAGER") && (
+            <Button asChild onClick={close}>
+              <Link to="/billing">{t("planLimit.seePlans")}</Link>
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

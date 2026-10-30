@@ -436,6 +436,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["quote_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/upgrade": {
         parameters: {
             query?: never;
@@ -2062,12 +2094,14 @@ export interface components {
         };
         Billing: {
             /** Format: date-time */
-            currentPeriodEnd: string;
-            pendingPlanCode: string;
+            currentPeriodEnd: string | null;
+            /** Format: date-time */
+            graceEndsAt: string | null;
+            pendingPlanCode: string | null;
             plan: components["schemas"]["BillingPlanView"];
             status: string;
             /** Format: date-time */
-            trialEndsAt: string;
+            trialEndsAt: string | null;
             usage: {
                 [key: string]: components["schemas"]["BillingUsage"];
             };
@@ -2166,6 +2200,15 @@ export interface components {
             /** Format: int64 */
             priceMonthly: number;
         };
+        BillingStatus: {
+            /** Format: date-time */
+            currentPeriodEnd: string | null;
+            /** Format: date-time */
+            graceEndsAt: string | null;
+            status: string;
+            /** Format: date-time */
+            trialEndsAt: string | null;
+        };
         BillingUpgradeRequest: {
             /** @enum {string} */
             payBy?: "SSLCOMMERZ" | "BANK_TRANSFER";
@@ -2173,7 +2216,7 @@ export interface components {
         };
         BillingUsage: {
             /** Format: int32 */
-            limit: number;
+            limit: number | null;
             /** Format: int64 */
             used: number;
         };
@@ -2626,8 +2669,8 @@ export interface components {
         InvoicesCheckout: {
             /** Format: int64 */
             amount: number;
-            bankTransfer: string;
-            gatewayUrl: string;
+            bankTransfer: string | null;
+            gatewayUrl: string | null;
             /** Format: uuid */
             invoiceId: string;
             number: string;
@@ -2635,6 +2678,7 @@ export interface components {
         InvoicesInvoiceView: {
             /** Format: int64 */
             amount: number;
+            bankTransfer: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -2644,14 +2688,20 @@ export interface components {
             months: number;
             number: string;
             /** Format: date-time */
-            paidAt: string;
+            paidAt: string | null;
             payBy: string;
             /** Format: date-time */
-            periodEnd: string;
+            periodEnd: string | null;
             /** Format: date-time */
-            periodStart: string;
+            periodStart: string | null;
             planCode: string;
             status: string;
+            /** Format: int64 */
+            vatAmount: number;
+        };
+        InvoicesQuote: {
+            /** Format: int64 */
+            amount: number;
             /** Format: int64 */
             vatAmount: number;
         };
@@ -3976,6 +4026,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Billing"];
+                };
+            };
+        };
+    };
+    quote_1: {
+        parameters: {
+            query: {
+                planCode: string;
+                months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicesQuote"];
+                };
+            };
+        };
+    };
+    status_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingStatus"];
                 };
             };
         };

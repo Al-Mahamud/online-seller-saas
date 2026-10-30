@@ -28,12 +28,14 @@ const queryClient = createQueryClient({
   },
   onAccessChanged: () => void queryClient.invalidateQueries(businessQuery),
   onPlanLimit: showPlanLimit,
+  onSubscriptionRefused: () => void queryClient.invalidateQueries({ queryKey: ["subscription-status"] }),
 });
 const router = createAppRouter(queryClient);
 
 trackExpectedBusiness(queryClient);
 whenBusinessChangesUnderneath((lost) => {
-  toast.warning(i18n.t("business.lost", { name: lost.name }));
+  // Requests running together can each notice, and it's one piece of news.
+  toast.warning(i18n.t("business.lost", { name: lost.name }), { id: "business-lost" });
   resetBusinessData(queryClient);
   void router.navigate({ to: "/", replace: true }).then(() => router.invalidate());
 });

@@ -45,6 +45,8 @@ export default defineConfig({
           url: "http://localhost:8080/healthz",
           timeout: 300_000,
           reuseExistingServer: !ci,
+          // Where a payment gateway sends the browser back to.
+          env: { WEB_BASE_URL: "http://localhost:4173" },
         },
         {
           // The production build, served with the same /api proxy as the dev server.

@@ -109,7 +109,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | F5 Customers and delivery | One commit | Done |
 | F6 Orders, the core | One commit | Done |
 | F7 Today, reports and exports | One commit | Done |
-| F8–F11 | | Not started |
+| F8 Billing | One commit | Done |
+| F9–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -457,6 +458,25 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Banners:** for the trial ending, grace and read-only (writes disabled, with a reason).
 
 **Checked by:** e2e: pay through the backend's fake gateway and the plan becomes active; a read-only business shows the banner and the server refuses a write the UI did not hide.
+
+**As built (F8):**
+- **`/billing`** (managers and owners; staff go back to More):
+  - The plan, its status and dates, and usage against limits.
+  - Plans, for owners. What a plan's button does depends on where they stand: while a paid period runs, the current plan renews, a dearer one upgrades, and a cheaper one waits for the renewal, which can be taken back. Otherwise any plan is paid for from now.
+  - Invoices, each with its own page (`/billing/invoices/$id`, which emails link to) and a page to print.
+- **Paying:** a dialog with months and how to pay. The total is the server's own quote (`GET /billing/quote`), VAT and proration included, so it is what will be charged.
+- **Returning (`/billing/return`):** asks the server every 3 seconds, for up to 5 minutes, until the invoice is paid; the browser's return proves nothing. Failed and cancelled returns say so.
+- **Bank transfer:** the instructions are on the invoice's page for as long as it is open, not only straight after choosing. The text comes from the server's settings, in English, with placeholder details until the company's are final.
+- **Banners (every page, every member):** from `GET /billing/status`, read every minute: a trial's last 3 days, grace, read-only and suspended. Staff are told to ask the owner, and the upgrade dialog tells them the same.
+- **Read-only:** the buttons for new orders and products go, and the order form says so before anything is typed, since it's the longest form to lose. Other writes stay on screen and the server refuses them, with its reason in a toast or the form. Reading still works.
+- **Backend:**
+  - **A suspended business couldn't open the app:** `GET /business` was refused, and the app needs it. It now stays open, as the plan intended.
+  - **Paying lifted an administrator's suspension:** an invoice paid while suspended set the business ACTIVE. Now a suspended business can read its billing and can't start a payment. A payment already under way counts, the suspension stands, and lifting it brings the business back ACTIVE. This narrows "can always pay" in `SubscriptionGuard`.
+  - `GET /billing/status`, `GET /billing/quote`, `graceEndsAt`, and `bankTransfer` on an open invoice.
+- **The stand-in gateway:** `FakeSslCommerz` now has a small page with Pay, Fail and Cancel links, which send the IPN as the gateway would. `TestMojudApplication` uses it, so paying can be tried locally with no money. `/dev/subscription` puts a business in any status.
+- **Fixed along the way:** a removed member could see "you're no longer a member" twice.
+- **E2E (`billing.spec.ts`):** paying through to an active plan, including the wait; failing and cancelling; a bank transfer's instructions coming back later; an upgrade at the quoted amount; a downgrade and taking it back; read-only for owner and staff, then paying out of it; suspended; the banners. 162 tests across both screen sizes.
+- **Not tested here:** the real SSLCommerz, which needs the sandbox credentials. Everything up to its page and back is the same code, but its page, its real answers and its redirects need one real sandbox payment before launch.
 
 ### F9: Notifications (1 day)
 

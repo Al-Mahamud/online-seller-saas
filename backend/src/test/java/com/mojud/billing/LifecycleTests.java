@@ -141,6 +141,13 @@ class LifecycleTests {
 
         owner.get("/api/v1/products").expectError(402, "subscription.suspended");
         owner.get("/api/v1/billing").expectStatus(200);
+        // The web app can't open without knowing which business this is.
+        owner.get("/api/v1/business").expectStatus(200);
+        owner.get("/api/v1/billing/status").expectStatus(200);
+        owner.get("/api/v1/business/settings").expectError(402, "subscription.suspended");
+        // Paying doesn't lift a suspension: only an administrator does.
+        owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectError(402, "subscription.suspended");
+        owner.get("/api/v1/billing/quote?planCode=STARTER&months=1").expectError(402, "subscription.suspended");
         advancer.advance(business);
         assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("SUSPENDED");
     }
