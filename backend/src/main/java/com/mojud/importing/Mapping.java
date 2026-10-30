@@ -31,6 +31,11 @@ record Mapping(List<Column> columns) {
      * ("Eid stock list 2026") or a merged group heading above the headers is skipped. Otherwise
      * the first row.
      */
+    /** Fields every row needs that no column gives. */
+    List<ImportField> missing() {
+        return ImportField.REQUIRED.stream().filter(field -> of(field).isEmpty()).toList();
+    }
+
     static Sheet.Row findHeader(List<Sheet.Row> rows) {
         return rows.stream().limit(HEADER_SEARCH_ROWS)
                 .filter(row -> guess(row).columns().stream().filter(column -> column.field() != ImportField.OPTION).count() >= 2)

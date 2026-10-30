@@ -23,6 +23,7 @@ import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
 import { Route as AppProductsIndexRouteImport } from './routes/_app/products/index'
 import { Route as AppProductsProductIdRouteImport } from './routes/_app/products/$productId'
+import { Route as AppProductsImportRouteImport } from './routes/_app/products/import'
 import { Route as AppProductsLowStockRouteImport } from './routes/_app/products/low-stock'
 import { Route as AppProductsNewRouteImport } from './routes/_app/products/new'
 import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings/account'
@@ -100,6 +101,11 @@ const AppProductsProductIdRoute = AppProductsProductIdRouteImport.update({
   path: '/products/$productId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProductsImportRoute = AppProductsImportRouteImport.update({
+  id: '/products/import',
+  path: '/products/import',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProductsLowStockRoute = AppProductsLowStockRouteImport.update({
   id: '/products/low-stock',
   path: '/products/low-stock',
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof AuthSignUpRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
+  '/products/import': typeof AppProductsImportRoute
   '/products/low-stock': typeof AppProductsLowStockRoute
   '/products/new': typeof AppProductsNewRoute
   '/settings/account': typeof AppSettingsAccountRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof AuthSignUpRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
+  '/products/import': typeof AppProductsImportRoute
   '/products/low-stock': typeof AppProductsLowStockRoute
   '/products/new': typeof AppProductsNewRoute
   '/settings/account': typeof AppSettingsAccountRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/products/$productId': typeof AppProductsProductIdRoute
+  '/_app/products/import': typeof AppProductsImportRoute
   '/_app/products/low-stock': typeof AppProductsLowStockRoute
   '/_app/products/new': typeof AppProductsNewRoute
   '/_app/settings/account': typeof AppSettingsAccountRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/orders/new'
     | '/products/$productId'
+    | '/products/import'
     | '/products/low-stock'
     | '/products/new'
     | '/settings/account'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/orders/new'
     | '/products/$productId'
+    | '/products/import'
     | '/products/low-stock'
     | '/products/new'
     | '/settings/account'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/orders/new'
     | '/_app/products/$productId'
+    | '/_app/products/import'
     | '/_app/products/low-stock'
     | '/_app/products/new'
     | '/_app/settings/account'
@@ -388,6 +400,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProductsProductIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/products/import': {
+      id: '/_app/products/import'
+      path: '/products/import'
+      fullPath: '/products/import'
+      preLoaderRoute: typeof AppProductsImportRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/products/low-stock': {
       id: '/_app/products/low-stock'
       path: '/products/low-stock'
@@ -452,6 +471,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
   AppProductsProductIdRoute: typeof AppProductsProductIdRoute
+  AppProductsImportRoute: typeof AppProductsImportRoute
   AppProductsLowStockRoute: typeof AppProductsLowStockRoute
   AppProductsNewRoute: typeof AppProductsNewRoute
   AppSettingsAccountRoute: typeof AppSettingsAccountRoute
@@ -470,6 +490,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
   AppProductsProductIdRoute: AppProductsProductIdRoute,
+  AppProductsImportRoute: AppProductsImportRoute,
   AppProductsLowStockRoute: AppProductsLowStockRoute,
   AppProductsNewRoute: AppProductsNewRoute,
   AppSettingsAccountRoute: AppSettingsAccountRoute,

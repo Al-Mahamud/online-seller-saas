@@ -208,6 +208,9 @@ final class RowChecker {
         Map<String, List<Parsed>> byName = rows.stream().filter(row -> row.name() != null)
                 .collect(Collectors.groupingBy(row -> row.name().toLowerCase(Locale.ROOT), LinkedHashMap::new,
                         Collectors.toList()));
+        if (byName.isEmpty()) {
+            return;
+        }
         Mapping.Column nameColumn = mapping.of(ImportField.NAME).orElseThrow();
         for (List<Parsed> product : byName.values()) {
             Parsed first = product.get(0);

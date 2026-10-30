@@ -46,12 +46,17 @@ export function ProductListPage() {
     <div className="flex flex-col gap-3">
       <PageHeader title={t("nav.products")}>
         {hasRole(business, "MANAGER") && (
-          <Button asChild className="hidden md:inline-flex">
-            <Link to="/products/new">
-              <Plus aria-hidden="true" />
-              {t("products.new")}
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link to="/products/import">{t("imports.fromExcel")}</Link>
+            </Button>
+            <Button asChild className="hidden md:inline-flex">
+              <Link to="/products/new">
+                <Plus aria-hidden="true" />
+                {t("products.new")}
+              </Link>
+            </Button>
+          </div>
         )}
       </PageHeader>
       <SearchBox

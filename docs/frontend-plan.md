@@ -105,7 +105,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | F1 Signing in and the account | F1a sign-up, sign-in, forgot password, pages behind sign-in · F1b account settings, two-step sign-in | Done |
 | F2 Business, team and settings | F2a first business, switcher, details, logo, settings · F2b staff, invites, leaving, audit log, deleting | Done |
 | F3 Products and stock | One commit | Done |
-| F4–F11 | | Not started |
+| F4 Importing products | One commit | Done |
+| F5–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -329,6 +330,18 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Importing:** commit, then progress polling, the result, and the error CSV.
 
 **Checked by:** e2e: import the template with 20 products, one with a bad price; the problem is shown; after fixing, all 20 appear.
+
+**As built (F4):**
+- **`/products/import`** (managers and owners), reached from the product list. The import in progress stays in the address (`?job=`), so a refresh comes back to it.
+- **Upload:** the template and the file (`.xlsx` or `.csv`). The server's messages explain unreadable or empty files.
+- **Check:** totals, new categories, and rows with their problems (problems first), with the button to start at the top, since most sellers won't need to touch the columns. Below it, the column list with the server's guesses: each change is sent at once and every row is checked again.
+- **Importing:** progress every 1.5 s, which carries on if the seller leaves. Then the result, with the rows with problems as a file to fix and upload again.
+- **Backend bugs found by writing this:** sellers' own sheets rarely use our exact headers, and that path was broken.
+  - A sheet with no recognised name column crashed the upload (500).
+  - One with no recognised price column counted its rows as fine, and they couldn't be imported.
+  - A file with nothing under its header also crashed.
+  - Now: the job says `missingColumns`, no row counts as valid and the import can't start until they're mapped, a partial mapping is accepted so columns can be set one at a time, and a file with no rows below its header is `import.empty`.
+- **E2E (`import.spec.ts`):** the plan's check with 20 products and one bad price, fixed in the downloaded file; unrecognised columns mapped by hand; the template, an unreadable file, and a refresh. 106 tests across both screen sizes; a double run with no retries passed all 212.
 
 ### F5: Customers and delivery (2 days)
 

@@ -1698,7 +1698,7 @@
         "properties" : {
           "field" : {
             "enum" : [ "NAME", "SKU", "PRICE", "COST_PRICE", "STOCK", "CATEGORY", "DESCRIPTION", "LOW_STOCK_THRESHOLD", "OPTION" ],
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "header" : {
             "type" : "string"
@@ -1711,7 +1711,7 @@
             "type" : "string"
           },
           "optionName" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "samples" : {
             "items" : {
@@ -1759,7 +1759,7 @@
           },
           "finishedAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "headerRow" : {
             "format" : "int32",
@@ -1769,6 +1769,13 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "missingColumns" : {
+            "items" : {
+              "enum" : [ "NAME", "SKU", "PRICE", "COST_PRICE", "STOCK", "CATEGORY", "DESCRIPTION", "LOW_STOCK_THRESHOLD", "OPTION" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "newCategories" : {
             "items" : {
               "type" : "string"
@@ -1776,7 +1783,11 @@
             "type" : "array"
           },
           "progress" : {
-            "$ref" : "#/components/schemas/ImportProgress"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/ImportProgress"
+            }, {
+              "type" : "null"
+            } ]
           },
           "status" : {
             "type" : "string"
@@ -1785,7 +1796,7 @@
             "$ref" : "#/components/schemas/ImportTotals"
           }
         },
-        "required" : [ "columns", "createdAt", "fileName", "fileType", "finishedAt", "headerRow", "id", "newCategories", "progress", "status", "totals" ],
+        "required" : [ "columns", "createdAt", "fileName", "fileType", "finishedAt", "headerRow", "id", "missingColumns", "newCategories", "progress", "status", "totals" ],
         "type" : "object"
       },
       "ImportMappingRequest" : {
@@ -1832,17 +1843,17 @@
         "properties" : {
           "action" : {
             "enum" : [ "CREATE", "UPDATE" ],
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "category" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "costPrice" : {
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "description" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "errors" : {
             "items" : {
@@ -1852,10 +1863,10 @@
           },
           "lowStockThreshold" : {
             "format" : "int32",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "name" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "options" : {
             "additionalProperties" : {
@@ -1865,18 +1876,18 @@
           },
           "price" : {
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "row" : {
             "format" : "int32",
             "type" : "integer"
           },
           "sku" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "stock" : {
             "format" : "int32",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           }
         },
         "required" : [ "action", "category", "costPrice", "description", "errors", "lowStockThreshold", "name", "options", "price", "row", "sku", "stock" ],

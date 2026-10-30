@@ -2486,13 +2486,13 @@ export interface components {
             optionName?: string;
         };
         ImportColumnView: {
-            /** @enum {string} */
-            field: "NAME" | "SKU" | "PRICE" | "COST_PRICE" | "STOCK" | "CATEGORY" | "DESCRIPTION" | "LOW_STOCK_THRESHOLD" | "OPTION";
+            /** @enum {string|null} */
+            field: "NAME" | "SKU" | "PRICE" | "COST_PRICE" | "STOCK" | "CATEGORY" | "DESCRIPTION" | "LOW_STOCK_THRESHOLD" | "OPTION" | null;
             header: string;
             /** Format: int32 */
             index: number;
             letter: string;
-            optionName: string;
+            optionName: string | null;
             samples: string[];
         };
         ImportErrorView: {
@@ -2508,13 +2508,14 @@ export interface components {
             /** @enum {string} */
             fileType: "CSV" | "XLSX";
             /** Format: date-time */
-            finishedAt: string;
+            finishedAt: string | null;
             /** Format: int32 */
             headerRow: number;
             /** Format: uuid */
             id: string;
+            missingColumns: ("NAME" | "SKU" | "PRICE" | "COST_PRICE" | "STOCK" | "CATEGORY" | "DESCRIPTION" | "LOW_STOCK_THRESHOLD" | "OPTION")[];
             newCategories: string[];
-            progress: components["schemas"]["ImportProgress"];
+            progress: components["schemas"]["ImportProgress"] | null;
             status: string;
             totals: components["schemas"]["ImportTotals"];
         };
@@ -2529,26 +2530,26 @@ export interface components {
             totals: components["schemas"]["ImportTotals"];
         };
         ImportPreviewRow: {
-            /** @enum {string} */
-            action: "CREATE" | "UPDATE";
-            category: string;
+            /** @enum {string|null} */
+            action: "CREATE" | "UPDATE" | null;
+            category: string | null;
             /** Format: int64 */
-            costPrice: number;
-            description: string;
+            costPrice: number | null;
+            description: string | null;
             errors: components["schemas"]["ImportErrorView"][];
             /** Format: int32 */
-            lowStockThreshold: number;
-            name: string;
+            lowStockThreshold: number | null;
+            name: string | null;
             options: {
                 [key: string]: string;
             };
             /** Format: int64 */
-            price: number;
+            price: number | null;
             /** Format: int32 */
             row: number;
-            sku: string;
+            sku: string | null;
             /** Format: int32 */
-            stock: number;
+            stock: number | null;
         };
         ImportProgress: {
             /** Format: int32 */

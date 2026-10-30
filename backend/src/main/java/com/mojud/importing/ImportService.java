@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -48,8 +49,8 @@ class ImportService {
     static final int PREVIEW_ROWS = 20;
     private static final int SAMPLES = 3;
 
-    record ColumnView(int index, String letter, String header, List<String> samples, ImportField field,
-            String optionName) {
+    record ColumnView(int index, String letter, String header, List<String> samples, @Nullable ImportField field,
+            @Nullable String optionName) {
     }
 
     record Totals(int rows, int valid, int invalid, int create, int update) {
@@ -62,18 +63,23 @@ class ImportService {
     record Progress(int toImport, int done, int created, int updated, int unchanged, int failed, int skipped) {
     }
 
-    /** {@code progress} is null until the import is committed. */
+    /**
+     * {@code progress} is null until the import is committed. {@code missingColumns}: fields every
+     * row needs and no column gives yet, such as a price column with a header we didn't recognise;
+     * until they are mapped no row counts as valid and the import can't start.
+     */
     record Job(UUID id, String fileName, Sheet.FileType fileType, String status, int headerRow, List<ColumnView> columns,
-            Totals totals, List<String> newCategories, Progress progress, Instant createdAt, Instant finishedAt) {
+            List<ImportField> missingColumns, Totals totals, List<String> newCategories, @Nullable Progress progress,
+            Instant createdAt, @Nullable Instant finishedAt) {
     }
 
     /** {@code field} is the field's name in the reader's language (an option's own name for options). */
     record ErrorView(String column, String field, String message) {
     }
 
-    record PreviewRow(int row, RowChecker.Action action, String name, String sku, Long price, Long costPrice, Integer stock,
-            Integer lowStockThreshold, String category, String description, Map<String, String> options,
-            List<ErrorView> errors) {
+    record PreviewRow(int row, RowChecker.@Nullable Action action, @Nullable String name, @Nullable String sku,
+            @Nullable Long price, @Nullable Long costPrice, @Nullable Integer stock, @Nullable Integer lowStockThreshold,
+            @Nullable String category, @Nullable String description, Map<String, String> options, List<ErrorView> errors) {
     }
 
     record Preview(Totals totals, List<String> newCategories, List<PreviewRow> rows) {
@@ -119,6 +125,9 @@ class ImportService {
         importsPerBusiness.acquire(me.businessId().toString());
         Sheet sheet = reader.read(content);
         Sheet.Row header = Mapping.findHeader(sheet.rows());
+        if (sheet.rows().stream().noneMatch(row -> row.number() > header.number())) {
+            throw new ApiException(ErrorCode.IMPORT_EMPTY);
+        }
         return transactions.execute(status -> store(me, fileName, sheet, header.number(), Mapping.guess(header)));
     }
 
@@ -176,6 +185,9 @@ class ImportService {
         JobRow job = load(id, true);
         if (!MAPPING.equals(job.status())) {
             throw new ApiException(ErrorCode.IMPORT_NOT_EDITABLE);
+        }
+        if (!job.mapping().missing().isEmpty()) {
+            throw ApiException.invalidField("columns", "field.mapping_required");
         }
         check(id, job.headerRow(), job.mapping());
         int valid = load(id, false).totals().valid();
@@ -299,18 +311,22 @@ class ImportService {
                 .query((rs, n) -> new Sheet.Row(rs.getInt(1), List.of(json.readValue(rs.getString(2), String[].class))))
                 .list();
         RowChecker.Outcome outcome = RowChecker.check(rows, mapping, catalog);
+        // Each row may be fine on its own, but none can be imported without these columns.
+        boolean complete = mapping.missing().isEmpty();
         jdbc.sql("update import_rows set action = null, errors = '[]'::jsonb where job_id = ? and row_number <= ?")
                 .params(id, headerRow).update();
         batch.batchUpdate("update import_rows set action = ?, errors = ?::jsonb where job_id = ? and row_number = ?",
-                outcome.rows().stream().map(row -> new Object[] {row.action() == null ? null : row.action().name(),
+                outcome.rows().stream().map(row -> new Object[] {!complete || row.action() == null ? null : row.action().name(),
                         json.writeValueAsString(row.errors()), id, row.rowNumber()}).toList());
         jdbc.sql("""
                         update import_jobs set total_rows = ?, valid_rows = ?, create_rows = ?, update_rows = ?,
                                                new_categories = ?::jsonb
                         where id = ?
                         """)
-                .params(outcome.rows().size(), (int) outcome.valid(), (int) outcome.count(RowChecker.Action.CREATE),
-                        (int) outcome.count(RowChecker.Action.UPDATE), json.writeValueAsString(outcome.newCategories()), id)
+                .params(outcome.rows().size(), complete ? (int) outcome.valid() : 0,
+                        complete ? (int) outcome.count(RowChecker.Action.CREATE) : 0,
+                        complete ? (int) outcome.count(RowChecker.Action.UPDATE) : 0,
+                        json.writeValueAsString(outcome.newCategories()), id)
                 .update();
     }
 
@@ -342,9 +358,6 @@ class ImportService {
             }
             columns.add(new Mapping.Column(column.index(), column.field(), optionName));
         }
-        if (!fields.containsAll(ImportField.REQUIRED)) {
-            throw ApiException.invalidField("columns", "field.mapping_required");
-        }
         columns.sort((a, b) -> Integer.compare(a.index(), b.index()));
         return new Mapping(List.copyOf(columns));
     }
@@ -365,8 +378,8 @@ class ImportService {
                     mapped == null ? null : mapped.field(), mapped == null ? null : mapped.optionName()));
         }
         Progress progress = MAPPING.equals(job.status()) ? null : progress(jdbc, job.id(), job.headerRow());
-        return new Job(job.id(), job.fileName(), job.fileType(), job.status(), job.headerRow(), columns, job.totals(),
-                job.newCategories(), progress, job.createdAt(), job.finishedAt());
+        return new Job(job.id(), job.fileName(), job.fileType(), job.status(), job.headerRow(), columns,
+                job.mapping().missing(), job.totals(), job.newCategories(), progress, job.createdAt(), job.finishedAt());
     }
 
     private List<String> headers(JobRow job) {

@@ -136,7 +136,6 @@ class ImportTests {
         Map<String, Object> name = Map.of("index", 0, "field", "NAME");
         Map<String, Object> price = Map.of("index", 2, "field", "PRICE");
 
-        owner.put(path, Map.of("columns", List.of(name))).expectError(400, "validation.failed");
         owner.put(path, Map.of("columns", List.of(name, price, Map.of("index", 0, "field", "SKU"))))
                 .expectError(400, "validation.failed");
         owner.put(path, Map.of("columns", List.of(name, price, Map.of("index", 1, "field", "NAME"))))
@@ -214,6 +213,38 @@ class ImportTests {
         assertThat(job.<Integer>json("$.totals.valid")).isEqualTo(SheetReader.MAX_ROWS - 1);
         System.out.printf("10,000-row import: upload %d ms, remap %d ms%n", uploadMillis, remapMillis);
         assertThat(uploadMillis + remapMillis).isLessThan(30_000);
+    }
+
+    @Test
+    void aSheetWithHeadersWeDontRecogniseCanBeMappedOneColumnAtATime() {
+        var upload = owner.upload("/api/v1/imports", "own.csv", "Item Title,Taka\nShirt,500\n".getBytes(StandardCharsets.UTF_8))
+                .expectStatus(201);
+        String id = upload.json("$.id");
+        assertThat(upload.<List<String>>json("$.missingColumns")).containsExactly("NAME", "PRICE");
+        assertThat(upload.<Integer>json("$.totals.valid")).isZero();
+        assertThat(upload.<Integer>json("$.totals.rows")).isEqualTo(1);
+        owner.post("/api/v1/imports/" + id + "/commit", Map.of()).expectError(400, "validation.failed");
+
+        // Without the price it still can't start: a new product must have one.
+        var nameOnly = owner.put("/api/v1/imports/" + id + "/mapping", Map.of("columns", List.of(Map.of("index", 0, "field", "NAME"))))
+                .expectStatus(200);
+        assertThat(nameOnly.<List<String>>json("$.missingColumns")).containsExactly("PRICE");
+        assertThat(nameOnly.<Integer>json("$.totals.valid")).isZero();
+        owner.post("/api/v1/imports/" + id + "/commit", Map.of()).expectError(400, "validation.failed");
+
+        var both = owner.put("/api/v1/imports/" + id + "/mapping", Map.of("columns",
+                List.of(Map.of("index", 0, "field", "NAME"), Map.of("index", 1, "field", "PRICE")))).expectStatus(200);
+        assertThat(both.<List<String>>json("$.missingColumns")).isEmpty();
+        assertThat(both.<Integer>json("$.totals.valid")).isEqualTo(1);
+        owner.post("/api/v1/imports/" + id + "/commit", Map.of()).expectStatus(202);
+    }
+
+    @Test
+    void aFileWithNoRowsBelowItsHeaderIsEmpty() {
+        owner.upload("/api/v1/imports", "text.xlsx", "this is not a spreadsheet".getBytes(StandardCharsets.UTF_8))
+                .expectError(400, "import.empty");
+        owner.upload("/api/v1/imports", "headers.csv", "Name,Price\n".getBytes(StandardCharsets.UTF_8))
+                .expectError(400, "import.empty");
     }
 
     @Test
