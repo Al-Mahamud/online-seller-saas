@@ -228,6 +228,30 @@ class StaffTests {
     }
 
     @Test
+    void aMemberLeavesAndTheirInvitesGoWithThem() {
+        Owner owner = newBusiness("Leaving Shop");
+        Member manager = join(owner, "MANAGER");
+        String guest = TestAccounts.newEmail();
+        manager.client.post("/api/v1/staff/invites", Map.of("to", guest, "role", "STAFF")).expectStatus(201);
+        String token = tokenSentTo(guest);
+
+        manager.client.post("/api/v1/staff/leave", Map.of()).expectStatus(204);
+
+        manager.client.get("/api/v1/business").expectError(409, "business.not_selected");
+        assertThat(owner.client.get("/api/v1/staff").<List<Object>>json("$")).hasSize(1);
+        assertThat(owner.client.get("/api/v1/staff/invites").<List<Object>>json("$")).isEmpty();
+        new ApiClient(port).post("/api/v1/public/invites/lookup", Map.of("token", token)).expectError(404, "invite.invalid");
+        assertThat(owner.client.get("/api/v1/business/audit-log").<String>json("$.items[0].action")).isEqualTo("staff.left");
+    }
+
+    @Test
+    void theOwnerCannotLeave() {
+        Owner owner = newBusiness("Kept Shop");
+
+        owner.client.post("/api/v1/staff/leave", Map.of()).expectError(409, "staff.owner_protected");
+    }
+
+    @Test
     void membersOfAnotherBusinessAreNotFound() {
         Owner mine = newBusiness("Mine");
         Owner theirs = newBusiness("Theirs");

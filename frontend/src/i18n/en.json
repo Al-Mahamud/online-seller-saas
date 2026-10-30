@@ -20,7 +20,8 @@
     "notFound": "This page doesn't exist.",
     "backToToday": "Back to Today",
     "retry": "Try again",
-    "close": "Close"
+    "close": "Close",
+    "cancel": "Cancel"
   },
   "error": {
     "network": "Can't reach the server. Check your internet connection and try again.",
@@ -203,6 +204,126 @@
       "prefixHint": "English letters, digits and hyphens, up to 10. For example RK-",
       "footer": "Text at the bottom of slips",
       "footerHint": "Printed at the bottom of packing slips, such as thanks or a returns policy."
+    },
+    "deletion": {
+      "title": "Delete business",
+      "description": "All of the business's data goes after 7 days. You can bring it back during those 7 days.",
+      "confirmTitle": "Delete \"{{name}}\"?",
+      "confirm": "Products, orders, customers and everything else go for good after 7 days. Your account stays. Enter your password to confirm.",
+      "banner": "\"{{name}}\" will be deleted on {{date}}.",
+      "undo": "Cancel the deletion"
+    }
+  },
+  "staff": {
+    "title": "Team",
+    "members": "Members",
+    "you": "(you)",
+    "roleOf": "Role of {{name}}",
+    "makeOwner": "Make owner",
+    "remove": "Remove",
+    "removed": "{{name}} has been removed.",
+    "removeTitle": "Remove {{name}}?",
+    "removeDescription": "They lose access to this business at once, and their open invites are cancelled. You can invite them again later.",
+    "transferTitle": "Make {{name}} the owner?",
+    "transferDescription": "They become the business's owner and you become a manager. Enter your password to confirm.",
+    "transferred": "{{name}} is now the owner.",
+    "invite": "Invite a member",
+    "inviteHint": "They'll get a link.",
+    "role": "Role",
+    "rolesExplained": "Staff work with orders and stock but don't see cost prices. Managers can also manage products, members and settings.",
+    "sendInvite": "Send invite",
+    "inviteSent": "Invite sent to {{to}}.",
+    "openInvites": "Open invites",
+    "expires": "until {{date}}",
+    "cancelInviteTo": "Cancel the invite to {{to}}",
+    "leave": "Leave this business",
+    "leaveTitle": "Leave \"{{name}}\"?",
+    "leaveDescription": "You won't be able to get back in unless you're invited again.",
+    "left": "You've left \"{{name}}\"."
+  },
+  "invite": {
+    "title": "Invite",
+    "noLink": "There's no invite in this link. Please open the link you were sent again.",
+    "heading": "Join \"{{name}}\"",
+    "details": "{{invitedBy}} invited you as {{role}}.",
+    "expires": "This invite works until {{date}}.",
+    "join": "Join \"{{name}}\"",
+    "joined": "You've joined \"{{name}}\".",
+    "signedInAs": "You're signed in as {{name}}. The invite was sent to {{sentTo}}.",
+    "signInFirst": "The invite was sent to {{sentTo}}. To join, sign in with that phone or email, or create an account."
+  },
+  "audit": {
+    "title": "Activity log",
+    "system": "System",
+    "more": "Show more",
+    "action": {
+      "business": {
+        "created": "Business created",
+        "deletion_cancelled": "Business deletion cancelled",
+        "deletion_requested": "Business deletion requested",
+        "ownership_transferred": "Ownership handed over",
+        "settings_changed": "Settings changed",
+        "suspended": "Business suspended",
+        "unsuspended": "Business resumed",
+        "updated": "Business details changed"
+      },
+      "cod": {
+        "settled": "COD settled"
+      },
+      "customer": {
+        "deleted": "Customer deleted"
+      },
+      "delivery_zones": {
+        "changed": "Delivery zones changed"
+      },
+      "import": {
+        "committed": "Products imported"
+      },
+      "invoice": {
+        "marked_paid": "Invoice marked paid",
+        "opened": "Invoice created",
+        "paid": "Invoice paid"
+      },
+      "order": {
+        "cancelled": "Order cancelled",
+        "confirmed": "Order confirmed",
+        "created": "Order created",
+        "delivered": "Order delivered",
+        "packed": "Order packed",
+        "returned": "Order returned",
+        "shipped": "Order handed to the courier",
+        "updated": "Order changed"
+      },
+      "payment": {
+        "invalid": "Invalid payment caught",
+        "recorded": "Payment recorded"
+      },
+      "plan": {
+        "edited": "Plan changed",
+        "set": "Plan set"
+      },
+      "staff": {
+        "invited": "Member invited",
+        "invite_revoked": "Invite cancelled",
+        "joined": "New member joined",
+        "left": "Member left the business",
+        "removed": "Member removed",
+        "role_changed": "Member's role changed"
+      },
+      "stock": {
+        "adjusted": "Stock changed"
+      },
+      "subscription": {
+        "changed": "Subscription changed",
+        "plan_scheduled": "Plan change scheduled",
+        "upgraded": "Plan upgraded"
+      },
+      "trial": {
+        "extended": "Trial extended"
+      },
+      "variant": {
+        "prices_changed": "Product prices changed"
+      }
     }
   }
 }

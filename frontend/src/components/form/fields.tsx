@@ -58,6 +58,35 @@ export function TextField<T extends FieldValues>({ form, name, label, hint, ...i
   );
 }
 
+/** A native select: on phones it opens the phone's own picker. */
+export function SelectField<T extends FieldValues>({
+  form,
+  name,
+  label,
+  children,
+}: {
+  form: FormOf<T>;
+  name: Path<T>;
+  label: string;
+  children: React.ReactNode;
+}) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id} className="text-[15px] leading-normal font-semibold">
+        {label}
+      </Label>
+      <select
+        id={id}
+        className="h-12 w-full rounded-lg border border-input bg-card px-2 md:h-11"
+        {...form.register(name)}
+      >
+        {children}
+      </select>
+    </div>
+  );
+}
+
 /** Longer text, with the same label, hint and error as a TextField. */
 export function TextAreaField<T extends FieldValues>({
   form,

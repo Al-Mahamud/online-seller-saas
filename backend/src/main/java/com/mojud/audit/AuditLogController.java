@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,7 +28,8 @@ class AuditLogController {
     record Actor(UUID id, String name) {
     }
 
-    record Entry(UUID id, Instant at, Actor actor, String action, String entityType, UUID entityId, JsonNode details) {
+    record Entry(UUID id, Instant at, @Nullable Actor actor, String action, @Nullable String entityType,
+            @Nullable UUID entityId, @Nullable JsonNode details) {
     }
 
     private record Row(UUID id, Instant at, UUID actorId, String action, String entityType, UUID entityId,

@@ -34,10 +34,20 @@ const kb = (bytes) => `${(bytes / 1024).toFixed(1).padStart(7)} KB`;
 const entry = closure("index.html");
 console.log(`${kb(total(entry))}  loaded by every page`);
 
+// A page under a layout route (_app, _auth) also needs the layout's own code.
+const layoutOf = (key) => {
+  const layout = key.match(/^src\/routes\/(_\w+)\//)?.[1];
+  return layout && Object.keys(manifest).find((candidate) => candidate.startsWith(`src/routes/${layout}.tsx`));
+};
+
 let heaviest = { name: "(none)", bytes: total(entry) };
 for (const [key, chunk] of Object.entries(manifest)) {
-  if (chunk.isDynamicEntry) {
+  if (chunk.isDynamicEntry && key.startsWith("src/routes/")) {
     const files = closure(key, new Set(entry));
+    const layout = layoutOf(key);
+    if (layout) {
+      closure(layout, files);
+    }
     const bytes = total(files);
     console.log(`${kb(bytes - total(entry))}  ${key.replace("?tsr-split=component", "")}`);
     if (bytes > heaviest.bytes) {

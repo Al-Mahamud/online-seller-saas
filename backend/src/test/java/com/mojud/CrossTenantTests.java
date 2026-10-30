@@ -89,6 +89,7 @@ class CrossTenantTests {
 
         // Staff.
         CASES.put("GET /api/v1/staff", (a, b) -> expectNoLeak(b.owner().get("/api/v1/staff"), a));
+        CASES.put("POST /api/v1/staff/leave", (a, b) -> expectNoLeak(b.owner().post("/api/v1/staff/leave", Map.of()), a));
         CASES.put("PATCH /api/v1/staff/{userId}", (a, b) -> expectNotFound(
                 b.owner().patch("/api/v1/staff/" + a.staffId(), Map.of("role", "MANAGER"))));
         CASES.put("DELETE /api/v1/staff/{userId}", (a, b) -> expectNotFound(
@@ -446,6 +447,7 @@ class CrossTenantTests {
 
         // Test sources only.
         CASES.put("GET /dev/otp", notBusinessData("exists only in test sources and local runs"));
+        CASES.put("GET /dev/invite", notBusinessData("exists only in test sources and local runs"));
         CASES.put("POST /api/v1/public/gateway/fake-sslcommerz/gwprocess/v4/api.php", notBusinessData("the fake gateway"));
         CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/validator/api/validationserverAPI.php", notBusinessData("the fake gateway"));
         CASES.put("GET /api/v1/public/gateway/fake-sslcommerz/validator/api/merchantTransIDvalidationAPI.php",

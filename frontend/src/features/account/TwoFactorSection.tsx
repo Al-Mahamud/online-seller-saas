@@ -9,11 +9,11 @@ import { api, call } from "@/api/client";
 import { type Me, meQuery } from "@/api/session";
 import { CodeField, FormError, PasswordField, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
+import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { appOrRecoveryCode, code, currentPassword } from "@/features/auth/schemas";
 import { useFormat } from "@/lib/format";
-import { Section } from "./AccountPage";
 
 const statusQuery = queryOptions({
   queryKey: ["two-factor"],

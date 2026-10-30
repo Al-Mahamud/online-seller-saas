@@ -11,6 +11,7 @@ import { FormError, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
 import { useChangeLanguage } from "@/components/layout/LanguageToggle";
 import { BackToMore, PageHeader } from "@/components/layout/PageHeader";
+import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { name } from "@/features/auth/schemas";
 import { currentLanguage, type Language } from "@/i18n";
@@ -29,15 +30,6 @@ export function AccountPage() {
       <LanguageSection />
       <ContactSection />
     </div>
-  );
-}
-
-export function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-4 rounded-xl border bg-card p-4">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      {children}
-    </section>
   );
 }
 

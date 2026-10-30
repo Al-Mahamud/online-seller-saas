@@ -33,6 +33,19 @@ export async function readCode(request: APIRequestContext, to: string, not?: str
 
 export { lastCode };
 
+/** The invite token in the message sent to this phone or email, from the test backend's /dev/invite. */
+export async function readInviteToken(request: APIRequestContext, to: string): Promise<string> {
+  let token = "";
+  await expect
+    .poll(async () => {
+      const answer = await request.get(`/dev/invite?to=${encodeURIComponent(to)}`);
+      token = answer.ok() ? ((await answer.json()) as { token: string }).token : "";
+      return token !== "";
+    })
+    .toBe(true);
+  return token;
+}
+
 async function csrfToken(request: APIRequestContext): Promise<string> {
   await request.get("/api/v1/auth/csrf");
   const cookie = (await request.storageState()).cookies.find((c) => c.name === "XSRF-TOKEN");

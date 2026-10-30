@@ -321,7 +321,11 @@
             "type" : "string"
           },
           "actor" : {
-            "$ref" : "#/components/schemas/AuditLogActor"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/AuditLogActor"
+            }, {
+              "type" : "null"
+            } ]
           },
           "at" : {
             "format" : "date-time",
@@ -329,14 +333,14 @@
           },
           "details" : {
             "additionalProperties" : true,
-            "type" : "object"
+            "type" : [ "object", "null" ]
           },
           "entityId" : {
             "format" : "uuid",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "entityType" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "id" : {
             "format" : "uuid",
@@ -3712,7 +3716,7 @@
       "StaffMember" : {
         "properties" : {
           "email" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "joinedAt" : {
             "format" : "date-time",
@@ -7501,6 +7505,17 @@
             "type" : "string"
           }
         } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "staff-controller" ]
+      }
+    },
+    "/api/v1/staff/leave" : {
+      "post" : {
+        "operationId" : "leave",
         "responses" : {
           "204" : {
             "description" : "No Content"

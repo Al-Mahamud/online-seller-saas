@@ -8,9 +8,9 @@ import { api, call } from "@/api/client";
 import { FormError, PasswordField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
 import { BackToMore, PageHeader } from "@/components/layout/PageHeader";
+import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { currentPassword, newPassword } from "@/features/auth/schemas";
-import { Section } from "./AccountPage";
 import { TwoFactorSection } from "./TwoFactorSection";
 
 export function SecurityPage() {

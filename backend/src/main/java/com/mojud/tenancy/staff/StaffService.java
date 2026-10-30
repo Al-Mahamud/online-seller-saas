@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +34,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 class StaffService {
 
-    record StaffMember(UUID userId, String name, String phone, String email, BusinessRole role, Instant joinedAt,
+    record StaffMember(UUID userId, String name, String phone, @Nullable String email, BusinessRole role, Instant joinedAt,
             boolean you) {
     }
 
@@ -101,6 +102,21 @@ class StaffService {
         int withdrawn = invites.revokeAllSentBy(userId, clock.instant());
         CurrentBusiness business = CurrentBusiness.require();
         audit.record(business.businessId(), business.userId(), "staff.removed", "user", userId,
+                "role", member.getRole(), "invitesWithdrawn", withdrawn);
+    }
+
+    /** As being removed, by the member themself. The owner hands the business over first. */
+    @Transactional
+    void leave() {
+        CurrentBusiness business = CurrentBusiness.require();
+        Membership member = memberships.findByUserId(business.userId()).filter(Membership::isActive)
+                .orElseThrow(ApiException::notFound);
+        if (member.getRole() == BusinessRole.OWNER) {
+            throw new ApiException(ErrorCode.STAFF_OWNER_PROTECTED);
+        }
+        member.remove(clock.instant());
+        int withdrawn = invites.revokeAllSentBy(business.userId(), clock.instant());
+        audit.record(business.businessId(), business.userId(), "staff.left", "user", business.userId(),
                 "role", member.getRole(), "invitesWithdrawn", withdrawn);
     }
 

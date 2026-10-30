@@ -10,9 +10,9 @@ import { api, call } from "@/api/client";
 import { FormError, TextAreaField, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
 import { BackToMore, PageHeader } from "@/components/layout/PageHeader";
+import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Section } from "@/features/account/AccountPage";
 import { latinDigits } from "@/lib/digits";
 import { businessFields } from "./schemas";
 

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as InvitesRouteImport } from './routes/invites'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppMoreRouteImport } from './routes/_app/more'
@@ -21,8 +22,10 @@ import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
 import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings/account'
+import { Route as AppSettingsAuditLogRouteImport } from './routes/_app/settings/audit-log'
 import { Route as AppSettingsBusinessRouteImport } from './routes/_app/settings/business'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
+import { Route as AppSettingsStaffRouteImport } from './routes/_app/settings/staff'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -30,6 +33,11 @@ const AppRoute = AppRouteImport.update({
 } as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvitesRoute = InvitesRouteImport.update({
+  id: '/invites',
+  path: '/invites',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WelcomeRoute = WelcomeRouteImport.update({
@@ -82,6 +90,11 @@ const AppSettingsAccountRoute = AppSettingsAccountRouteImport.update({
   path: '/settings/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsAuditLogRoute = AppSettingsAuditLogRouteImport.update({
+  id: '/settings/audit-log',
+  path: '/settings/audit-log',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsBusinessRoute = AppSettingsBusinessRouteImport.update({
   id: '/settings/business',
   path: '/settings/business',
@@ -92,9 +105,15 @@ const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
   path: '/settings/security',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsStaffRoute = AppSettingsStaffRouteImport.update({
+  id: '/settings/staff',
+  path: '/settings/staff',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/invites': typeof InvitesRoute
   '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
   '/products': typeof AppProductsRoute
@@ -103,12 +122,15 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof AuthSignUpRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/settings/account': typeof AppSettingsAccountRoute
+  '/settings/audit-log': typeof AppSettingsAuditLogRoute
   '/settings/business': typeof AppSettingsBusinessRoute
   '/settings/security': typeof AppSettingsSecurityRoute
+  '/settings/staff': typeof AppSettingsStaffRoute
   '/orders/': typeof AppOrdersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
+  '/invites': typeof InvitesRoute
   '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
   '/products': typeof AppProductsRoute
@@ -117,14 +139,17 @@ export interface FileRoutesByTo {
   '/sign-up': typeof AuthSignUpRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/settings/account': typeof AppSettingsAccountRoute
+  '/settings/audit-log': typeof AppSettingsAuditLogRoute
   '/settings/business': typeof AppSettingsBusinessRoute
   '/settings/security': typeof AppSettingsSecurityRoute
+  '/settings/staff': typeof AppSettingsStaffRoute
   '/orders': typeof AppOrdersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
+  '/invites': typeof InvitesRoute
   '/welcome': typeof WelcomeRoute
   '/_app/more': typeof AppMoreRoute
   '/_app/products': typeof AppProductsRoute
@@ -134,14 +159,17 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/settings/account': typeof AppSettingsAccountRoute
+  '/_app/settings/audit-log': typeof AppSettingsAuditLogRoute
   '/_app/settings/business': typeof AppSettingsBusinessRoute
   '/_app/settings/security': typeof AppSettingsSecurityRoute
+  '/_app/settings/staff': typeof AppSettingsStaffRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/invites'
     | '/welcome'
     | '/more'
     | '/products'
@@ -150,12 +178,15 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/orders/new'
     | '/settings/account'
+    | '/settings/audit-log'
     | '/settings/business'
     | '/settings/security'
+    | '/settings/staff'
     | '/orders/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/invites'
     | '/welcome'
     | '/more'
     | '/products'
@@ -164,13 +195,16 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/orders/new'
     | '/settings/account'
+    | '/settings/audit-log'
     | '/settings/business'
     | '/settings/security'
+    | '/settings/staff'
     | '/orders'
   id:
     | '__root__'
     | '/_app'
     | '/_auth'
+    | '/invites'
     | '/welcome'
     | '/_app/more'
     | '/_app/products'
@@ -180,14 +214,17 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/orders/new'
     | '/_app/settings/account'
+    | '/_app/settings/audit-log'
     | '/_app/settings/business'
     | '/_app/settings/security'
+    | '/_app/settings/staff'
     | '/_app/orders/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  InvitesRoute: typeof InvitesRoute
   WelcomeRoute: typeof WelcomeRoute
 }
 
@@ -205,6 +242,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invites': {
+      id: '/invites'
+      path: '/invites'
+      fullPath: '/invites'
+      preLoaderRoute: typeof InvitesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/welcome': {
@@ -277,6 +321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/audit-log': {
+      id: '/_app/settings/audit-log'
+      path: '/settings/audit-log'
+      fullPath: '/settings/audit-log'
+      preLoaderRoute: typeof AppSettingsAuditLogRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/business': {
       id: '/_app/settings/business'
       path: '/settings/business'
@@ -291,6 +342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsSecurityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/staff': {
+      id: '/_app/settings/staff'
+      path: '/settings/staff'
+      fullPath: '/settings/staff'
+      preLoaderRoute: typeof AppSettingsStaffRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -300,8 +358,10 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
   AppSettingsAccountRoute: typeof AppSettingsAccountRoute
+  AppSettingsAuditLogRoute: typeof AppSettingsAuditLogRoute
   AppSettingsBusinessRoute: typeof AppSettingsBusinessRoute
   AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
+  AppSettingsStaffRoute: typeof AppSettingsStaffRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
 }
 
@@ -311,8 +371,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
   AppSettingsAccountRoute: AppSettingsAccountRoute,
+  AppSettingsAuditLogRoute: AppSettingsAuditLogRoute,
   AppSettingsBusinessRoute: AppSettingsBusinessRoute,
   AppSettingsSecurityRoute: AppSettingsSecurityRoute,
+  AppSettingsStaffRoute: AppSettingsStaffRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
 }
 
@@ -335,6 +397,7 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  InvitesRoute: InvitesRoute,
   WelcomeRoute: WelcomeRoute,
 }
 export const routeTree = rootRouteImport

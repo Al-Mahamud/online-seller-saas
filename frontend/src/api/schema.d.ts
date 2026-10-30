@@ -1684,6 +1684,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["leave"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staff/{userId}": {
         parameters: {
             query?: never;
@@ -1983,15 +1999,15 @@ export interface components {
         };
         AuditLogEntry: {
             action: string;
-            actor: components["schemas"]["AuditLogActor"];
+            actor: components["schemas"]["AuditLogActor"] | null;
             /** Format: date-time */
             at: string;
             details: {
                 [key: string]: unknown;
-            };
+            } | null;
             /** Format: uuid */
-            entityId: string;
-            entityType: string;
+            entityId: string | null;
+            entityType: string | null;
             /** Format: uuid */
             id: string;
         };
@@ -3236,7 +3252,7 @@ export interface components {
             to: string;
         };
         StaffMember: {
-            email: string;
+            email: string | null;
             /** Format: date-time */
             joinedAt: string;
             name: string;
@@ -6178,6 +6194,24 @@ export interface operations {
             path: {
                 inviteId: string;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    leave: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;

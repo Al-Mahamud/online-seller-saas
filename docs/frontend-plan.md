@@ -103,7 +103,7 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 |---|---|---|
 | F0 Skeleton, design, API client, CI, deploy | F0a skeleton, shell, API client · F0b end-to-end tests · F0c web image and deploy | Done |
 | F1 Signing in and the account | F1a sign-up, sign-in, forgot password, pages behind sign-in · F1b account settings, two-step sign-in | Done |
-| F2 Business, team and settings | F2a first business, switcher, details, logo, settings · F2b staff, invites, leaving, audit log, deleting | F2a done |
+| F2 Business, team and settings | F2a first business, switcher, details, logo, settings · F2b staff, invites, leaving, audit log, deleting | Done |
 | F3–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
@@ -259,6 +259,28 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **`/settings/business`** (managers and owners): details; logo upload, change and remove (the server's message for an image too small or too large); when stock goes down, low-stock level, order number start (upper-cased as typed), slip footer.
 - **Accessibility scan caught:** the switcher's spoken name (now hidden text plus the visible name), and a menu hiding the page from screen readers while open (`modal={false}`).
 - **A bug the tests caught:** several requests failing together when a session ended each added a "return to" onto the sign-in link. Only the first counts now.
+
+**As built (F2b):**
+- **Backend:** `POST /staff/leave` for any member but the owner, who hands over first; the leaver's open invites go too, and it's in the audit log (`staff.left`). A test-only `GET /dev/invite?to=` reads invite tokens, as `/dev/otp` reads codes.
+- **`/settings/staff`** (managers and owners):
+  - Invite by phone or email with a role, with a plain explanation of the roles; open invites can be cancelled.
+  - Members: change role, remove with a confirmation; owners can also hand over with the password. Nobody edits themselves or the owner, as the server's rules say.
+- **`/invites#token`:**
+  - Works signed in or out: which business and role, who invited, then joining.
+  - Signed out, it leads to sign-up or sign-in and back. The token waits in `sessionStorage`, never in the sign-in page's `redirect`, because URLs reach Caddy's logs and fragments don't.
+  - A dead link, or an invite for another account, shows the server's message.
+- **Leaving:** a button on More, except for owners. It leads to their next business, or `/welcome`.
+- **`/settings/audit-log`** (owners): newest first, with "show more". Every action the backend records has a text in both languages; one added later shows by its code until translated.
+- **Deleting:** on `/settings/business` (owners), with the password. A banner then shows the date on every page, for every member, and the owner can undo it there.
+- **E2E (`team.spec.ts`):**
+  - Two browsers: the owner invites a manager, who signs up from the link and joins; managers and staff can't reach pages beyond their role.
+  - A removed member's app notices within a minute (with a fake clock) and leaves the business.
+  - Role changes, handing over, leaving, cancelled and wrong-account invites, deleting and undoing.
+  - 80 tests across both screen sizes; a double run with no retries passed all 160.
+- **Accessibility scan caught:** the green button's hover colour was too pale for white text; it now goes darker, as in the mockup.
+- **Size check corrected:** a page under the tabs also needs the tab frame's code, which it wasn't counting.
+  - Moving the form libraries out of the frame (the new-business dialog loads when opened) took Today from 232 KB to 188 KB.
+  - Form pages are the heaviest at 231 KB of the 250 KB budget, so F3's product editor will need watching.
 
 ### F3: Products and stock (5 days)
 

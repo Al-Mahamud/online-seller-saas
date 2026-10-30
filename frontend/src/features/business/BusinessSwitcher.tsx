@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { businessesQuery, businessSelected, initials, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +14,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { CreateBusinessForm } from "./CreateBusinessForm";
+
+// With the form libraries it brings, this is only needed when creating one.
+const NewBusinessDialog = lazy(() => import("./NewBusinessDialog"));
 
 /** The logo, or the first letters of the name. */
 function BusinessMark({ logo, name }: { logo: string | undefined; name: string }) {
@@ -96,14 +97,9 @@ export function BusinessSwitcher({ wide = false }: { wide?: boolean }) {
         </DropdownMenuContent>
       </DropdownMenu>
       {creating && (
-        <Dialog open onOpenChange={(next) => !next && setCreating(false)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("business.new")}</DialogTitle>
-            </DialogHeader>
-            <CreateBusinessForm onCreated={() => setCreating(false)} />
-          </DialogContent>
-        </Dialog>
+        <Suspense fallback={null}>
+          <NewBusinessDialog onClose={() => setCreating(false)} />
+        </Suspense>
       )}
     </>
   );

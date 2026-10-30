@@ -55,6 +55,14 @@ class StaffController {
         staff.remove(userId);
     }
 
+    /** The caller stops being a member; their next request runs in another business, or none. The owner cannot leave. */
+    @PostMapping("/leave")
+    @RequiresRole(BusinessRole.STAFF)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void leave() {
+        staff.leave();
+    }
+
     record Transfer(@NotBlank String currentPassword) {
     }
 
