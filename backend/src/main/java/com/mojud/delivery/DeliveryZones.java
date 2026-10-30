@@ -21,7 +21,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.context.MessageSource;
 import org.springframework.context.event.EventListener;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -63,8 +65,11 @@ class DeliveryZones {
     private final AdvisoryLocks locks;
     private final AuditTrail audit;
     private final Clock clock;
+    private final MessageSource messages;
 
-    DeliveryZones(DataSource dataSource, GeoDirectory geo, AdvisoryLocks locks, AuditTrail audit, Clock clock) {
+    DeliveryZones(DataSource dataSource, GeoDirectory geo, AdvisoryLocks locks, AuditTrail audit, Clock clock,
+            MessageSource messages) {
+        this.messages = messages;
         this.jdbc = JdbcClient.create(dataSource);
         this.batch = new JdbcTemplate(dataSource);
         this.geo = geo;
@@ -73,13 +78,20 @@ class DeliveryZones {
         this.clock = clock;
     }
 
-    /** Every new business: Inside Dhaka (Dhaka district) ৳70, and Outside Dhaka ৳130 for everything else. */
+    /**
+     * Every new business: Inside Dhaka (Dhaka district) ৳70, and Outside Dhaka ৳130 for everything
+     * else, named in the language of whoever creates it.
+     */
     @EventListener
     @Transactional(propagation = Propagation.MANDATORY)
     void on(BusinessCreated event) {
         write(event.businessId(), List.of(
-                new ZoneInput(null, "Inside Dhaka", 7_000, false, List.of(GeoIds.DHAKA_DISTRICT), List.of()),
-                new ZoneInput(null, "Outside Dhaka", 13_000, true, List.of(), List.of())), Map.of());
+                new ZoneInput(null, defaultName("delivery.zone.inside_dhaka"), 7_000, false, List.of(GeoIds.DHAKA_DISTRICT), List.of()),
+                new ZoneInput(null, defaultName("delivery.zone.outside_dhaka"), 13_000, true, List.of(), List.of())), Map.of());
+    }
+
+    private String defaultName(String key) {
+        return messages.getMessage(key, null, LocaleContextHolder.getLocale());
     }
 
     /** In the order they were given; the default zone is the fallback for everywhere not listed. */

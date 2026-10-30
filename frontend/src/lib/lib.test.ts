@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { latinDigits } from "./digits";
 import { parseCount, parseTaka, takaInput } from "./money";
 import { safeRedirect } from "./redirect";
+import { searchText } from "./search";
 
 describe("latinDigits", () => {
   it("turns Bangla digits into Latin ones and leaves the rest", () => {
@@ -53,5 +54,14 @@ describe("parseCount", () => {
     expect(parseCount("1,000")).toBe(1000);
     expect(parseCount("1.5")).toBeNull();
     expect(parseCount("")).toBeNull();
+  });
+});
+
+describe("searchText", () => {
+  it("keeps a number the router read from the address as text", () => {
+    expect(searchText(8801712345678)).toBe("8801712345678");
+    expect(searchText("রহিমা")).toBe("রহিমা");
+    expect(searchText("")).toBeUndefined();
+    expect(searchText(undefined)).toBeUndefined();
   });
 });

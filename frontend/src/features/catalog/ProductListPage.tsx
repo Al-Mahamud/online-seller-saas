@@ -1,12 +1,12 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
-import { Plus, Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { hasRole, useBusiness } from "@/api/business";
+import { LoadMore } from "@/components/layout/LoadMore";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { SearchBox } from "@/components/layout/SearchBox";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { categoriesQuery, flatCategories, lowStockQuery, type ProductSummary, productsQuery, tagsQuery } from "./api";
@@ -24,23 +24,6 @@ export function ProductListPage() {
   const { data: lowStock } = useQuery(lowStockQuery);
   const items = products.data?.pages.flatMap((page) => page.items) ?? [];
   const filtered = !!(filters.q || filters.categoryId || filters.tagId);
-
-  // Loads the next page as its end comes into view.
-  const end = useRef<HTMLDivElement>(null);
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = products;
-  useEffect(() => {
-    const element = end.current;
-    if (!element || !hasNextPage) {
-      return;
-    }
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting) && !isFetchingNextPage) {
-        void fetchNextPage();
-      }
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -60,6 +43,8 @@ export function ProductListPage() {
         )}
       </PageHeader>
       <SearchBox
+        label={t("products.search")}
+        hint={t("products.searchHint")}
         value={filters.q ?? ""}
         onChange={(q) => void navigate({ search: { ...filters, q: q || undefined }, replace: true })}
       />
@@ -89,41 +74,7 @@ export function ProductListPage() {
         ))}
       </ul>
       {items.length > 0 && <ProductTable products={items} />}
-      {hasNextPage && (
-        <div ref={end} className="flex justify-center py-2">
-          <Button variant="outline" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
-            {t("audit.more")}
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SearchBox({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const { t } = useTranslation();
-  const [text, setText] = useState(value);
-
-  // The address follows the typing after a pause, and each pause is one search.
-  useEffect(() => {
-    if (text === value) {
-      return;
-    }
-    const timer = setTimeout(() => onChange(text.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [text, value, onChange]);
-
-  return (
-    <div className="relative">
-      <Search aria-hidden="true" className="absolute top-1/2 left-3 size-4.5 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        type="search"
-        aria-label={t("products.search")}
-        placeholder={t("products.searchHint")}
-        className="pl-9.5"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-      />
+      <LoadMore query={products} />
     </div>
   );
 }

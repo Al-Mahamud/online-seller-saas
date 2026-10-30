@@ -106,7 +106,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | F2 Business, team and settings | F2a first business, switcher, details, logo, settings · F2b staff, invites, leaving, audit log, deleting | Done |
 | F3 Products and stock | One commit | Done |
 | F4 Importing products | One commit | Done |
-| F5–F11 | | Not started |
+| F5 Customers and delivery | One commit | Done |
+| F6–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -351,6 +352,23 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Delivery zones:** zones, their districts and areas, and charges.
 
 **Checked by:** e2e: find a customer by any common phone format; a zone's charge is what a new order is quoted.
+
+**As built (F5):**
+- **`/customers`** (everyone, from More):
+  - Search: a whole phone number, however it's written, goes to the server as a phone number; anything else searches names and parts of numbers.
+  - New and edit in one dialog, with the address and place.
+- **`/customers/$id`:** tap to call, address, the team's note, and the order history with its totals per order.
+  - Delete for managers and owners, refused with the server's message while orders are in progress.
+  - Not built: a lifetime spend figure. The backend gives the order count only, and the customers module can't read orders; add a small endpoint if sellers ask.
+- **`PlacePicker`** (`src/features/delivery`), for customers now and orders in F6:
+  - District, then thana or upazila, each a list with a search box that takes either language.
+  - The plan said division → district → area. Districts are listed under their divisions instead of a separate step, which is quicker on a phone.
+- **`/settings/delivery`** (managers and owners): all the zones are edited together and saved as one, since a place can move between them: name, charge, the "everywhere else" zone, districts and areas. A check at the bottom shows the server's own quote for any place, the one the order form will use.
+- **Fixed along the way:**
+  - The router read an all-digit search in a link as a number, which broke the page (`searchText`).
+  - Numbers in labels such as "অপশন ১" now use Bangla digits.
+  - A new business's two zones are named in its creator's language ("ঢাকার ভেতরে", "ঢাকার বাইরে").
+- **E2E (`customers.spec.ts`):** finding a customer by five ways of writing a number, picking places by searching in English, a taken number refused under its box, the order history, deleting refused and then allowed, and a new zone's charge from the server's quote. 112 tests across both screen sizes.
 
 ### F6: Orders, the core (6 days)
 

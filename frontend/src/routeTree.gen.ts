@@ -19,6 +19,8 @@ import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-pa
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AppBillingIndexRouteImport } from './routes/_app/billing/index'
+import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
+import { Route as AppCustomersCustomerIdRouteImport } from './routes/_app/customers/$customerId'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
 import { Route as AppProductsIndexRouteImport } from './routes/_app/products/index'
@@ -30,6 +32,7 @@ import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings/a
 import { Route as AppSettingsAuditLogRouteImport } from './routes/_app/settings/audit-log'
 import { Route as AppSettingsBusinessRouteImport } from './routes/_app/settings/business'
 import { Route as AppSettingsCategoriesRouteImport } from './routes/_app/settings/categories'
+import { Route as AppSettingsDeliveryRouteImport } from './routes/_app/settings/delivery'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 import { Route as AppSettingsStaffRouteImport } from './routes/_app/settings/staff'
 
@@ -79,6 +82,16 @@ const AuthSignUpRoute = AuthSignUpRouteImport.update({
 const AppBillingIndexRoute = AppBillingIndexRouteImport.update({
   id: '/billing/',
   path: '/billing/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCustomersIndexRoute = AppCustomersIndexRouteImport.update({
+  id: '/customers/',
+  path: '/customers/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCustomersCustomerIdRoute = AppCustomersCustomerIdRouteImport.update({
+  id: '/customers/$customerId',
+  path: '/customers/$customerId',
   getParentRoute: () => AppRoute,
 } as any)
 const AppOrdersIndexRoute = AppOrdersIndexRouteImport.update({
@@ -136,6 +149,11 @@ const AppSettingsCategoriesRoute = AppSettingsCategoriesRouteImport.update({
   path: '/settings/categories',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsDeliveryRoute = AppSettingsDeliveryRouteImport.update({
+  id: '/settings/delivery',
+  path: '/settings/delivery',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
   id: '/settings/security',
   path: '/settings/security',
@@ -155,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
   '/products/import': typeof AppProductsImportRoute
@@ -164,9 +183,11 @@ export interface FileRoutesByFullPath {
   '/settings/audit-log': typeof AppSettingsAuditLogRoute
   '/settings/business': typeof AppSettingsBusinessRoute
   '/settings/categories': typeof AppSettingsCategoriesRoute
+  '/settings/delivery': typeof AppSettingsDeliveryRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/staff': typeof AppSettingsStaffRoute
   '/billing/': typeof AppBillingIndexRoute
+  '/customers/': typeof AppCustomersIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
   '/products/': typeof AppProductsIndexRoute
 }
@@ -178,6 +199,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
   '/products/import': typeof AppProductsImportRoute
@@ -187,9 +209,11 @@ export interface FileRoutesByTo {
   '/settings/audit-log': typeof AppSettingsAuditLogRoute
   '/settings/business': typeof AppSettingsBusinessRoute
   '/settings/categories': typeof AppSettingsCategoriesRoute
+  '/settings/delivery': typeof AppSettingsDeliveryRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/staff': typeof AppSettingsStaffRoute
   '/billing': typeof AppBillingIndexRoute
+  '/customers': typeof AppCustomersIndexRoute
   '/orders': typeof AppOrdersIndexRoute
   '/products': typeof AppProductsIndexRoute
 }
@@ -204,6 +228,7 @@ export interface FileRoutesById {
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/products/$productId': typeof AppProductsProductIdRoute
   '/_app/products/import': typeof AppProductsImportRoute
@@ -213,9 +238,11 @@ export interface FileRoutesById {
   '/_app/settings/audit-log': typeof AppSettingsAuditLogRoute
   '/_app/settings/business': typeof AppSettingsBusinessRoute
   '/_app/settings/categories': typeof AppSettingsCategoriesRoute
+  '/_app/settings/delivery': typeof AppSettingsDeliveryRoute
   '/_app/settings/security': typeof AppSettingsSecurityRoute
   '/_app/settings/staff': typeof AppSettingsStaffRoute
   '/_app/billing/': typeof AppBillingIndexRoute
+  '/_app/customers/': typeof AppCustomersIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/products/': typeof AppProductsIndexRoute
 }
@@ -229,6 +256,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/sign-in'
     | '/sign-up'
+    | '/customers/$customerId'
     | '/orders/new'
     | '/products/$productId'
     | '/products/import'
@@ -238,9 +266,11 @@ export interface FileRouteTypes {
     | '/settings/audit-log'
     | '/settings/business'
     | '/settings/categories'
+    | '/settings/delivery'
     | '/settings/security'
     | '/settings/staff'
     | '/billing/'
+    | '/customers/'
     | '/orders/'
     | '/products/'
   fileRoutesByTo: FileRoutesByTo
@@ -252,6 +282,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/sign-in'
     | '/sign-up'
+    | '/customers/$customerId'
     | '/orders/new'
     | '/products/$productId'
     | '/products/import'
@@ -261,9 +292,11 @@ export interface FileRouteTypes {
     | '/settings/audit-log'
     | '/settings/business'
     | '/settings/categories'
+    | '/settings/delivery'
     | '/settings/security'
     | '/settings/staff'
     | '/billing'
+    | '/customers'
     | '/orders'
     | '/products'
   id:
@@ -277,6 +310,7 @@ export interface FileRouteTypes {
     | '/_auth/sign-in'
     | '/_auth/sign-up'
     | '/_app/'
+    | '/_app/customers/$customerId'
     | '/_app/orders/new'
     | '/_app/products/$productId'
     | '/_app/products/import'
@@ -286,9 +320,11 @@ export interface FileRouteTypes {
     | '/_app/settings/audit-log'
     | '/_app/settings/business'
     | '/_app/settings/categories'
+    | '/_app/settings/delivery'
     | '/_app/settings/security'
     | '/_app/settings/staff'
     | '/_app/billing/'
+    | '/_app/customers/'
     | '/_app/orders/'
     | '/_app/products/'
   fileRoutesById: FileRoutesById
@@ -372,6 +408,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBillingIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/customers/': {
+      id: '/_app/customers/'
+      path: '/customers'
+      fullPath: '/customers/'
+      preLoaderRoute: typeof AppCustomersIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/customers/$customerId': {
+      id: '/_app/customers/$customerId'
+      path: '/customers/$customerId'
+      fullPath: '/customers/$customerId'
+      preLoaderRoute: typeof AppCustomersCustomerIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/orders/': {
       id: '/_app/orders/'
       path: '/orders'
@@ -449,6 +499,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsCategoriesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/delivery': {
+      id: '/_app/settings/delivery'
+      path: '/settings/delivery'
+      fullPath: '/settings/delivery'
+      preLoaderRoute: typeof AppSettingsDeliveryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/security': {
       id: '/_app/settings/security'
       path: '/settings/security'
@@ -469,6 +526,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppMoreRoute: typeof AppMoreRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppCustomersCustomerIdRoute: typeof AppCustomersCustomerIdRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
   AppProductsProductIdRoute: typeof AppProductsProductIdRoute
   AppProductsImportRoute: typeof AppProductsImportRoute
@@ -478,9 +536,11 @@ interface AppRouteChildren {
   AppSettingsAuditLogRoute: typeof AppSettingsAuditLogRoute
   AppSettingsBusinessRoute: typeof AppSettingsBusinessRoute
   AppSettingsCategoriesRoute: typeof AppSettingsCategoriesRoute
+  AppSettingsDeliveryRoute: typeof AppSettingsDeliveryRoute
   AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
   AppSettingsStaffRoute: typeof AppSettingsStaffRoute
   AppBillingIndexRoute: typeof AppBillingIndexRoute
+  AppCustomersIndexRoute: typeof AppCustomersIndexRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
   AppProductsIndexRoute: typeof AppProductsIndexRoute
 }
@@ -488,6 +548,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppMoreRoute: AppMoreRoute,
   AppIndexRoute: AppIndexRoute,
+  AppCustomersCustomerIdRoute: AppCustomersCustomerIdRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
   AppProductsProductIdRoute: AppProductsProductIdRoute,
   AppProductsImportRoute: AppProductsImportRoute,
@@ -497,9 +558,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsAuditLogRoute: AppSettingsAuditLogRoute,
   AppSettingsBusinessRoute: AppSettingsBusinessRoute,
   AppSettingsCategoriesRoute: AppSettingsCategoriesRoute,
+  AppSettingsDeliveryRoute: AppSettingsDeliveryRoute,
   AppSettingsSecurityRoute: AppSettingsSecurityRoute,
   AppSettingsStaffRoute: AppSettingsStaffRoute,
   AppBillingIndexRoute: AppBillingIndexRoute,
+  AppCustomersIndexRoute: AppCustomersIndexRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
   AppProductsIndexRoute: AppProductsIndexRoute,
 }

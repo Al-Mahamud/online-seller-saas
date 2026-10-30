@@ -2351,18 +2351,18 @@ export interface components {
             version?: number;
         };
         CustomerView: {
-            address: string;
-            altPhone: string;
-            area: components["schemas"]["CustomerGeoRef"];
+            address: string | null;
+            altPhone: string | null;
+            area: components["schemas"]["CustomerGeoRef"] | null;
             /** Format: date-time */
             createdAt: string;
-            district: components["schemas"]["CustomerGeoRef"];
+            district: components["schemas"]["CustomerGeoRef"] | null;
             /** Format: uuid */
             id: string;
             /** Format: date-time */
-            lastOrderAt: string;
+            lastOrderAt: string | null;
             name: string;
-            note: string;
+            note: string | null;
             /** Format: int32 */
             orderCount: number;
             phone: string;

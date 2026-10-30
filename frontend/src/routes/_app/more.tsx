@@ -25,11 +25,17 @@ function More() {
   return (
     <div className="flex max-w-md flex-col gap-4">
       <PageHeader title={t("nav.more")} />
+      <section className="rounded-xl border bg-card px-4 py-1">
+        <nav aria-label={t("customers.title")} className="flex flex-col">
+          <MoreLink to="/customers" label={t("customers.title")} />
+        </nav>
+      </section>
       {hasRole(business, "MANAGER") && (
         <section className="rounded-xl border bg-card px-4 py-1">
           <nav aria-label={t("business.title")} className="flex flex-col">
             <MoreLink to="/settings/business" label={t("business.title")} />
             <MoreLink to="/settings/categories" label={t("categories.title")} />
+            <MoreLink to="/settings/delivery" label={t("delivery.title")} />
             <MoreLink to="/settings/staff" label={t("staff.title")} />
             {hasRole(business, "OWNER") && <MoreLink to="/settings/audit-log" label={t("audit.title")} />}
           </nav>

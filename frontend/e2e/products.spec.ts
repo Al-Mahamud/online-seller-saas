@@ -10,7 +10,7 @@ const heading = (page: Page, name: string) => page.getByRole("heading", { level:
 /** Adds an option through the form: its name, then each value with the keyboard. */
 async function addOption(page: Page, number: number, name: string, values: string[]) {
   await page.getByRole("button", { name: "অপশন যোগ করুন" }).click();
-  const group = page.getByRole("group", { name: `অপশন ${number}` });
+  const group = page.getByRole("group", { name: `অপশন ${"০১২৩"[number]}` });
   await label(group, "অপশনের নাম").fill(name);
   for (const value of values) {
     await label(group, "মান যোগ করুন").fill(value);
@@ -47,7 +47,7 @@ test("creates a product with 2 options and 6 variants, from the list", async ({ 
   await label(page, "পণ্যের নাম").fill("সুতি কুর্তি");
   await addOption(page, 1, "সাইজ", ["S", "M", "L"]);
   await addOption(page, 2, "রং", ["লাল"]);
-  await label(page.getByRole("group", { name: "অপশন 2" }), "মান যোগ করুন").fill("নীল, ");
+  await label(page.getByRole("group", { name: "অপশন ২" }), "মান যোগ করুন").fill("নীল, ");
   await expect(page.getByRole("status").filter({ hasText: "মোট ৬টি ভ্যারিয়েন্ট" })).toBeVisible();
   await expectAccessible(page);
 
@@ -140,7 +140,7 @@ test("edits a variant, its options, and archives and restores", async ({ page })
   await expect(page.getByText("৳২,৪৫০.৫০")).toBeVisible();
 
   // A new value adds a variant, keeping the others as they are.
-  const group = page.getByRole("group", { name: "অপশন 1" });
+  const group = page.getByRole("group", { name: "অপশন ১" });
   await label(group, "মান যোগ করুন").fill("XL");
   await label(group, "মান যোগ করুন").press("Enter");
   await page.getByRole("button", { name: "সংরক্ষণ করুন" }).nth(1).click();

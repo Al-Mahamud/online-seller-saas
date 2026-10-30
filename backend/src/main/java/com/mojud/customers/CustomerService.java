@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
@@ -47,8 +48,9 @@ class CustomerService implements CustomerDirectory {
     record GeoRef(int id, String nameEn, String nameBn) {
     }
 
-    record View(UUID id, String name, String phone, String altPhone, String address, GeoRef district, GeoRef area,
-            String note, int orderCount, Instant lastOrderAt, Instant createdAt, Instant updatedAt, Long version) {
+    record View(UUID id, String name, String phone, @Nullable String altPhone, @Nullable String address,
+            @Nullable GeoRef district, @Nullable GeoRef area, @Nullable String note, int orderCount,
+            @Nullable Instant lastOrderAt, Instant createdAt, Instant updatedAt, Long version) {
     }
 
     /** {@code districtId} may be left out when {@code areaId} is given: the area's district is used. */

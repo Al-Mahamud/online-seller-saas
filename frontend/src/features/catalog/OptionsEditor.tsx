@@ -83,6 +83,8 @@ function OptionRow({
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
+  const format = useFormat();
+  const shownNumber = format.number(number);
   const id = useId();
   const [typed, setTyped] = useState("");
 
@@ -100,7 +102,9 @@ function OptionRow({
 
   return (
     <fieldset className="flex flex-col gap-3 rounded-lg border p-3">
-      <legend className="px-1 text-sm text-muted-foreground">{t("products.options.number", { number })}</legend>
+      <legend className="px-1 text-sm text-muted-foreground">
+        {t("products.options.number", { number: shownNumber })}
+      </legend>
       <div className="flex items-end gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <Label htmlFor={`${id}-name`} className="text-[15px] leading-normal font-semibold">
@@ -118,7 +122,7 @@ function OptionRow({
           type="button"
           variant="outline"
           size="icon"
-          aria-label={t("products.options.remove", { number })}
+          aria-label={t("products.options.remove", { number: shownNumber })}
           onClick={onRemove}
         >
           <X aria-hidden="true" />

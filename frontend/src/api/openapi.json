@@ -1330,20 +1330,28 @@
       "CustomerView" : {
         "properties" : {
           "address" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "altPhone" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "area" : {
-            "$ref" : "#/components/schemas/CustomerGeoRef"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/CustomerGeoRef"
+            }, {
+              "type" : "null"
+            } ]
           },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
           },
           "district" : {
-            "$ref" : "#/components/schemas/CustomerGeoRef"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/CustomerGeoRef"
+            }, {
+              "type" : "null"
+            } ]
           },
           "id" : {
             "format" : "uuid",
@@ -1351,13 +1359,13 @@
           },
           "lastOrderAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "name" : {
             "type" : "string"
           },
           "note" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "orderCount" : {
             "format" : "int32",
