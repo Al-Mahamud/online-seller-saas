@@ -23,6 +23,7 @@ import { Route as AppBillingReturnRouteImport } from './routes/_app/billing/retu
 import { Route as AppCodIndexRouteImport } from './routes/_app/cod/index'
 import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCustomersCustomerIdRouteImport } from './routes/_app/customers/$customerId'
+import { Route as AppNotificationsIndexRouteImport } from './routes/_app/notifications/index'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
 import { Route as AppProductsIndexRouteImport } from './routes/_app/products/index'
@@ -36,6 +37,7 @@ import { Route as AppSettingsAuditLogRouteImport } from './routes/_app/settings/
 import { Route as AppSettingsBusinessRouteImport } from './routes/_app/settings/business'
 import { Route as AppSettingsCategoriesRouteImport } from './routes/_app/settings/categories'
 import { Route as AppSettingsDeliveryRouteImport } from './routes/_app/settings/delivery'
+import { Route as AppSettingsNotificationsRouteImport } from './routes/_app/settings/notifications'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 import { Route as AppSettingsStaffRouteImport } from './routes/_app/settings/staff'
 import { Route as AppBillingInvoicesInvoiceIdRouteImport } from './routes/_app/billing/invoices/$invoiceId'
@@ -110,6 +112,11 @@ const AppCustomersCustomerIdRoute = AppCustomersCustomerIdRouteImport.update({
   path: '/customers/$customerId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNotificationsIndexRoute = AppNotificationsIndexRouteImport.update({
+  id: '/notifications/',
+  path: '/notifications/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppOrdersIndexRoute = AppOrdersIndexRouteImport.update({
   id: '/orders/',
   path: '/orders/',
@@ -175,6 +182,12 @@ const AppSettingsDeliveryRoute = AppSettingsDeliveryRouteImport.update({
   path: '/settings/delivery',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsNotificationsRoute =
+  AppSettingsNotificationsRouteImport.update({
+    id: '/settings/notifications',
+    path: '/settings/notifications',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
   id: '/settings/security',
   path: '/settings/security',
@@ -222,11 +235,13 @@ export interface FileRoutesByFullPath {
   '/settings/business': typeof AppSettingsBusinessRoute
   '/settings/categories': typeof AppSettingsCategoriesRoute
   '/settings/delivery': typeof AppSettingsDeliveryRoute
+  '/settings/notifications': typeof AppSettingsNotificationsRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/staff': typeof AppSettingsStaffRoute
   '/billing/': typeof AppBillingIndexRoute
   '/cod/': typeof AppCodIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
+  '/notifications/': typeof AppNotificationsIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
   '/products/': typeof AppProductsIndexRoute
   '/reports/': typeof AppReportsIndexRoute
@@ -254,11 +269,13 @@ export interface FileRoutesByTo {
   '/settings/business': typeof AppSettingsBusinessRoute
   '/settings/categories': typeof AppSettingsCategoriesRoute
   '/settings/delivery': typeof AppSettingsDeliveryRoute
+  '/settings/notifications': typeof AppSettingsNotificationsRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/staff': typeof AppSettingsStaffRoute
   '/billing': typeof AppBillingIndexRoute
   '/cod': typeof AppCodIndexRoute
   '/customers': typeof AppCustomersIndexRoute
+  '/notifications': typeof AppNotificationsIndexRoute
   '/orders': typeof AppOrdersIndexRoute
   '/products': typeof AppProductsIndexRoute
   '/reports': typeof AppReportsIndexRoute
@@ -289,11 +306,13 @@ export interface FileRoutesById {
   '/_app/settings/business': typeof AppSettingsBusinessRoute
   '/_app/settings/categories': typeof AppSettingsCategoriesRoute
   '/_app/settings/delivery': typeof AppSettingsDeliveryRoute
+  '/_app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/_app/settings/security': typeof AppSettingsSecurityRoute
   '/_app/settings/staff': typeof AppSettingsStaffRoute
   '/_app/billing/': typeof AppBillingIndexRoute
   '/_app/cod/': typeof AppCodIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
+  '/_app/notifications/': typeof AppNotificationsIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/products/': typeof AppProductsIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
@@ -323,11 +342,13 @@ export interface FileRouteTypes {
     | '/settings/business'
     | '/settings/categories'
     | '/settings/delivery'
+    | '/settings/notifications'
     | '/settings/security'
     | '/settings/staff'
     | '/billing/'
     | '/cod/'
     | '/customers/'
+    | '/notifications/'
     | '/orders/'
     | '/products/'
     | '/reports/'
@@ -355,11 +376,13 @@ export interface FileRouteTypes {
     | '/settings/business'
     | '/settings/categories'
     | '/settings/delivery'
+    | '/settings/notifications'
     | '/settings/security'
     | '/settings/staff'
     | '/billing'
     | '/cod'
     | '/customers'
+    | '/notifications'
     | '/orders'
     | '/products'
     | '/reports'
@@ -389,11 +412,13 @@ export interface FileRouteTypes {
     | '/_app/settings/business'
     | '/_app/settings/categories'
     | '/_app/settings/delivery'
+    | '/_app/settings/notifications'
     | '/_app/settings/security'
     | '/_app/settings/staff'
     | '/_app/billing/'
     | '/_app/cod/'
     | '/_app/customers/'
+    | '/_app/notifications/'
     | '/_app/orders/'
     | '/_app/products/'
     | '/_app/reports/'
@@ -509,6 +534,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCustomersCustomerIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/notifications/': {
+      id: '/_app/notifications/'
+      path: '/notifications'
+      fullPath: '/notifications/'
+      preLoaderRoute: typeof AppNotificationsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/orders/': {
       id: '/_app/orders/'
       path: '/orders'
@@ -600,6 +632,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsDeliveryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/notifications': {
+      id: '/_app/settings/notifications'
+      path: '/settings/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof AppSettingsNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/security': {
       id: '/_app/settings/security'
       path: '/settings/security'
@@ -653,11 +692,13 @@ interface AppRouteChildren {
   AppSettingsBusinessRoute: typeof AppSettingsBusinessRoute
   AppSettingsCategoriesRoute: typeof AppSettingsCategoriesRoute
   AppSettingsDeliveryRoute: typeof AppSettingsDeliveryRoute
+  AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
   AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
   AppSettingsStaffRoute: typeof AppSettingsStaffRoute
   AppBillingIndexRoute: typeof AppBillingIndexRoute
   AppCodIndexRoute: typeof AppCodIndexRoute
   AppCustomersIndexRoute: typeof AppCustomersIndexRoute
+  AppNotificationsIndexRoute: typeof AppNotificationsIndexRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
   AppProductsIndexRoute: typeof AppProductsIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
@@ -681,11 +722,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsBusinessRoute: AppSettingsBusinessRoute,
   AppSettingsCategoriesRoute: AppSettingsCategoriesRoute,
   AppSettingsDeliveryRoute: AppSettingsDeliveryRoute,
+  AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
   AppSettingsSecurityRoute: AppSettingsSecurityRoute,
   AppSettingsStaffRoute: AppSettingsStaffRoute,
   AppBillingIndexRoute: AppBillingIndexRoute,
   AppCodIndexRoute: AppCodIndexRoute,
   AppCustomersIndexRoute: AppCustomersIndexRoute,
+  AppNotificationsIndexRoute: AppNotificationsIndexRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
   AppProductsIndexRoute: AppProductsIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,

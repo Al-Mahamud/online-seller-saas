@@ -11,7 +11,11 @@ export function useChangeLanguage() {
   const queryClient = useQueryClient();
   const save = useMutation({
     mutationFn: (locale: Language) => call(api.PATCH("/api/v1/me", { body: { locale } })),
-    onSuccess: (me) => queryClient.setQueryData(meQuery.queryKey, me),
+    onSuccess: (me) => {
+      queryClient.setQueryData(meQuery.queryKey, me);
+      // What the server wrote (notices, report labels) was in the old language until now.
+      void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== meQuery.queryKey[0] });
+    },
   });
   return async (language: Language) => {
     await setLanguage(language);

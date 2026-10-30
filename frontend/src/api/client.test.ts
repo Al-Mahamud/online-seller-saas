@@ -67,6 +67,53 @@ describe("api client", () => {
   });
 });
 
+describe("a token that no longer matches", () => {
+  it("sends the write once more with a fresh token", async () => {
+    // biome-ignore lint/suspicious/noDocumentCookie: jsdom has no Cookie Store API; the client reads document.cookie.
+    document.cookie = "XSRF-TOKEN=old; path=/";
+    const bodies: unknown[] = [];
+    const fetchImpl = vi.fn(async (request: Request) => {
+      if (request.url.endsWith("/api/v1/auth/csrf")) {
+        // biome-ignore lint/suspicious/noDocumentCookie: stands in for the server's Set-Cookie.
+        document.cookie = "XSRF-TOKEN=fresh; path=/";
+        return json({});
+      }
+      bodies.push(await request.clone().json());
+      return request.headers.get("X-XSRF-TOKEN") === "fresh"
+        ? json({ ok: true })
+        : json({ code: "csrf.invalid", detail: "expired" }, 403);
+    });
+    const api = createApi(fetchImpl as typeof fetch);
+
+    const answer = await api.POST("/api/v1/public/invites/lookup", { body: { token: "t" } });
+
+    expect(answer.response.status).toBe(200);
+    expect(bodies).toEqual([{ token: "t" }, { token: "t" }]);
+  });
+
+  it("gives up after one retry, and leaves other refusals alone", async () => {
+    // biome-ignore lint/suspicious/noDocumentCookie: jsdom has no Cookie Store API; the client reads document.cookie.
+    document.cookie = "XSRF-TOKEN=old; path=/";
+    const fetchImpl = vi.fn(async (request: Request) => {
+      if (request.url.endsWith("/api/v1/auth/csrf")) {
+        // biome-ignore lint/suspicious/noDocumentCookie: stands in for the server's Set-Cookie.
+        document.cookie = "XSRF-TOKEN=fresh; path=/";
+        return json({});
+      }
+      return json({ code: "csrf.invalid", detail: "expired" }, 403);
+    });
+    const api = createApi(fetchImpl as typeof fetch);
+    const refused = await api.POST("/api/v1/public/invites/lookup", { body: { token: "t" } });
+    expect(refused.response.status).toBe(403);
+    expect(fetchImpl.mock.calls.filter(([request]) => !request.url.endsWith("/csrf"))).toHaveLength(2);
+
+    const role = vi.fn(async (_request: Request) => json({ code: "auth.forbidden" }, 403));
+    const other = await createApi(role as typeof fetch).POST("/api/v1/public/invites/lookup", { body: { token: "t" } });
+    expect(other.response.status).toBe(403);
+    expect(role).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("the business a write means", () => {
   afterEach(() => setExpectedBusiness(null));
 

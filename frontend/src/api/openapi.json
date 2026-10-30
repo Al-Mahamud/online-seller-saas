@@ -2256,7 +2256,7 @@
             "type" : "array"
           },
           "nextCursor" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "unread" : {
             "format" : "int64",

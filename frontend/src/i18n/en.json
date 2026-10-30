@@ -929,5 +929,18 @@
       "everything": "All the business's data (ZIP)",
       "everythingHint": "Orders, products and customers: a full copy of your data."
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "unreadCount": "Notifications {{count}} unread",
+    "new": "New",
+    "none": "No notifications yet.",
+    "markAllRead": "Mark all as read",
+    "emailChoices": "Email choices",
+    "emails": "Emails you get",
+    "lowStockDigest": "A daily list of products running low",
+    "alwaysSent": "Payment and security emails always go.",
+    "saved": "Saved.",
+    "unread": "unread"
   }
 }

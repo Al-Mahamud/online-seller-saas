@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 import { newEmail, PASSWORD, readCode, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { expect, test } from "./support/test";
-import { totp } from "./support/totp";
+import { clearOfStepEnd, totp } from "./support/totp";
 
 const label = (scope: Page | ReturnType<Page["getByRole"]>, name: string) => scope.getByLabel(name, { exact: true });
 
@@ -118,6 +118,7 @@ test("turns on two-step sign-in, signs in with it, and turns it off", async ({ p
   await label(dialog, "অ্যাপের ৬ সংখ্যার কোড").fill(totp(secret) === "000000" ? "000001" : "000000");
   await dialog.getByRole("button", { name: "চালু করুন" }).click();
   await expect(label(dialog, "অ্যাপের ৬ সংখ্যার কোড")).toHaveAttribute("aria-invalid", "true");
+  await clearOfStepEnd();
   await label(dialog, "অ্যাপের ৬ সংখ্যার কোড").fill(totp(secret, -1));
   await dialog.getByRole("button", { name: "চালু করুন" }).click();
 
@@ -174,6 +175,7 @@ test("makes new recovery codes with a code from the app", async ({ page }) => {
   await label(dialog, "পাসওয়ার্ড").fill(PASSWORD);
   await dialog.getByRole("button", { name: "এগিয়ে যান" }).click();
   const secret = (await page.getByTestId("two-factor-secret").textContent()) as string;
+  await clearOfStepEnd();
   await label(dialog, "অ্যাপের ৬ সংখ্যার কোড").fill(totp(secret, -1));
   await dialog.getByRole("button", { name: "চালু করুন" }).click();
   const codes = page.getByTestId("recovery-codes").getByRole("listitem");

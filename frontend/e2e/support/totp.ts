@@ -30,3 +30,14 @@ export function totp(secret: string, stepsAhead = 0): string {
   const offset = (hash[19] as number) & 0xf;
   return String((hash.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, "0");
 }
+
+/**
+ * Waits out the last seconds of a 30-second step, when a code for the step before could expire on its
+ * way to the server. Call it before using `totp(secret, -1)`.
+ */
+export async function clearOfStepEnd(): Promise<void> {
+  const left = 30_000 - (Date.now() % 30_000);
+  if (left < 8_000) {
+    await new Promise((resolve) => setTimeout(resolve, left + 100));
+  }
+}

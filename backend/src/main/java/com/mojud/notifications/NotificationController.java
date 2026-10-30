@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
@@ -37,7 +38,7 @@ class NotificationController {
     record Item(UUID id, String type, String title, JsonNode payload, Instant at, boolean read) {
     }
 
-    record Page(List<Item> items, String nextCursor, long unread) {
+    record Page(List<Item> items, @Nullable String nextCursor, long unread) {
     }
 
     private record Row(UUID id, String type, String payload, Instant at, boolean read) {

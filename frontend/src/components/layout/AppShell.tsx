@@ -7,6 +7,7 @@ import { SubscriptionBanner } from "@/features/billing/SubscriptionBanner";
 import { useCanWrite } from "@/features/billing/status";
 import { BusinessSwitcher } from "@/features/business/BusinessSwitcher";
 import { DeletionBanner } from "@/features/business/DeletionBanner";
+import { NotificationBell, NotificationLink } from "@/features/notifications/NotificationBell";
 import { LanguageToggle } from "./LanguageToggle";
 import { PlanLimitDialog } from "./PlanLimitDialog";
 
@@ -34,7 +35,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const business = useBusiness();
   const canWrite = useCanWrite();
   const onProducts = /^\/products\/?$/.test(pathname);
-  const showsNewOrder = canWrite && !/^\/(more|settings|billing|orders\/|cod|reports|products)/.test(pathname);
+  const showsNewOrder =
+    canWrite && !/^\/(more|settings|billing|orders\/|cod|reports|notifications|products)/.test(pathname);
   const showsNewProduct = canWrite && onProducts && hasRole(business, "MANAGER");
   return (
     <div className="min-h-dvh md:flex">
@@ -55,13 +57,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             {t(tab.label)}
           </Link>
         ))}
-        <LanguageToggle className="mt-auto self-start" />
+        <div className="mt-auto flex flex-col gap-1">
+          <NotificationLink />
+          <LanguageToggle className="self-start" />
+        </div>
       </nav>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex items-center justify-between gap-2.5 border-b bg-card px-4 py-1.5 md:hidden">
           <BusinessSwitcher />
-          <LanguageToggle />
+          <div className="flex flex-none items-center gap-1">
+            <NotificationBell />
+            <LanguageToggle />
+          </div>
         </header>
 
         <SubscriptionBanner />

@@ -110,7 +110,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | F6 Orders, the core | One commit | Done |
 | F7 Today, reports and exports | One commit | Done |
 | F8 Billing | One commit | Done |
-| F9–F11 | | Not started |
+| F9 Notifications | One commit | Done |
+| F10–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -485,6 +486,17 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Email choices:** the low-stock digest on or off.
 
 **Checked by:** a low-stock alert appears within a minute of stock falling.
+
+**As built (F9):**
+- **The bell:** in the phone's header and the laptop's sidebar, with the unread count, asked every minute while the app is on screen.
+- **`/notifications`:** newest first, unread marked in words as well as by a dot and weight. A notice leads to what it's about (`notificationLink`): a product, an import's result, an invoice, or the plan page. Opening one marks it read, and there's "mark all as read".
+- **`/settings/notifications`** (managers and owners; the digest email links here): the low-stock digest on or off. It's the only email that can be turned off.
+- **Staff** see only notices meant for them, and there are none of those yet, so their list is empty. Low stock, imports and billing go to managers and owners.
+- **Fixed along the way:**
+  - **Language:** signed in, the server answers in the account's saved language, so a notice fetched while the language changed could stay in the old one. Everything is read again once the new language is saved, which also covers report labels.
+  - **Stale security token:** a person's first write could be refused with "form expired, reload". It happened once, on opening an invite link in a new browser. The likely cause is several first requests each being given a token. The client now gets a new token and sends the write once more, once only; nothing was done by the refused attempt. The retry has unit tests, but the cause wasn't reproduced on demand.
+  - **Two-step test:** a code for the previous 30-second step could expire on its way to the server. The test waits out the end of a step first.
+- **E2E (`notifications.spec.ts`):** an alert reaching the bell within a minute, using the page's own clock; links to a product and an invoice; mark all as read; titles following the language; the email choice surviving a reload; staff. 172 tests across both screen sizes.
 
 ### F10: Platform admin (2 days)
 

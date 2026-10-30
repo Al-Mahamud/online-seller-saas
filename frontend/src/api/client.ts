@@ -48,8 +48,11 @@ export function createApi(fetchImpl: typeof fetch = (...args) => fetch(...args))
     return cookie(CSRF_COOKIE);
   }
 
+  /** Writes as they were first sent, for the one retry below. */
+  const sentWrites = new Map<string, Request>();
+
   const headers: Middleware = {
-    async onRequest({ request }) {
+    async onRequest({ request, id }) {
       request.headers.set("Accept-Language", currentLanguage());
       if (UNSAFE_METHODS.has(request.method)) {
         const token = await csrfToken();
@@ -59,8 +62,38 @@ export function createApi(fetchImpl: typeof fetch = (...args) => fetch(...args))
         if (expectedBusiness) {
           request.headers.set("X-Business-Id", expectedBusiness);
         }
+        sentWrites.set(id, request.clone());
       }
       return request;
+    },
+    /**
+     * Refused for a token that no longer matches: on a first visit, several requests can each be given
+     * a token, and the cookie can end up holding a different one from the write's. So it asks for a new
+     * one and sends the write once more; nothing was done the first time.
+     */
+    async onResponse({ response, id }) {
+      const sent = sentWrites.get(id);
+      sentWrites.delete(id);
+      if (!sent || response.status !== 403) {
+        return response;
+      }
+      const problem = (await response
+        .clone()
+        .json()
+        .catch(() => null)) as { code?: string } | null;
+      if (problem?.code !== "csrf.invalid") {
+        return response;
+      }
+      // biome-ignore lint/suspicious/noDocumentCookie: this cookie is for scripts to read, and only this removes it everywhere.
+      document.cookie = `${CSRF_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+      const token = await csrfToken();
+      if (token) {
+        sent.headers.set("X-XSRF-TOKEN", token);
+      }
+      return fetchImpl(sent);
+    },
+    onError({ id }) {
+      sentWrites.delete(id);
     },
   };
 

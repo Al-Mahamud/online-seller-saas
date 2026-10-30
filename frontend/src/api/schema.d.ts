@@ -2744,7 +2744,7 @@ export interface components {
         };
         NotificationPage: {
             items: components["schemas"]["NotificationItem"][];
-            nextCursor: string;
+            nextCursor: string | null;
             /** Format: int64 */
             unread: number;
         };

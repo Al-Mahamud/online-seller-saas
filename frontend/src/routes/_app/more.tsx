@@ -52,6 +52,9 @@ function More() {
         <nav aria-label={t("account.title")} className="flex flex-col">
           <MoreLink to="/settings/account" label={t("account.title")} />
           <MoreLink to="/settings/security" label={t("account.security")} />
+          {hasRole(business, "MANAGER") && (
+            <MoreLink to="/settings/notifications" label={t("notifications.emailChoices")} />
+          )}
         </nav>
         <Button variant="outline" disabled={signOut.isPending} onClick={() => signOut.mutate()}>
           {t("account.signOut")}
