@@ -29,6 +29,7 @@ function More() {
         <nav aria-label={t("customers.title")} className="flex flex-col">
           <MoreLink to="/customers" label={t("customers.title")} />
           <MoreLink to="/cod" label={t("cod.title")} />
+          <MoreLink to="/reports" label={t("reports.title")} />
         </nav>
       </section>
       {hasRole(business, "MANAGER") && (

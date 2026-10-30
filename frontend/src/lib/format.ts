@@ -24,6 +24,16 @@ function numberFormat(language: Language, decimals: number) {
   return format as Intl.NumberFormat;
 }
 
+function dayFormat(language: Language, options: Intl.DateTimeFormatOptions) {
+  const key = `w:${language}:${JSON.stringify(options)}`;
+  let format = formatters.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat(LOCALES[language], { ...options, timeZone: TIME_ZONE });
+    formatters.set(key, format);
+  }
+  return format as Intl.DateTimeFormat;
+}
+
 function dateFormat(language: Language, withTime: boolean) {
   const key = `d:${language}:${withTime}`;
   let format = formatters.get(key);
@@ -66,6 +76,11 @@ export function useFormat() {
     taka: (poisha: number) => formatTaka(poisha, language),
     date: (at: string | Date) => formatDate(at, language),
     dateTime: (at: string | Date) => formatDateTime(at, language),
+    /** "শনি": a day's name, short, for a chart's axis. */
+    weekday: (at: string) => dayFormat(language, { weekday: "short" }).format(new Date(at)),
+    /** "শনিবার, ৩১ অক্টোবর": a day in full. */
+    fullDate: (at: string) =>
+      dayFormat(language, { weekday: "long", day: "numeric", month: "long" }).format(new Date(at)),
     /** An order's number as the slips print it. */
     orderNumber: (label: string) => (language === "bn" ? banglaDigits(label) : label),
   };

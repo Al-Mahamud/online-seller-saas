@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { businessQuery, settingsQuery, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import { uploadImage } from "@/api/uploads";
@@ -127,19 +127,24 @@ function LogoSection() {
 
 const settingsSchema = z.object({
   stockCommitPoint: z.enum(["SHIP", "CONFIRM"]),
-  lowStockDefault: z
-    .string()
-    .trim()
-    .transform(latinDigits)
-    .pipe(z.string().regex(/^\d{1,6}$/, "field.numberRange"))
-    .transform(Number)
-    .pipe(z.number().max(100_000, "field.numberRange")),
-  orderNumberPrefix: z
-    .string()
-    .trim()
-    .transform((text) => text.toUpperCase())
-    .pipe(z.string().regex(/^[A-Z0-9-]{0,10}$/, "field.prefixInvalid")),
-  invoiceFooter: z.string().trim().max(500, "field.footerLong"),
+  lowStockDefault: z.pipe(
+    z.pipe(
+      z.pipe(
+        z.pipe(z.string().check(z.trim()), z.transform(latinDigits)),
+        z.string().check(z.regex(/^\d{1,6}$/, "field.numberRange")),
+      ),
+      z.transform(Number),
+    ),
+    z.number().check(z.maximum(100_000, "field.numberRange")),
+  ),
+  orderNumberPrefix: z.pipe(
+    z.pipe(
+      z.string().check(z.trim()),
+      z.transform((text: string) => text.toUpperCase()),
+    ),
+    z.string().check(z.regex(/^[A-Z0-9-]{0,10}$/, "field.prefixInvalid")),
+  ),
+  invoiceFooter: z.string().check(z.trim(), z.maxLength(500, "field.footerLong")),
 });
 
 function SettingsSection() {

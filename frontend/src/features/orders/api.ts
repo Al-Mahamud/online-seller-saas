@@ -1,7 +1,7 @@
 import { infiniteQueryOptions, type QueryClient, queryOptions } from "@tanstack/react-query";
 import { api, call } from "@/api/client";
-import { ApiError, errorAction } from "@/api/errors";
-import { errorText } from "@/api/query";
+import { ApiError } from "@/api/errors";
+import { errorMessages } from "@/api/query";
 import type { components } from "@/api/schema";
 import i18n from "@/i18n";
 import { latinDigits } from "@/lib/digits";
@@ -124,8 +124,7 @@ export function orderErrorText(error: unknown): string {
       )
       .join(" ");
   }
-  const action = errorAction(error);
-  return action.kind === "fields" ? action.fields.map((problem) => problem.message).join(" ") : errorText(error);
+  return errorMessages(error);
 }
 
 /** How much of each line can still come back from the customer. */

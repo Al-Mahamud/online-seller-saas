@@ -1,4 +1,4 @@
-import { type APIRequestContext, expect } from "@playwright/test";
+import { type APIRequestContext, type Browser, expect, type Page, test } from "@playwright/test";
 
 /** A fresh Bangladeshi mobile number, so tests sharing one database never collide. */
 export function newPhone(): string {
@@ -87,4 +87,33 @@ export async function signUpWithBusiness(
   });
   expect(created.status()).toBe(201);
   return account;
+}
+
+/** Someone new who accepts an invite to the owner's business, as staff, in a browser of their own. */
+export async function joinAsStaff(owner: Page, browser: Browser): Promise<Page> {
+  const email = newEmail();
+  const headers = { "X-XSRF-TOKEN": await csrfToken(owner.request) };
+  const sent = await owner.request.post("/api/v1/staff/invites", { headers, data: { to: email, role: "STAFF" } });
+  expect(sent.status()).toBe(201);
+  const token = await readInviteToken(owner.request, email);
+
+  const context = await browser.newContext({ baseURL: test.info().project.use.baseURL });
+  const staff = await context.newPage();
+  const staffHeaders = { "X-XSRF-TOKEN": await csrfToken(staff.request), "Accept-Language": "bn" };
+  await staff.request.post("/api/v1/auth/otp", { headers: staffHeaders, data: { to: email, purpose: "SIGNUP" } });
+  const code = await readCode(owner.request, email);
+  await staff.request.post("/api/v1/auth/signup", {
+    headers: staffHeaders,
+    data: {
+      name: "Sumi Staff",
+      phone: `018${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`,
+      email,
+      password: PASSWORD,
+      codeSentTo: "EMAIL",
+      code,
+    },
+  });
+  const joined = await staff.request.post("/api/v1/invites/accept", { headers: staffHeaders, data: { token } });
+  expect(joined.status()).toBe(200);
+  return staff;
 }

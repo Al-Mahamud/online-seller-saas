@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
@@ -42,7 +43,7 @@ class SalesReports {
      * categories, items kept at their order prices (order discounts are not split over items).
      * {@code orders} and {@code deliveryCharged} only for days.
      */
-    record Row(String key, String label, Integer orders, int quantity, long value, Long deliveryCharged) {
+    record Row(String key, String label, @Nullable Integer orders, int quantity, long value, @Nullable Long deliveryCharged) {
     }
 
     record Sales(LocalDate from, LocalDate to, GroupBy groupBy, List<Row> rows, int quantity, long value) {

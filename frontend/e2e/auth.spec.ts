@@ -165,6 +165,8 @@ test("sets a new password with a code", async ({ page }) => {
   await page.goto("/sign-in");
 
   await page.getByRole("link", { name: "পাসওয়ার্ড ভুলে গেছেন?" }).click();
+  // The sign-in page has a box with this label too: wait for the new page, or the number goes in the old one.
+  await expect(page.getByRole("heading", { level: 1, name: "পাসওয়ার্ড ভুলে গেছেন?" })).toBeVisible();
   await label(page, "ফোন নম্বর বা ইমেইল").fill(account.phone);
   await page.getByRole("button", { name: "কোড পাঠান" }).click();
   await label(page, "৬ সংখ্যার কোড").fill(await readCode(page.request, account.phone, earlier));

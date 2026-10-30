@@ -4,7 +4,7 @@ import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { api, call } from "@/api/client";
 import { ApiError } from "@/api/errors";
 import { authOptionsQuery, type Me, signedIn } from "@/api/session";

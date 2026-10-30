@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { hasRole, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import { errorText } from "@/api/query";
@@ -113,8 +113,8 @@ function ReadOnlyDetails({ product }: { product: Product }) {
 }
 
 const detailsSchema = z.object({
-  name: z.string().trim().min(1, "field.required").max(200, "field.nameLong"),
-  description: z.string().trim().max(5000, "field.footerLong"),
+  name: z.string().check(z.trim(), z.minLength(1, "field.required"), z.maxLength(200, "field.nameLong")),
+  description: z.string().check(z.trim(), z.maxLength(5000, "field.footerLong")),
   categoryId: z.string(),
 });
 

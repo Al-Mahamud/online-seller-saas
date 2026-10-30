@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { api, call } from "@/api/client";
 import { FormError, TextAreaField, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
@@ -14,11 +14,11 @@ import { latinDigits } from "@/lib/digits";
 import { type Customer, customerQuery } from "./api";
 
 const schema = z.object({
-  name: z.string().trim().min(1, "field.required").max(200, "field.nameLong"),
-  phone: z.string().trim().min(1, "field.required").transform(latinDigits),
-  altPhone: z.string().trim().transform(latinDigits),
-  address: z.string().trim().max(1000, "field.addressLong"),
-  note: z.string().trim().max(2000, "field.footerLong"),
+  name: z.string().check(z.trim(), z.minLength(1, "field.required"), z.maxLength(200, "field.nameLong")),
+  phone: z.pipe(z.string().check(z.trim(), z.minLength(1, "field.required")), z.transform(latinDigits)),
+  altPhone: z.pipe(z.string().check(z.trim()), z.transform(latinDigits)),
+  address: z.string().check(z.trim(), z.maxLength(1000, "field.addressLong")),
+  note: z.string().check(z.trim(), z.maxLength(2000, "field.footerLong")),
 });
 
 /** A new customer, or `customer`'s details. */

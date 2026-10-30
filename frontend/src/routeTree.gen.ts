@@ -29,6 +29,7 @@ import { Route as AppProductsProductIdRouteImport } from './routes/_app/products
 import { Route as AppProductsImportRouteImport } from './routes/_app/products/import'
 import { Route as AppProductsLowStockRouteImport } from './routes/_app/products/low-stock'
 import { Route as AppProductsNewRouteImport } from './routes/_app/products/new'
+import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
 import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings/account'
 import { Route as AppSettingsAuditLogRouteImport } from './routes/_app/settings/audit-log'
 import { Route as AppSettingsBusinessRouteImport } from './routes/_app/settings/business'
@@ -137,6 +138,11 @@ const AppProductsNewRoute = AppProductsNewRouteImport.update({
   path: '/products/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsAccountRoute = AppSettingsAccountRouteImport.update({
   id: '/settings/account',
   path: '/settings/account',
@@ -209,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/customers/': typeof AppCustomersIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
   '/products/': typeof AppProductsIndexRoute
+  '/reports/': typeof AppReportsIndexRoute
   '/orders/$orderId/edit': typeof AppOrdersOrderIdEditRoute
   '/orders/$orderId/': typeof AppOrdersOrderIdIndexRoute
 }
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/customers': typeof AppCustomersIndexRoute
   '/orders': typeof AppOrdersIndexRoute
   '/products': typeof AppProductsIndexRoute
+  '/reports': typeof AppReportsIndexRoute
   '/orders/$orderId/edit': typeof AppOrdersOrderIdEditRoute
   '/orders/$orderId': typeof AppOrdersOrderIdIndexRoute
 }
@@ -270,6 +278,7 @@ export interface FileRoutesById {
   '/_app/customers/': typeof AppCustomersIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/products/': typeof AppProductsIndexRoute
+  '/_app/reports/': typeof AppReportsIndexRoute
   '/_app/orders/$orderId/edit': typeof AppOrdersOrderIdEditRoute
   '/_app/orders/$orderId/': typeof AppOrdersOrderIdIndexRoute
 }
@@ -301,6 +310,7 @@ export interface FileRouteTypes {
     | '/customers/'
     | '/orders/'
     | '/products/'
+    | '/reports/'
     | '/orders/$orderId/edit'
     | '/orders/$orderId/'
   fileRoutesByTo: FileRoutesByTo
@@ -330,6 +340,7 @@ export interface FileRouteTypes {
     | '/customers'
     | '/orders'
     | '/products'
+    | '/reports'
     | '/orders/$orderId/edit'
     | '/orders/$orderId'
   id:
@@ -361,6 +372,7 @@ export interface FileRouteTypes {
     | '/_app/customers/'
     | '/_app/orders/'
     | '/_app/products/'
+    | '/_app/reports/'
     | '/_app/orders/$orderId/edit'
     | '/_app/orders/$orderId/'
   fileRoutesById: FileRoutesById
@@ -514,6 +526,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProductsNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports/': {
+      id: '/_app/reports/'
+      path: '/reports'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof AppReportsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/account': {
       id: '/_app/settings/account'
       path: '/settings/account'
@@ -601,6 +620,7 @@ interface AppRouteChildren {
   AppCustomersIndexRoute: typeof AppCustomersIndexRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
   AppProductsIndexRoute: typeof AppProductsIndexRoute
+  AppReportsIndexRoute: typeof AppReportsIndexRoute
   AppOrdersOrderIdEditRoute: typeof AppOrdersOrderIdEditRoute
   AppOrdersOrderIdIndexRoute: typeof AppOrdersOrderIdIndexRoute
 }
@@ -626,6 +646,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCustomersIndexRoute: AppCustomersIndexRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
   AppProductsIndexRoute: AppProductsIndexRoute,
+  AppReportsIndexRoute: AppReportsIndexRoute,
   AppOrdersOrderIdEditRoute: AppOrdersOrderIdEditRoute,
   AppOrdersOrderIdIndexRoute: AppOrdersOrderIdIndexRoute,
 }

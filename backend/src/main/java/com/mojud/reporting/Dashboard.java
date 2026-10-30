@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +29,7 @@ class Dashboard {
     }
 
     record Today(LocalDate date, Confirmed confirmed, int cancelled, Map<String, Integer> byStatus, int shipped,
-            int delivered, Cod cod, int lowStock, List<OrderReports.TopProduct> topProducts, OrderReports.Profit profit) {
+            int delivered, Cod cod, int lowStock, List<OrderReports.TopProduct> topProducts, OrderReports.@Nullable Profit profit) {
     }
 
     private final OrderReports orders;

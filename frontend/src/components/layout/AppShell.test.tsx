@@ -82,7 +82,9 @@ describe("app shell", () => {
         if (request.method === "PATCH") {
           saved.push(await request.clone().json());
         }
-        return new Response(JSON.stringify(me), { headers: { "Content-Type": "application/json" } });
+        return new URL(request.url).pathname === "/api/v1/me"
+          ? new Response(JSON.stringify(me), { headers: { "Content-Type": "application/json" } })
+          : new Response(null, { status: 404 });
       }),
     );
     await renderApp();

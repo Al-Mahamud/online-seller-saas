@@ -1450,7 +1450,11 @@
             "type" : "integer"
           },
           "profit" : {
-            "$ref" : "#/components/schemas/OrderReportsProfit"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/OrderReportsProfit"
+            }, {
+              "type" : "null"
+            } ]
           },
           "shipped" : {
             "format" : "int32",
@@ -3672,7 +3676,7 @@
         "properties" : {
           "deliveryCharged" : {
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "key" : {
             "type" : "string"
@@ -3682,7 +3686,7 @@
           },
           "orders" : {
             "format" : "int32",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "quantity" : {
             "format" : "int32",

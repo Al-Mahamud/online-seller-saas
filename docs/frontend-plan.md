@@ -108,7 +108,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | F4 Importing products | One commit | Done |
 | F5 Customers and delivery | One commit | Done |
 | F6 Orders, the core | One commit | Done |
-| F7–F11 | | Not started |
+| F7 Today, reports and exports | One commit | Done |
+| F8–F11 | | Not started |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -420,14 +421,29 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 
 ### F7: Today, reports and exports (3 days)
 
-**First:** make room in the size budget (249.2 of 250 KB after F6). The product page and the other form pages carry react-hook-form and zod in full. Try zod's smaller `zod/mini` build, or moving the product page's forms onto `Field.tsx`. Don't raise the limit to get past this.
-
 **Builds**
 - **Dashboard:** today's sales, orders by status, pending deliveries, COD outstanding, low stock, a 7-day sales chart, and any day picked.
 - **Reports:** sales by day, product or category, and profit (managers and owners); within the plan's date range.
 - **Downloads:** CSV exports, and the owner's full data export.
 
 **Checked by:** the figures on screen equal the API's for a seeded day; staff do not see profit.
+
+**As built (F7):**
+- **Room in the budget first:** the form pages moved from `zod` to `zod/mini` (5 KB against 22 KB, the same rules). The heaviest first visit went from 249.2 KB to 232 KB, and is 233.6 KB with F7's text. Mini has no default messages, so every rule names its own text key; an SKU that was too long used to get an English message.
+- **Today (`/`, `?date=` for another day):** as in the mockup: tiles for sales, to pack, with couriers, COD outstanding and low stock, each leading to that work; orders by status; best sellers; running low.
+  - Managers and owners also see profit on goods. Staff get `profit: null` from the server.
+  - COD, low stock and open orders are as they are now; the server doesn't keep them per day.
+- **Seven-day chart:** plain HTML columns, no chart library. It always ends today, so a Starter plan's 90-day reach can't refuse it. A column is a button that opens that day; the line above says what the hovered or chosen one stands for, and is what a screen reader hears. It adds delivery to goods, so today's column equals the sales tile.
+- **Reports (`/reports`, from More and Today):**
+  - Sales by day, product or category, over any days, with quick ranges. Days without sales are left out. A note says what the figures count, since product and category figures are before order discounts.
+  - Profit (managers and owners): goods, delivery and the total, with a warning when items have no cost price.
+  - Everything is in the address, so a report can be bookmarked.
+- **Downloads (managers and owners):** orders for the chosen days, products and customers as CSV; owners also get the whole business as a ZIP. They go through the API client rather than a plain link, so a refusal shows the upgrade dialog instead of a page of JSON. The files are held in memory while saving, which is fine at these sizes.
+- **Plan limits:** the dialog now says "your plan has no downloads" and "reports for the last 90 days" rather than "the limit is reached", which was wrong for those two.
+- **`errorMessages`** (`api/query.ts`): a refused request's reasons, for screens with no field to put them under, such as a range of more than 366 days.
+- **Backend:** only `@Nullable` on what these screens read.
+- **E2E (`reports.spec.ts`):** the figures against the API for a seeded day, hand-checked too; other days from the chart and by date; staff and profit; all three reports and profit's arithmetic; all four downloads, their contents read; both plan limits. 148 tests across both screen sizes.
+- **A test bug found:** the password-reset test could type before the page changed, into the sign-in page's box of the same name. It failed once in about 300 runs. Reproduced by slowing the page down on purpose, then fixed in the test. The app was fine.
 
 ### F8: Billing (3 days)
 

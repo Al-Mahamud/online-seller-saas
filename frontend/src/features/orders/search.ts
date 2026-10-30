@@ -1,4 +1,5 @@
 import type { components } from "@/api/schema";
+import { dayText } from "@/lib/dates";
 import { searchText } from "@/lib/search";
 
 export type OrderStatus = components["schemas"]["OrderDetail"]["status"];
@@ -21,14 +22,11 @@ export interface OrderFilters {
   to?: string;
 }
 
-const dateText = (value: unknown) =>
-  typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
-
 export function orderFilters(search: Record<string, unknown>): OrderFilters {
   return {
     status: ORDER_STATUSES.find((status) => status === search.status),
     q: searchText(search.q),
-    from: dateText(search.from),
-    to: dateText(search.to),
+    from: dayText(search.from),
+    to: dayText(search.to),
   };
 }

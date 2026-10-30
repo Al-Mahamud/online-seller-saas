@@ -2415,7 +2415,7 @@ export interface components {
             delivered: number;
             /** Format: int32 */
             lowStock: number;
-            profit: components["schemas"]["OrderReportsProfit"];
+            profit: components["schemas"]["OrderReportsProfit"] | null;
             /** Format: int32 */
             shipped: number;
             topProducts: components["schemas"]["OrderReportsTopProduct"][];
@@ -3241,11 +3241,11 @@ export interface components {
         };
         SalesReportsRow: {
             /** Format: int64 */
-            deliveryCharged: number;
+            deliveryCharged: number | null;
             key: string;
             label: string;
             /** Format: int32 */
-            orders: number;
+            orders: number | null;
             /** Format: int32 */
             quantity: number;
             /** Format: int64 */

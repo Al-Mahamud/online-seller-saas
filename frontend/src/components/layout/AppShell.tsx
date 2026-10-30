@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const business = useBusiness();
   const onProducts = /^\/products\/?$/.test(pathname);
-  const showsNewOrder = !/^\/(more|settings|billing|orders\/|cod|products)/.test(pathname);
+  const showsNewOrder = !/^\/(more|settings|billing|orders\/|cod|reports|products)/.test(pathname);
   const showsNewProduct = onProducts && hasRole(business, "MANAGER");
   return (
     <div className="min-h-dvh md:flex">

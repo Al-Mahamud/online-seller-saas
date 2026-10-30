@@ -25,16 +25,20 @@ export function PlanLimitDialog() {
   const close = () => setLimit(undefined);
   const key = `planLimit.metric.${limit.metric}`;
   const what = i18n.exists(key) ? t(key as never) : t("planLimit.metric.other");
+  // These two aren't an amount used up, so "the limit is reached" would be wrong.
+  const count = format.number(limit.limit ?? 0);
+  let text = limit.limit === null ? t("planLimit.reached", { what }) : t("planLimit.reachedAt", { what, limit: count });
+  if (limit.metric === "report_days") {
+    text = t("planLimit.reportDays", { limit: count });
+  } else if (limit.metric === "exports") {
+    text = t("planLimit.noExports");
+  }
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("planLimit.title")}</DialogTitle>
-          <DialogDescription>
-            {limit.limit === null
-              ? t("planLimit.reached", { what })
-              : t("planLimit.reachedAt", { what, limit: format.number(limit.limit) })}
-          </DialogDescription>
+          <DialogDescription>{text}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={close}>

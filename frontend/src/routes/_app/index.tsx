@@ -1,13 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-import { ComingSoon } from "@/components/layout/ComingSoon";
+import { TodayPage } from "@/features/reports/TodayPage";
+import { dayText } from "@/lib/dates";
 
 export const Route = createFileRoute("/_app/")({
-  component: Today,
+  validateSearch: (search: Record<string, unknown>): { date?: string } => ({ date: dayText(search.date) }),
+  component: TodayPage,
 });
-
-/** The dashboard (F7). */
-function Today() {
-  const { t } = useTranslation();
-  return <ComingSoon title={t("nav.today")} />;
-}

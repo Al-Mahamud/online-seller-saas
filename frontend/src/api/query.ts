@@ -20,6 +20,12 @@ export function errorText(error: unknown): string {
   }
 }
 
+/** The same, and for refused fields what's wrong with each: for a screen with no field to put it under. */
+export function errorMessages(error: unknown): string {
+  const action = errorAction(error);
+  return action.kind === "fields" ? action.fields.map((problem) => problem.message).join(" ") : errorText(error);
+}
+
 /**
  * Errors every screen would show the same way become a toast here. The others are for the screen
  * (field problems under their inputs) or for the app as a whole: choosing a business (F2), the

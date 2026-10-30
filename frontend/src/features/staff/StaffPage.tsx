@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { businessQuery, hasRole, type Role, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";

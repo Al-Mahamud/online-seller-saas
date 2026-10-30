@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { api, call } from "@/api/client";
 import { CodeField, FormError, PasswordField, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";

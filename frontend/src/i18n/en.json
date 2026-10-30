@@ -205,7 +205,8 @@
     "footerLong": "This can't be longer than 500 characters.",
     "addressLong": "The address can't be longer than 300 characters.",
     "amountInvalid": "Enter a valid amount, such as 1500.",
-    "countInvalid": "Enter a valid number."
+    "countInvalid": "Enter a valid number.",
+    "skuLong": "An SKU can be at most 64 characters."
   },
   "auth": {
     "login": "Phone number or email",
@@ -609,9 +610,10 @@
       "orders_per_month": "orders a month",
       "staff_seats": "members",
       "import_rows": "imported rows",
-      "exports": "exports",
       "other": "this feature"
-    }
+    },
+    "reportDays": "Your plan shows reports for the last {{limit}} days. To see further back, change your plan.",
+    "noExports": "Your plan has no downloads. To download, change your plan."
   },
   "imports": {
     "fromExcel": "Import from Excel",
@@ -768,5 +770,73 @@
     "CASH": "Cash",
     "CARD": "Card",
     "OTHER": "Other"
+  },
+  "today": {
+    "lastSevenDays": "Sales, last 7 days",
+    "backToToday": "Back to today",
+    "pickDay": "See another day",
+    "allReports": "See all reports",
+    "sales": "Sales",
+    "profit": "Profit on goods",
+    "profitNote": "Sales {{revenue}}, cost {{cost}}",
+    "toPack": "To pack",
+    "toPackNote": "Confirmed, not packed yet",
+    "withCouriers": "With couriers",
+    "movedNote": "That day: {{shipped}} sent, {{delivered}} delivered",
+    "cod": "COD outstanding",
+    "codNote": "Owed {{owed}}, on the way {{road}}",
+    "lowStock": "Low stock",
+    "lowStockNote": "At or below the alert level",
+    "costMissing": "Some products have no cost price, so this profit isn't the whole picture.",
+    "byStatus": "Orders by status",
+    "topProducts": "Best sellers",
+    "noSales": "No sales on this day.",
+    "sold": "{{count}} sold",
+    "runningLow": "Running low",
+    "seeAll": "See all"
+  },
+  "reports": {
+    "title": "Reports",
+    "last7": "Last 7 days",
+    "last30": "Last 30 days",
+    "thisMonth": "This month",
+    "sales": "Sales",
+    "by": {
+      "day": "By day",
+      "product": "By product",
+      "category": "By category"
+    },
+    "column": {
+      "day": "Day",
+      "product": "Product",
+      "category": "Category",
+      "orders": "Orders",
+      "quantity": "Quantity",
+      "value": "Goods",
+      "delivery": "Delivery"
+    },
+    "total": "Total",
+    "none": "No sales in this period.",
+    "dayNote": "Goods after discounts and returns. Orders count on the day they were confirmed; cancelled ones don't count.",
+    "itemNote": "What customers kept, at order prices. Order discounts aren't split over items, so this can be more than the daily figures.",
+    "profit": "Profit",
+    "revenue": "Sales (goods)",
+    "costOfGoods": "Cost of goods",
+    "writeOffs": "Came back damaged",
+    "grossProfit": "Profit on goods",
+    "deliveryCharged": "Delivery charged to customers",
+    "courierCharges": "Courier charges",
+    "deliveryMargin": "Margin on delivery",
+    "netProfit": "Total profit",
+    "withoutCost": "{{count}} items have no cost price, so the real profit is lower than this.",
+    "downloads": "Downloads",
+    "download": {
+      "orders": "Orders (CSV)",
+      "ordersHint": "{{from}} to {{to}}",
+      "products": "Products and stock (CSV)",
+      "customers": "Customers (CSV)",
+      "everything": "All the business's data (ZIP)",
+      "everythingHint": "Orders, products and customers: a full copy of your data."
+    }
   }
 }

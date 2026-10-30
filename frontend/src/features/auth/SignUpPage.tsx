@@ -4,7 +4,7 @@ import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { api, call } from "@/api/client";
 import { ApiError } from "@/api/errors";
 import { authOptionsQuery, signedIn } from "@/api/session";
@@ -23,15 +23,16 @@ const detailsSchema = z
   .object({
     name,
     phone,
-    email: z.string().trim(),
+    email: z.string().check(z.trim()),
     password: newPassword,
     codeSentTo: z.enum(["PHONE", "EMAIL"]),
   })
-  .superRefine((values, context) => {
-    if (values.codeSentTo === "EMAIL" && !values.email) {
-      context.addIssue({ code: "custom", path: ["email"], message: "field.required" });
-    }
-  });
+  .check(
+    z.refine((values) => values.codeSentTo !== "EMAIL" || !!values.email, {
+      path: ["email"],
+      message: "field.required",
+    }),
+  );
 type Details = z.output<typeof detailsSchema>;
 
 const codeSchema = z.object({ code });

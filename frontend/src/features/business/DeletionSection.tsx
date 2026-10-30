@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { type Business, businessQuery, hasRole, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import { FormError, PasswordField } from "@/components/form/fields";

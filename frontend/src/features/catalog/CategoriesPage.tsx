@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { api, call } from "@/api/client";
 import { ConfirmDialog } from "@/components/form/ConfirmDialog";
 import { FormError, SelectField, TextField } from "@/components/form/fields";
@@ -14,7 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { type CategoryNode, categoriesQuery, type Tag, tagsQuery } from "./api";
 
-const nameSchema = z.object({ name: z.string().trim().min(1, "field.required").max(80, "field.nameLong") });
+const nameSchema = z.object({
+  name: z.string().check(z.trim(), z.minLength(1, "field.required"), z.maxLength(80, "field.nameLong")),
+});
 
 /** Two levels of categories, and tags. A product goes in one category and has any tags. */
 export function CategoriesPage() {
@@ -167,7 +169,7 @@ function CategoryRow({
 }
 
 const categorySchema = z.object({
-  name: z.string().trim().min(1, "field.required").max(80, "field.nameLong"),
+  name: z.string().check(z.trim(), z.minLength(1, "field.required"), z.maxLength(80, "field.nameLong")),
   parentId: z.string(),
 });
 

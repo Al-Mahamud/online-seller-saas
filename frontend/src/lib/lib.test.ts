@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { addDays, dayText, dhakaToday } from "./dates";
 import { latinDigits } from "./digits";
 import { parseCount, parseTaka, takaInput } from "./money";
 import { safeRedirect } from "./redirect";
@@ -63,5 +64,24 @@ describe("searchText", () => {
     expect(searchText("রহিমা")).toBe("রহিমা");
     expect(searchText("")).toBeUndefined();
     expect(searchText(undefined)).toBeUndefined();
+  });
+});
+
+describe("days", () => {
+  it("counts today in Dhaka, wherever the phone is", () => {
+    expect(dhakaToday(new Date("2026-10-31T17:59:00Z"))).toBe("2026-10-31");
+    expect(dhakaToday(new Date("2026-10-31T18:00:00Z"))).toBe("2026-11-01");
+  });
+
+  it("moves across months and years", () => {
+    expect(addDays("2026-11-01", -6)).toBe("2026-10-26");
+    expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
+    expect(addDays("2028-03-01", -1)).toBe("2028-02-29");
+  });
+
+  it("takes only a day from the address", () => {
+    expect(dayText("2026-10-31")).toBe("2026-10-31");
+    expect(dayText("yesterday")).toBeUndefined();
+    expect(dayText(20261031)).toBeUndefined();
   });
 });

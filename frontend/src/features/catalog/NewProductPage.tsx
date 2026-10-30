@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { api, call } from "@/api/client";
 import { FormError, SelectField, TextAreaField, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
@@ -18,12 +18,12 @@ import { optionalCount, optionalTaka, taka } from "./schemas";
 import { TagPicker } from "./TagPicker";
 
 const schema = z.object({
-  name: z.string().trim().min(1, "field.required").max(200, "field.nameLong"),
-  description: z.string().trim().max(5000, "field.footerLong"),
+  name: z.string().check(z.trim(), z.minLength(1, "field.required"), z.maxLength(200, "field.nameLong")),
+  description: z.string().check(z.trim(), z.maxLength(5000, "field.footerLong")),
   categoryId: z.string(),
   price: taka,
   costPrice: optionalTaka,
-  sku: z.string().trim().max(64),
+  sku: z.string().check(z.trim(), z.maxLength(64, "field.skuLong")),
   openingStock: optionalCount(1_000_000),
 });
 
