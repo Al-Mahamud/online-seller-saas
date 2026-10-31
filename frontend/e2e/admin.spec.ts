@@ -24,7 +24,7 @@ async function adminWithoutTwoStep(page: Page) {
   const account = await signUpWithBusiness(page.request, { business: "অ্যাডমিনের দোকান" });
   expect((await page.request.post(`/dev/platform-admin?phone=${account.phone}`)).status()).toBe(204);
   await post(page.request, "/api/v1/auth/logout");
-  await post(page.request, "/api/v1/auth/login", { login: account.phone, password: PASSWORD });
+  await post(page.request, "/api/v1/auth/login", { userId: account.userId, password: PASSWORD });
   return account;
 }
 

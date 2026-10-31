@@ -142,7 +142,7 @@ class EmailFlowTests {
 
     private ApiClient signIn(TestAccounts.Account account) {
         ApiClient client = new ApiClient(port);
-        client.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password())).expectStatus(200);
+        client.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password())).expectStatus(200);
         return client;
     }
 

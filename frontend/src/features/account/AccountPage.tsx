@@ -53,6 +53,12 @@ function ProfileSection() {
     <Section title={t("account.profile")}>
       <form noValidate className="flex flex-col gap-4" onSubmit={form.handleSubmit((values) => save.mutate(values))}>
         <FormError form={form} />
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[15px] leading-normal font-semibold">{t("auth.userId.label")}</p>
+          <p lang="en" className="wrap-anywhere">
+            {me.userId}
+          </p>
+        </div>
         <TextField form={form} name="name" label={t("account.name")} autoComplete="name" />
         <Button type="submit" className="self-start" disabled={save.isPending}>
           {t("account.save")}

@@ -356,7 +356,7 @@
       "AuthCodeRequest" : {
         "properties" : {
           "purpose" : {
-            "enum" : [ "SIGNUP", "LOGIN", "PASSWORD_RESET", "VERIFY_CONTACT" ],
+            "enum" : [ "SIGNUP", "USER_ID_RECOVERY", "PASSWORD_RESET", "VERIFY_CONTACT" ],
             "type" : "string"
           },
           "to" : {
@@ -369,21 +369,18 @@
       },
       "AuthLoginRequest" : {
         "properties" : {
-          "code" : {
-            "pattern" : "\\d{6}",
-            "type" : "string"
-          },
-          "login" : {
-            "minLength" : 1,
-            "type" : "string"
-          },
           "password" : {
             "maxLength" : 128,
             "minLength" : 0,
             "type" : "string"
+          },
+          "userId" : {
+            "maxLength" : 64,
+            "minLength" : 0,
+            "type" : "string"
           }
         },
-        "required" : [ "login" ],
+        "required" : [ "password", "userId" ],
         "type" : "object"
       },
       "AuthOptions" : {
@@ -400,6 +397,17 @@
         "required" : [ "otpChannels" ],
         "type" : "object"
       },
+      "AuthPasswordCodeRequest" : {
+        "properties" : {
+          "userId" : {
+            "maxLength" : 64,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "userId" ],
+        "type" : "object"
+      },
       "AuthPasswordResetRequest" : {
         "properties" : {
           "code" : {
@@ -407,17 +415,27 @@
             "pattern" : "\\d{6}",
             "type" : "string"
           },
-          "login" : {
-            "minLength" : 1,
-            "type" : "string"
-          },
           "newPassword" : {
             "maxLength" : 128,
             "minLength" : 8,
             "type" : "string"
+          },
+          "userId" : {
+            "maxLength" : 64,
+            "minLength" : 0,
+            "type" : "string"
           }
         },
-        "required" : [ "code", "login", "newPassword" ],
+        "required" : [ "code", "newPassword", "userId" ],
+        "type" : "object"
+      },
+      "AuthRecoveredUserId" : {
+        "properties" : {
+          "userId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "userId" ],
         "type" : "object"
       },
       "AuthSecondStep" : {
@@ -467,9 +485,38 @@
           "phone" : {
             "minLength" : 1,
             "type" : "string"
+          },
+          "userId" : {
+            "maxLength" : 64,
+            "minLength" : 0,
+            "type" : "string"
           }
         },
-        "required" : [ "code", "codeSentTo", "name", "password", "phone" ],
+        "required" : [ "code", "codeSentTo", "name", "password", "phone", "userId" ],
+        "type" : "object"
+      },
+      "AuthUserIdAvailability" : {
+        "properties" : {
+          "available" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "available" ],
+        "type" : "object"
+      },
+      "AuthUserIdRecoveryRequest" : {
+        "properties" : {
+          "code" : {
+            "minLength" : 1,
+            "pattern" : "\\d{6}",
+            "type" : "string"
+          },
+          "to" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "to" ],
         "type" : "object"
       },
       "Billing" : {
@@ -2225,9 +2272,12 @@
           },
           "twoFactorEnabled" : {
             "type" : "boolean"
+          },
+          "userId" : {
+            "type" : "string"
           }
         },
-        "required" : [ "email", "emailVerified", "id", "locale", "name", "phone", "phoneVerified", "platformAdmin", "twoFactorEnabled" ],
+        "required" : [ "email", "emailVerified", "id", "locale", "name", "phone", "phoneVerified", "platformAdmin", "twoFactorEnabled", "userId" ],
         "type" : "object"
       },
       "NotificationItem" : {
@@ -4594,6 +4644,27 @@
         "tags" : [ "auth-controller" ]
       }
     },
+    "/api/v1/auth/password/code" : {
+      "post" : {
+        "operationId" : "requestPasswordCode",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AuthPasswordCodeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "description" : "Accepted"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
     "/api/v1/auth/password/reset" : {
       "post" : {
         "operationId" : "resetPassword",
@@ -4638,6 +4709,60 @@
               }
             },
             "description" : "Created"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/v1/auth/user-id/availability" : {
+      "get" : {
+        "operationId" : "userIdAvailability",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuthUserIdAvailability"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/v1/auth/user-id/recover" : {
+      "post" : {
+        "operationId" : "recoverUserId",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AuthUserIdRecoveryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuthRecoveredUserId"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "auth-controller" ]

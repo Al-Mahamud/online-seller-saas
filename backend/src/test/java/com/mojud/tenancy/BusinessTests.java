@@ -111,7 +111,7 @@ class BusinessTests {
         client.post("/api/v1/me/switch-business", Map.of("businessId", first.toString())).expectStatus(200);
 
         ApiClient fresh = new ApiClient(port);
-        fresh.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+        fresh.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                 .expectStatus(200);
 
         assertThat(fresh.get("/api/v1/business").expectStatus(200).<String>json("$.name")).isEqualTo("Used Last");
@@ -295,7 +295,7 @@ class BusinessTests {
         browser.get("/api/v1/business").expectStatus(200);
 
         // The second user signs in on the first user's browser without signing them out.
-        browser.post("/api/v1/auth/login", Map.of("login", secondAccount.email(), "password", secondAccount.password()))
+        browser.post("/api/v1/auth/login", Map.of("userId", secondAccount.userId(), "password", secondAccount.password()))
                 .expectStatus(200);
 
         assertThat(browser.get("/api/v1/business").expectStatus(200).<String>json("$.id")).isEqualTo(secondsOwn.toString());

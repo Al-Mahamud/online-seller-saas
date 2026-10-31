@@ -17,6 +17,7 @@ import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppMoreRouteImport } from './routes/_app/more'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
+import { Route as AuthForgotUserIdRouteImport } from './routes/_auth/forgot-user-id'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
@@ -87,6 +88,11 @@ const AppMoreRoute = AppMoreRouteImport.update({
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthForgotUserIdRoute = AuthForgotUserIdRouteImport.update({
+  id: '/forgot-user-id',
+  path: '/forgot-user-id',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
@@ -265,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
+  '/forgot-user-id': typeof AuthForgotUserIdRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -305,6 +312,7 @@ export interface FileRoutesByTo {
   '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
+  '/forgot-user-id': typeof AuthForgotUserIdRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -348,6 +356,7 @@ export interface FileRoutesById {
   '/welcome': typeof WelcomeRoute
   '/_app/more': typeof AppMoreRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/_auth/forgot-user-id': typeof AuthForgotUserIdRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -392,6 +401,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/more'
     | '/forgot-password'
+    | '/forgot-user-id'
     | '/sign-in'
     | '/sign-up'
     | '/admin/audit'
@@ -432,6 +442,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/more'
     | '/forgot-password'
+    | '/forgot-user-id'
     | '/sign-in'
     | '/sign-up'
     | '/admin/audit'
@@ -474,6 +485,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/_app/more'
     | '/_auth/forgot-password'
+    | '/_auth/forgot-user-id'
     | '/_auth/sign-in'
     | '/_auth/sign-up'
     | '/admin/audit'
@@ -574,6 +586,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/forgot-user-id': {
+      id: '/_auth/forgot-user-id'
+      path: '/forgot-user-id'
+      fullPath: '/forgot-user-id'
+      preLoaderRoute: typeof AuthForgotUserIdRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/sign-in': {
@@ -874,12 +893,14 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
+  AuthForgotUserIdRoute: typeof AuthForgotUserIdRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignUpRoute: typeof AuthSignUpRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
+  AuthForgotUserIdRoute: AuthForgotUserIdRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignUpRoute: AuthSignUpRoute,
 }

@@ -490,7 +490,7 @@ class StaffTests {
 
     private void signUpWithEmail(ApiClient client, String email) {
         client.post("/api/v1/auth/otp", Map.of("to", email, "purpose", "SIGNUP")).expectStatus(202);
-        client.post("/api/v1/auth/signup", Map.of("name", "New Staff", "phone", TestAccounts.newPhone(), "email", email,
+        client.post("/api/v1/auth/signup", Map.of("userId", TestAccounts.newUserId(), "name", "New Staff", "phone", TestAccounts.newPhone(), "email", email,
                 "password", TestAccounts.PASSWORD, "codeSentTo", "EMAIL",
                 "code", messages.lastCode(email).orElseThrow())).expectStatus(201);
     }

@@ -1,5 +1,5 @@
 import type { Browser, Page } from "@playwright/test";
-import { newEmail, PASSWORD, readCode, readInviteToken, signUp, signUpWithBusiness } from "./support/accounts";
+import { newEmail, newUserId, PASSWORD, readCode, readInviteToken, signUp, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { expect, test } from "./support/test";
 
@@ -28,6 +28,7 @@ async function joinAsNewPerson(owner: Page, member: Page, name: string, email: s
 
   await label(member, "আপনার নাম").fill(name);
   await label(member, "ফোন নম্বর").fill(`017${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`);
+  await label(member, "ইউজার আইডি").fill(newUserId());
   await label(member, "ইমেইল (ঐচ্ছিক)").fill(email);
   await label(member, "পাসওয়ার্ড").fill(PASSWORD);
   await member.getByRole("radio", { name: "ইমেইল" }).check();

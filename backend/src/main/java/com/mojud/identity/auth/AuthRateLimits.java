@@ -2,7 +2,6 @@ package com.mojud.identity.auth;
 
 import com.mojud.identity.otp.OtpPurpose;
 import com.mojud.shared.ratelimit.RateLimiter;
-import java.util.Collection;
 import org.springframework.stereotype.Component;
 
 /**
@@ -22,6 +21,7 @@ class AuthRateLimits {
     /** Failed sign-ins for one account from anywhere. */
     final RateLimiter loginFailuresPerAccount;
     final RateLimiter signupPerIp;
+    final RateLimiter userIdCheckPerIp;
     final RateLimiter otpPerIp;
     /** One code per destination, purpose and IP per minute. */
     final RateLimiter otpCooldown;
@@ -36,13 +36,18 @@ class AuthRateLimits {
                 .toLimiter("login-failures-per-account-and-ip");
         this.loginFailuresPerAccount = limits.loginFailuresPerAccount().toLimiter("login-failures-per-account");
         this.signupPerIp = limits.signupPerIp().toLimiter("signup-per-ip");
+        this.userIdCheckPerIp = limits.userIdCheckPerIp().toLimiter("user-id-check-per-ip");
         this.otpPerIp = limits.otpPerIp().toLimiter("otp-per-ip");
         this.otpCooldown = limits.otpCooldown().toLimiter("otp-cooldown");
         this.otpPerDestinationAndIp = limits.otpPerDestinationAndIp().toLimiter("otp-per-destination-and-ip");
         this.otpPerDestination = limits.otpPerDestination().toLimiter("otp-per-destination");
     }
 
-    /** Limits on sending a code, applied before anything is looked up. */
+    /**
+     * Limits on sending a code, applied before anything is looked up. {@code destination} is the
+     * phone or email typed, or for a password reset the User ID typed: the limit must apply alike
+     * whether or not that ID exists.
+     */
     void codeRequested(String destination, OtpPurpose purpose, String clientIp) {
         otpPerIp.acquire(clientIp);
         otpCooldown.acquire(destination + "|" + purpose + "|" + clientIp);
@@ -52,8 +57,8 @@ class AuthRateLimits {
 
     /**
      * Fails when this account already has too many failed sign-ins, from this IP or overall.
-     * {@code account} is the phone or email typed, or {@code user:<id>} for a signed-in user
-     * re-entering their password.
+     * {@code account} is the User ID typed, or {@code user:<id>} for a signed-in user re-entering
+     * their password.
      */
     void checkLogin(String account, String clientIp) {
         loginPerIp.acquire(clientIp);
@@ -86,13 +91,11 @@ class AuthRateLimits {
     }
 
     /**
-     * A successful reset proves the owner: earlier failures against any of the account's phone or
-     * email no longer count, so the owner can sign in with the new password at once.
+     * A successful reset proves the owner: earlier failures against the account no longer count,
+     * so the owner can sign in with the new password at once.
      */
-    void accountRecovered(Collection<String> logins, String clientIp) {
-        for (String login : logins) {
-            loginFailuresPerAccount.reset(login);
-            loginFailuresPerAccountAndIp.reset(login + "|" + clientIp);
-        }
+    void accountRecovered(String userId, String clientIp) {
+        loginFailuresPerAccount.reset(userId);
+        loginFailuresPerAccountAndIp.reset(userId + "|" + clientIp);
     }
 }

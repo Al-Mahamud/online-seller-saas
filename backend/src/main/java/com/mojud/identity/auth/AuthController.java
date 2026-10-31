@@ -1,8 +1,8 @@
 package com.mojud.identity.auth;
 
 import com.mojud.identity.account.MeResponse;
+import com.mojud.identity.account.UserIds;
 import com.mojud.identity.otp.OtpChannel;
-import com.mojud.identity.otp.OtpDestination;
 import com.mojud.identity.otp.OtpPurpose;
 import com.mojud.identity.otp.OtpService;
 import com.mojud.shared.email.EmailAddress;
@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -40,6 +41,9 @@ import org.springframework.web.bind.annotation.RestController;
 class AuthController {
 
     private static final String SIX_DIGITS = "\\d{6}";
+
+    /** Longer than any real ID, as typed with spaces; keeps junk out of the rate limiters. */
+    private static final int MAX_USER_ID_INPUT = 64;
 
     private final AuthService auth;
     private final OtpService otp;
@@ -65,7 +69,10 @@ class AuthController {
         token.getToken();
     }
 
-    /** {@code to} is a phone number or an email address. */
+    /**
+     * {@code to} is a phone number or an email address; {@code purpose} is SIGNUP or
+     * USER_ID_RECOVERY. A password reset's code is asked for at {@code /password/code}.
+     */
     record CodeRequest(@NotBlank String to, @NotNull OtpPurpose purpose) {
     }
 
@@ -73,11 +80,39 @@ class AuthController {
     @PostMapping("/otp")
     @ResponseStatus(HttpStatus.ACCEPTED)
     void requestCode(@Valid @RequestBody CodeRequest body, HttpServletRequest request) {
-        LoginIdentifier destination = LoginIdentifier.parse(body.to(), "to");
+        ContactInput destination = ContactInput.parse(body.to(), "to");
         auth.requestCode(destination.destination(), body.purpose(), request.getRemoteAddr());
     }
 
+    record UserIdAvailability(boolean available) {
+    }
+
+    /**
+     * Whether a User ID can be chosen, for the check button on the sign-up page. Sign-up decides
+     * for certain: someone else may take the ID in between.
+     */
+    @GetMapping("/user-id/availability")
+    UserIdAvailability userIdAvailability(@RequestParam String userId, HttpServletRequest request) {
+        return new UserIdAvailability(auth.isUserIdAvailable(userId, request.getRemoteAddr()));
+    }
+
+    record RecoveredUserId(String userId) {
+    }
+
+    record UserIdRecoveryRequest(
+            @NotBlank String to,
+            @NotBlank @Pattern(regexp = SIX_DIGITS, message = "{field.six_digit_code}") String code) {
+    }
+
+    /** The User ID of the account that verified this phone or email, with a USER_ID_RECOVERY code sent to it. */
+    @PostMapping("/user-id/recover")
+    RecoveredUserId recoverUserId(@Valid @RequestBody UserIdRecoveryRequest body, HttpServletRequest request) {
+        return new RecoveredUserId(auth.recoverUserId(ContactInput.parse(body.to(), "to").destination(), body.code(),
+                request.getRemoteAddr()));
+    }
+
     record SignUpRequest(
+            @NotBlank @Size(max = MAX_USER_ID_INPUT) String userId,
             @NotBlank @Size(max = 120) String name,
             @NotBlank String phone,
             String email,
@@ -99,12 +134,23 @@ class AuthController {
             throw ApiException.invalidField("email", "jakarta.validation.constraints.NotBlank.message");
         }
         String locale = "bn".equals(LocaleContextHolder.getLocale().getLanguage()) ? "bn" : "en";
-        return auth.signUp(new AuthService.SignUp(body.name(), phone, email, body.password(), locale,
-                body.codeSentTo() == OtpChannel.PHONE, body.code()), request.getRemoteAddr(), request, response);
+        return auth.signUp(new AuthService.SignUp(UserIds.require(body.userId(), "userId"), body.name(), phone, email,
+                body.password(), locale, body.codeSentTo() == OtpChannel.PHONE, body.code()),
+                request.getRemoteAddr(), request, response);
+    }
+
+    record PasswordCodeRequest(@NotBlank @Size(max = MAX_USER_ID_INPUT) String userId) {
+    }
+
+    /** Always 202, whether or not a code was sent (see AuthService#requestPasswordCode). */
+    @PostMapping("/password/code")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    void requestPasswordCode(@Valid @RequestBody PasswordCodeRequest body, HttpServletRequest request) {
+        auth.requestPasswordCode(UserIds.normalize(body.userId()), request.getRemoteAddr());
     }
 
     record PasswordResetRequest(
-            @NotBlank String login,
+            @NotBlank @Size(max = MAX_USER_ID_INPUT) String userId,
             @NotBlank @Pattern(regexp = SIX_DIGITS, message = "{field.six_digit_code}") String code,
             @NotBlank @Size(min = 8, max = 128) String newPassword) {
     }
@@ -116,15 +162,14 @@ class AuthController {
     @PostMapping("/password/reset")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void resetPassword(@Valid @RequestBody PasswordResetRequest body, HttpServletRequest request) {
-        auth.resetPassword(LoginIdentifier.parse(body.login(), "login"), body.code(), body.newPassword(),
+        auth.resetPassword(UserIds.normalize(body.userId()), body.code(), body.newPassword(),
                 request.getRemoteAddr());
     }
 
-    /** {@code login} is a phone number or an email address; give a password or a sign-in code. */
+    /** Bad input that can't be an ID gets the same answer as a wrong password, not a rule to read. */
     record LoginRequest(
-            @NotBlank String login,
-            @Size(max = 128) String password,
-            @Pattern(regexp = SIX_DIGITS, message = "{field.six_digit_code}") String code) {
+            @NotBlank @Size(max = MAX_USER_ID_INPUT) String userId,
+            @NotBlank @Size(max = 128) String password) {
     }
 
     /** Asked of an account with two-step sign-in: send a code from the app to {@code /login/two-factor}. */
@@ -140,14 +185,8 @@ class AuthController {
     @PostMapping("/login")
     ResponseEntity<Object> logIn(@Valid @RequestBody LoginRequest body, HttpServletRequest request,
             HttpServletResponse response) {
-        LoginIdentifier login = LoginIdentifier.parse(body.login(), "login");
-        boolean hasPassword = body.password() != null && !body.password().isEmpty();
-        if (hasPassword == (body.code() != null)) {
-            throw ApiException.invalidField("password", "field.password_or_code");
-        }
-        Optional<MeResponse> me = hasPassword
-                ? auth.logInWithPassword(login, body.password(), request.getRemoteAddr(), request, response)
-                : auth.logInWithCode(login, body.code(), request.getRemoteAddr(), request, response);
+        Optional<MeResponse> me = auth.logIn(UserIds.normalize(body.userId()), body.password(),
+                request.getRemoteAddr(), request, response);
         return me.<ResponseEntity<Object>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.accepted().body(new SecondStep(true)));
     }

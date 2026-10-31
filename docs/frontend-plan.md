@@ -242,6 +242,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
   - 60 tests across both screen sizes; a double run with no retries passed all 120.
 - **Size:** 204 KB for the heaviest first visit (the security page), within the 250 KB budget.
 
+**Changed since:** sign-in is now a User ID and password only, with a new look and new recovery pages. `docs/auth-redesign.md` has what changed and why.
+
 ### F2: Business, team and settings (3 days)
 
 **Builds**

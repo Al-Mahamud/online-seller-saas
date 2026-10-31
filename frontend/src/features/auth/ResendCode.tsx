@@ -23,7 +23,7 @@ export function ResendCode({ onResend, pending }: { onResend: () => void; pendin
     <Button
       type="button"
       variant="link"
-      className="self-start px-0"
+      className="self-start px-0 disabled:text-muted-foreground disabled:opacity-100"
       disabled={seconds > 0 || pending}
       onClick={() => {
         setSeconds(COOLDOWN_SECONDS);

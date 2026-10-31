@@ -17,7 +17,7 @@ const bn = {
   },
   businesses: {
     search: "ব্যবসা খুঁজুন",
-    searchHint: "নাম, বা মালিকের ফোন বা ইমেইল",
+    searchHint: "নাম, বা মালিকের ফোন, ইমেইল বা ইউজার আইডি",
     none: "কোনো ব্যবসা পাওয়া যায়নি।",
     members: (count: string) => `${count} জন সদস্য`,
     noOwner: "মালিক নেই",
@@ -141,7 +141,7 @@ const en: typeof bn = {
   },
   businesses: {
     search: "Find a business",
-    searchHint: "A name, or the owner's phone or email",
+    searchHint: "A name, or the owner's phone, email or user ID",
     none: "No businesses found.",
     members: (count: string) => `${count} members`,
     noOwner: "No owner",

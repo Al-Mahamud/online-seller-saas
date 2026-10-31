@@ -1,6 +1,7 @@
 package com.mojud.identity;
 
 import com.mojud.identity.account.User;
+import com.mojud.identity.account.UserIds;
 import com.mojud.identity.account.UserRepository;
 import com.mojud.identity.otp.OtpDestination;
 import com.mojud.shared.email.EmailAddress;
@@ -33,6 +34,12 @@ public class UserDirectory {
     @Transactional(readOnly = true)
     public Optional<UUID> findByVerifiedContact(String destination) {
         return users.findVerified(OtpDestination.ofStored(destination)).map(User::getId);
+    }
+
+    /** The user with this User ID, however it was capitalised, if any. */
+    @Transactional(readOnly = true)
+    public Optional<UUID> findByUserId(String userId) {
+        return users.findByUserId(UserIds.normalize(userId)).map(User::getId);
     }
 
     /** True when this user has verified this E.164 phone or lower-case email. */

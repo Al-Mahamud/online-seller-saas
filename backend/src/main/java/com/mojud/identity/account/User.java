@@ -22,6 +22,9 @@ public class User {
     @Id
     private UUID id;
 
+    /** What this person chose to sign in with; {@link UserIds} has the rules. */
+    private String userId;
+
     private String name;
 
     private String phone;
@@ -60,10 +63,11 @@ public class User {
      * A new account. Signing up proves ownership of the phone or the email that received the code,
      * so that one starts verified; the other stays unverified until proved (Phase 1b).
      */
-    public static User signUp(String name, PhoneNumber phone, EmailAddress email, String passwordHash,
+    public static User signUp(String userId, String name, PhoneNumber phone, EmailAddress email, String passwordHash,
             String locale, boolean codeSentToPhone, Instant now) {
         User user = new User();
         user.id = Ids.newId();
+        user.userId = userId;
         user.name = cleanName(name);
         user.phone = phone.e164();
         user.email = email == null ? null : email.value();
@@ -127,6 +131,10 @@ public class User {
 
     public UUID getId() {
         return id;
+    }
+
+    public String getUserId() {
+        return userId;
     }
 
     public String getName() {

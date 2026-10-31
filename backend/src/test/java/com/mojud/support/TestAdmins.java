@@ -20,7 +20,7 @@ public final class TestAdmins {
         setUp.post("/api/v1/me/two-factor/enable", Map.of("code", TestTotp.code(secret, clock, 0))).expectStatus(200);
         // Admin rights are read at sign-in; the next step's code, as this one is used up.
         ApiClient admin = new ApiClient(port);
-        admin.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password())).expectStatus(202);
+        admin.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password())).expectStatus(202);
         admin.post("/api/v1/auth/login/two-factor", Map.of("code", TestTotp.code(secret, clock, 1))).expectStatus(200);
         return admin;
     }

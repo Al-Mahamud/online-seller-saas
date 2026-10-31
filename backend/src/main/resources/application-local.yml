@@ -15,6 +15,7 @@ mojud:
       login-per-ip: { max: 1000000, window: 15m }
       otp-per-ip: { max: 1000000, window: 1h }
       signup-per-ip: { max: 1000000, window: 1h }
+      user-id-check-per-ip: { max: 1000000, window: 1h }
 
 server:
   servlet:

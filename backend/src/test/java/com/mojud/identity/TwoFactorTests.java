@@ -87,7 +87,7 @@ class TwoFactorTests {
         ApiClient device = new ApiClient(port);
 
         ApiResponse first = device.post("/api/v1/auth/login",
-                Map.of("login", user.account().email(), "password", user.account().password())).expectStatus(202);
+                Map.of("userId", user.account().userId(), "password", user.account().password())).expectStatus(202);
         assertThat(first.<Boolean>json("$.twoFactorRequired")).isTrue();
         device.get("/api/v1/me").expectStatus(401);
         // The code used to turn it on is spent.
@@ -99,23 +99,12 @@ class TwoFactorTests {
         device.get("/api/v1/me").expectStatus(200);
 
         ApiClient replay = new ApiClient(port);
-        replay.post("/api/v1/auth/login", Map.of("login", user.account().email(), "password", user.account().password()))
+        replay.post("/api/v1/auth/login", Map.of("userId", user.account().userId(), "password", user.account().password()))
                 .expectStatus(202);
         replay.post("/api/v1/auth/login/two-factor", Map.of("code", code)).expectError(400, "two_factor.invalid_code");
         // Nothing to finish without the first step.
         new ApiClient(port).post("/api/v1/auth/login/two-factor", Map.of("code", next(user)))
                 .expectError(401, "auth.two_factor_expired");
-    }
-
-    @Test
-    void aSignInCodeAlsoNeedsTheSecondStep() {
-        Enabled user = enabled();
-        ApiClient device = new ApiClient(port);
-        device.post("/api/v1/auth/otp", Map.of("to", user.account().email(), "purpose", "LOGIN")).expectStatus(202);
-        String otp = messages.lastCode(user.account().email()).orElseThrow();
-        device.post("/api/v1/auth/login", Map.of("login", user.account().email(), "code", otp)).expectStatus(202);
-        device.get("/api/v1/me").expectStatus(401);
-        device.post("/api/v1/auth/login/two-factor", Map.of("code", next(user))).expectStatus(200);
     }
 
     @Test
@@ -224,14 +213,14 @@ class TwoFactorTests {
 
     private ApiClient passwordStep(Enabled user) {
         ApiClient device = new ApiClient(port);
-        device.post("/api/v1/auth/login", Map.of("login", user.account().email(), "password", user.account().password()))
+        device.post("/api/v1/auth/login", Map.of("userId", user.account().userId(), "password", user.account().password()))
                 .expectStatus(202);
         return device;
     }
 
     private ApiClient signIn(TestAccounts.Account account) {
         ApiClient device = new ApiClient(port);
-        device.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password())).expectStatus(200);
+        device.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password())).expectStatus(200);
         return device;
     }
 
