@@ -139,6 +139,8 @@ jobs:
         with:
           context: frontend
           platforms: linux/amd64,linux/arm64
+          # A repository variable (Settings > Secrets and variables > Actions); empty until there's a project.
+          build-args: VITE_SENTRY_DSN=${{ vars.WEB_SENTRY_DSN }}
           push: true
           tags: |
             ghcr.io/al-mahamud/mojud-web:${{ github.sha }}

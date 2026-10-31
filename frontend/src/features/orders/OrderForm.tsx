@@ -386,7 +386,8 @@ export function OrderForm({ order, initialPhone }: { order?: Order; initialPhone
       <Section title={t("orders.customer")}>
         {customerFixed ? (
           <p>
-            <span className="font-semibold">{order?.customer.name}</span> · {order?.customer.phone}
+            <span className="font-semibold">{order?.customer.name}</span> ·{" "}
+            {order && format.phone(order.customer.phone)}
           </p>
         ) : (
           <>

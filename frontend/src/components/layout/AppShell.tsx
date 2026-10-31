@@ -9,7 +9,7 @@ import { BusinessSwitcher } from "@/features/business/BusinessSwitcher";
 import { DeletionBanner } from "@/features/business/DeletionBanner";
 import { NotificationBell, NotificationLink } from "@/features/notifications/NotificationBell";
 import { LanguageToggle } from "./LanguageToggle";
-import { PlanLimitDialog } from "./PlanLimitDialog";
+import { PlanLimitHost } from "./PlanLimitHost";
 
 type Tab = { to: LinkProps["to"]; label: "nav.today" | "nav.orders" | "nav.products" | "nav.more"; exact?: boolean };
 
@@ -87,7 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Plus aria-hidden="true" className="size-6" strokeWidth={2.4} />
         </Link>
       )}
-      <PlanLimitDialog />
+      <PlanLimitHost />
 
       <nav
         aria-label={t("nav.main")}

@@ -52,6 +52,8 @@ npm run dev        # http://localhost:5173; API calls go to the backend on port 
 | `npm run typecheck` | TypeScript |
 | `npm run build` then `npm run size` | Production build in `dist/`, and its size budget |
 | `npm run api:types` | Regenerate `src/api/schema.d.ts` from `src/api/openapi.json` |
+| `npm run perf` | First and return visits timed on a slow phone and connection, against the build served compressed. By hand: too machine-dependent for CI. |
+| `npm run texts:review` | Every text, English beside Bangla, in `docs/bangla-review.csv` |
 | `npm run e2e` | End-to-end tests in Chromium (Playwright), phone and laptop sizes. Starts the test backend and the built app itself; first run `npx playwright install chromium` once. |
 
 **When the API changes:** the backend's `OpenApiSnapshotTests` fails and rewrites `frontend/src/api/openapi.json`. Run `npm run api:types`, then commit both files.

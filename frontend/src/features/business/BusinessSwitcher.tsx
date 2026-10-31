@@ -1,22 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { ChevronsUpDown } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { businessesQuery, businessSelected, initials, useBusiness } from "@/api/business";
-import { api, call } from "@/api/client";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { initials, useBusiness } from "@/api/business";
 import { cn } from "@/lib/utils";
 
-// With the form libraries it brings, this is only needed when creating one.
-const NewBusinessDialog = lazy(() => import("./NewBusinessDialog"));
+// The menu's library is the heaviest thing in the app's frame, and most visits never open it.
+const loadMenu = () => import("./BusinessMenu");
+const BusinessMenu = lazy(loadMenu);
 
 /** The logo, or the first letters of the name. */
 function BusinessMark({ logo, name }: { logo: string | undefined; name: string }) {
@@ -36,71 +26,40 @@ function BusinessMark({ logo, name }: { logo: string | undefined; name: string }
 export function BusinessSwitcher({ wide = false }: { wide?: boolean }) {
   const { t } = useTranslation();
   const business = useBusiness();
-  const queryClient = useQueryClient();
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const { data: businesses } = useQuery({ ...businessesQuery, enabled: open });
-  const switchTo = useMutation({
-    mutationFn: (businessId: string) => call(api.POST("/api/v1/me/switch-business", { body: { businessId } })),
-    onSuccess: async (selected) => {
-      businessSelected(queryClient, selected);
-      await router.navigate({ to: "/" });
-      await router.invalidate();
-    },
-  });
-
-  return (
+  const [menu, setMenu] = useState(false);
+  const className = cn(
+    "flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-lg text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+    wide && "w-full border p-2",
+  );
+  const face = (
     <>
-      <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
-        <DropdownMenuTrigger
-          className={cn(
-            "flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-lg text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-            wide && "w-full border p-2",
-          )}
-        >
-          <BusinessMark logo={business.logo?.small} name={business.name} />
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate font-semibold">
-              <span className="sr-only">{t("business.switch")}: </span>
-              {business.name}
-            </span>
-            {wide && <span className="text-[13px] text-muted-foreground">{t(`business.role.${business.role}`)}</span>}
-          </span>
-          <ChevronsUpDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-72 max-w-[calc(100vw-2rem)]">
-          <DropdownMenuLabel>{t("business.switch")}</DropdownMenuLabel>
-          {businesses?.map((item) => (
-            <DropdownMenuItem
-              key={item.id}
-              className="min-h-11"
-              disabled={switchTo.isPending}
-              onSelect={() => {
-                if (!item.selected) {
-                  switchTo.mutate(item.id);
-                }
-              }}
-            >
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate font-medium">{item.name}</span>
-                <span className="text-xs text-muted-foreground">{t(`business.role.${item.role}`)}</span>
-              </span>
-              {item.selected && <Check aria-hidden="true" className="size-4" />}
-            </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="min-h-11" onSelect={() => setCreating(true)}>
-            <Plus aria-hidden="true" />
-            {t("business.new")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {creating && (
-        <Suspense fallback={null}>
-          <NewBusinessDialog onClose={() => setCreating(false)} />
-        </Suspense>
-      )}
+      <BusinessMark logo={business.logo?.small} name={business.name} />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate font-semibold">
+          <span className="sr-only">{t("business.switch")}: </span>
+          {business.name}
+        </span>
+        {wide && <span className="text-[13px] text-muted-foreground">{t(`business.role.${business.role}`)}</span>}
+      </span>
+      <ChevronsUpDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
     </>
+  );
+  const button = (
+    <button
+      type="button"
+      className={className}
+      onPointerEnter={() => void loadMenu()}
+      onFocus={() => void loadMenu()}
+      onClick={() => setMenu(true)}
+    >
+      {face}
+    </button>
+  );
+  return menu ? (
+    <Suspense fallback={button}>
+      <BusinessMenu className={className}>{face}</BusinessMenu>
+    </Suspense>
+  ) : (
+    button
   );
 }

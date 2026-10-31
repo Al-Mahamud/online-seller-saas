@@ -13,7 +13,7 @@ import type { BulkResult, OrderSummary } from "./api";
 import { CourierField } from "./CourierField";
 
 /** One courier for all, each parcel with its own tracking number. Each order goes separately. */
-export function BulkShipDialog({
+export default function BulkShipDialog({
   orders,
   onDone,
   onClose,

@@ -143,6 +143,7 @@ export function OrderPage() {
 
 function Parties({ order }: { order: Order }) {
   const { t } = useTranslation();
+  const format = useFormat();
   const placeName = usePlaceName();
   const { customer, delivery } = order;
   const place = [delivery.area, delivery.district].flatMap((part) => (part ? [placeName(part)] : [])).join(", ");
@@ -158,13 +159,13 @@ function Parties({ order }: { order: Order }) {
           {customer.name}
         </Link>
         <a href={`tel:${customer.phone}`} className="w-fit text-primary">
-          {customer.phone}
+          {format.phone(customer.phone)}
         </a>
         {otherRecipient && (
           <p className="mt-2">
             {t("orders.goesTo")}: <span className="font-semibold">{delivery.name}</span>{" "}
             <a href={`tel:${delivery.phone}`} className="text-primary">
-              {delivery.phone}
+              {format.phone(delivery.phone)}
             </a>
           </p>
         )}

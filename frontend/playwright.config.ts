@@ -30,6 +30,8 @@ export default defineConfig({
     locale: "bn-BD",
     timezoneId: "Asia/Dhaka",
     trace: "retain-on-failure",
+    // Page-level request routing doesn't see what a service worker fetches; e2e/public.spec.ts turns it on.
+    serviceWorkers: "block",
     screenshot: "only-on-failure",
   },
   projects: [

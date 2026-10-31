@@ -58,6 +58,7 @@ const ASSIGNABLE: Role[] = ["MANAGER", "STAFF"];
 
 function MemberRow({ member }: { member: Member }) {
   const { t } = useTranslation();
+  const format = useFormat();
   const business = useBusiness();
   const queryClient = useQueryClient();
   const [dialog, setDialog] = useState<"remove" | "transfer">();
@@ -84,7 +85,9 @@ function MemberRow({ member }: { member: Member }) {
           {member.name}
           {member.you && <span className="font-normal text-muted-foreground"> {t("staff.you")}</span>}
         </p>
-        <p className="text-sm break-all text-muted-foreground">{member.email ?? member.phone}</p>
+        <p className="text-sm break-all text-muted-foreground">
+          {member.email ?? (member.phone && format.phone(member.phone))}
+        </p>
       </div>
       {editable ? (
         <div className="flex flex-wrap items-center gap-2">

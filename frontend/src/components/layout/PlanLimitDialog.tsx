@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { hasRole, useBusiness } from "@/api/business";
 import { Button } from "@/components/ui/button";
@@ -12,19 +11,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useFormat } from "@/lib/format";
-import { listenForPlanLimit, type PlanLimit } from "./planLimit";
+import type { PlanLimit } from "./planLimit";
 
-/** Mounted once, in the app's frame: what the limit is, and the way to a bigger plan. */
-export function PlanLimitDialog() {
+/** What the limit is, and the way to a bigger plan. */
+export default function PlanLimitDialog({ limit, onClose: close }: { limit: PlanLimit; onClose: () => void }) {
   const { t, i18n } = useTranslation();
   const format = useFormat();
   const business = useBusiness();
-  const [limit, setLimit] = useState<PlanLimit>();
-  useEffect(() => listenForPlanLimit(setLimit), []);
-  if (!limit) {
-    return null;
-  }
-  const close = () => setLimit(undefined);
   const key = `planLimit.metric.${limit.metric}`;
   const what = i18n.exists(key) ? t(key as never) : t("planLimit.metric.other");
   // These two aren't an amount used up, so "the limit is reached" would be wrong.

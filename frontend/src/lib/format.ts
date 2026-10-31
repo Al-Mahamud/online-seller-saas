@@ -67,6 +67,12 @@ export function formatDateTime(at: string | Date, language: Language): string {
   return dateFormat(language, true).format(typeof at === "string" ? new Date(at) : at);
 }
 
+/** "+8801712345678" as people write it, "01712-345678". */
+export function nationalPhone(e164: string): string {
+  const national = e164.startsWith("+880") ? `0${e164.slice(4)}` : e164;
+  return `${national.slice(0, 5)}-${national.slice(5)}`;
+}
+
 /** The formatters above in the language on screen. */
 export function useFormat() {
   const { i18n } = useTranslation();
@@ -81,6 +87,8 @@ export function useFormat() {
     /** "শনিবার, ৩১ অক্টোবর": a day in full. */
     fullDate: (at: string) =>
       dayFormat(language, { weekday: "long", day: "numeric", month: "long" }).format(new Date(at)),
+    /** A phone number as the slips print it. Links and searches keep the full form. */
+    phone: (e164: string) => (language === "bn" ? banglaDigits(nationalPhone(e164)) : nationalPhone(e164)),
     /** An order's number as the slips print it. */
     orderNumber: (label: string) => (language === "bn" ? banglaDigits(label) : label),
   };

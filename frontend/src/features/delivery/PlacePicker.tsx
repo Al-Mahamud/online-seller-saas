@@ -1,78 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { useId, useState } from "react";
+import { lazy, Suspense, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { areasQuery, districtsQuery, divisionsQuery, matchesPlace, type Named, usePlaceName } from "./geo";
+import { areasQuery, districtsQuery, divisionsQuery, type Named, usePlaceName } from "./geo";
+import type { Group } from "./PickDialog";
 
-export interface Group {
-  name: string | null;
-  places: Named[];
-}
-
-/** A list to choose one from, with a search box: quicker than three dropdowns on a phone. */
-export function PickDialog({
-  title,
-  groups,
-  onPick,
-  onClose,
-}: {
-  title: string;
-  groups: Group[];
-  onPick: (place: Named) => void;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const id = useId();
-  const placeName = usePlaceName();
-  const [search, setSearch] = useState("");
-  const shown = groups
-    .map((group) => ({ ...group, places: group.places.filter((place) => matchesPlace(place, search)) }))
-    .filter((group) => group.places.length > 0);
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-dvh flex-col">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={id}>{t("place.search")}</Label>
-          <Input
-            id={id}
-            type="search"
-            autoComplete="off"
-            placeholder={t("place.searchHint")}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {shown.length === 0 && <p className="py-3 text-muted-foreground">{t("place.noMatch")}</p>}
-          {shown.map((group) => (
-            <div key={group.name ?? "all"}>
-              {group.name && <p className="pt-3 text-sm font-semibold text-muted-foreground">{group.name}</p>}
-              <ul>
-                {group.places.map((place) => (
-                  <li key={place.id}>
-                    <button
-                      type="button"
-                      className="flex min-h-11 w-full cursor-pointer items-center border-b text-left"
-                      onClick={() => onPick(place)}
-                    >
-                      {placeName(place)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// Only when a list is opened: it brings the dialog library, which the order form otherwise doesn't need.
+const PickDialog = lazy(() => import("./PickDialog"));
 
 /** The 64 districts under their divisions. */
 export function useDistrictGroups(): { groups: Group[]; districts: Named[] } {
@@ -191,28 +125,30 @@ export function PlacePicker({
         onOpen={() => setOpen("area")}
         onClear={() => onChange({ ...value, areaId: null })}
       />
-      {open === "district" && (
-        <PickDialog
-          title={t("place.pickDistrict")}
-          groups={groups}
-          onClose={() => setOpen(undefined)}
-          onPick={(place) => {
-            onChange({ districtId: place.id, areaId: null });
-            setOpen(undefined);
-          }}
-        />
-      )}
-      {open === "area" && (
-        <PickDialog
-          title={t("place.pickArea")}
-          groups={[{ name: null, places: areas ?? [] }]}
-          onClose={() => setOpen(undefined)}
-          onPick={(place) => {
-            onChange({ ...value, areaId: place.id });
-            setOpen(undefined);
-          }}
-        />
-      )}
+      <Suspense fallback={null}>
+        {open === "district" && (
+          <PickDialog
+            title={t("place.pickDistrict")}
+            groups={groups}
+            onClose={() => setOpen(undefined)}
+            onPick={(place) => {
+              onChange({ districtId: place.id, areaId: null });
+              setOpen(undefined);
+            }}
+          />
+        )}
+        {open === "area" && (
+          <PickDialog
+            title={t("place.pickArea")}
+            groups={[{ name: null, places: areas ?? [] }]}
+            onClose={() => setOpen(undefined)}
+            onPick={(place) => {
+              onChange({ ...value, areaId: place.id });
+              setOpen(undefined);
+            }}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

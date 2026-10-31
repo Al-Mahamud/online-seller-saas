@@ -39,7 +39,9 @@ export function BusinessesPage() {
                   <span className="block truncate font-semibold">{business.name}</span>
                   <span className="block truncate text-sm text-muted-foreground">
                     {business.owner
-                      ? [business.owner.name, business.owner.phone].filter(Boolean).join(" · ")
+                      ? [business.owner.name, business.owner.phone && format.phone(business.owner.phone)]
+                          .filter(Boolean)
+                          .join(" · ")
                       : text.businesses.noOwner}
                   </span>
                 </span>

@@ -1,14 +1,16 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { api, call } from "@/api/client";
 import { errorText } from "@/api/query";
 import { SearchBox } from "@/components/layout/SearchBox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { type Product, type ProductSummary, productQuery, type Variant } from "@/features/catalog/api";
 import { Thumbnail } from "@/features/catalog/Thumbnail";
 import { useFormat } from "@/lib/format";
+
+// Only for a product with variants: it brings the dialog library, which the form otherwise doesn't need.
+const VariantDialog = lazy(() => import("./VariantDialog"));
 
 export interface PickedItem {
   variantId: string;
@@ -18,7 +20,7 @@ export interface PickedItem {
   price: number;
 }
 
-function Available({ count }: { count: number }) {
+export function Available({ count }: { count: number }) {
   const { t } = useTranslation();
   const format = useFormat();
   return count > 0 ? (
@@ -112,32 +114,13 @@ export function ItemPicker({ onPick }: { onPick: (item: PickedItem) => void }) {
         </ul>
       )}
       {choosing && (
-        <Dialog open onOpenChange={(open) => !open && setChoosing(undefined)}>
-          <DialogContent className="flex max-h-dvh flex-col">
-            <DialogHeader>
-              <DialogTitle>{choosing.name}</DialogTitle>
-            </DialogHeader>
-            <ul className="min-h-0 flex-1 overflow-y-auto">
-              {choosing.variants
-                .filter((variant) => variant.status === "ACTIVE")
-                .map((variant) => (
-                  <li key={variant.id} className="border-b last:border-b-0">
-                    <button
-                      type="button"
-                      className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 py-2 text-left"
-                      onClick={() => picked(choosing, variant)}
-                    >
-                      <span className="min-w-0">
-                        <span className="block font-semibold">{variant.label || choosing.name}</span>
-                        <Available count={variant.available} />
-                      </span>
-                      <span className="flex-none font-semibold">{format.taka(variant.price)}</span>
-                    </button>
-                  </li>
-                ))}
-            </ul>
-          </DialogContent>
-        </Dialog>
+        <Suspense fallback={null}>
+          <VariantDialog
+            product={choosing}
+            onPick={(variant) => picked(choosing, variant)}
+            onClose={() => setChoosing(undefined)}
+          />
+        </Suspense>
       )}
     </div>
   );

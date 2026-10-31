@@ -1,7 +1,8 @@
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import i18n from "@/i18n";
-import { ApiError, errorAction } from "./errors";
+import { reportError } from "@/lib/reporting";
+import { ApiError, errorAction, NetworkError } from "./errors";
 
 /** What to say about an error that has no better place: the server's message, or our own when it sent none. */
 export function errorText(error: unknown): string {
@@ -68,6 +69,10 @@ export function createQueryClient({
   onSubscriptionRefused?: () => void;
 } = {}) {
   const handle = (error: unknown, showsOwnErrors: boolean | undefined) => {
+    // The server's refusals and lost connections are expected; anything else is a bug here.
+    if (!(error instanceof ApiError) && !(error instanceof NetworkError)) {
+      reportError(error);
+    }
     const action = errorAction(error);
     const { kind } = action;
     if (kind === "sign-in") {

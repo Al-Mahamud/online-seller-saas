@@ -112,7 +112,7 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 | F8 Billing | One commit | Done |
 | F9 Notifications | One commit | Done |
 | F10 Platform admin | One commit | Done |
-| F11 | | Not started |
+| F11 Launch polish | The building is done. Still to come, from you: the Bangla read-through, the seller sessions, a Sentry project | In progress |
 
 ### F0: Skeleton, design, API client, CI, deploy (3 days)
 
@@ -533,6 +533,30 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 - **Sessions with sellers:** 3–5 sellers try the main flows on their own phones; fixes from what they stumble on.
 
 **Checked by:** within the performance budget; no axe violations; the main flows done unaided by most of the sellers.
+
+**As built (F11):**
+- **Installable:** a manifest and icons, and a button on More when Chrome offers to add the app, instead of its banner over whatever the seller is doing.
+- **Service worker (`public/sw.js`, written by hand):** keeps the app's code, never `/api`. The page is asked for first, so an update reaches everyone at once, with the copy for when there's no connection; built files are kept, since their names change with their content. With no connection, the app opens and says it can't reach the server. Screens not yet opened aren't kept: their code would cost data most sellers never need.
+- **An update while the app is open:** a screen whose code has gone from the server reloads the page once, rather than showing an error.
+- **Speed (`npm run perf`, by hand; too machine-dependent for CI):** a phone 4× slower than this machine, 1.6 Mbps, 150 ms. Measured on the built app, compressed as Caddy does.
+
+  | Screen | Before | Nothing cached | Returning |
+  |---|---|---|---|
+  | Sign-in, a new visitor's first screen | not measured | 2.4 s | |
+  | Today | 3.7 s | 3.2 s | 1.1 s |
+  | Orders | 3.2 s | 2.8–3.1 s | 0.5 s |
+  | Quick order | 3.4 s | 3.1–3.2 s | 0.5 s |
+  | Products | 3.1 s | 2.7 s | 0.4 s |
+
+  - **The target is met for a new visitor's first screen and for every return.** Today and quick order are about 0.2 s over 3 seconds when signed in with nothing cached, which happens only after clearing the browser's data. That case is held to 3.5 s.
+  - **What made the difference:** the business menu and the plan-limit dialog load when needed (their libraries were on every page); so do the place, variant and bulk-ship dialogs; a screen's code starts downloading alongside the sign-in checks, not after them; the Bangla texts are named in the page; a returning person's business is asked for alongside their account.
+  - **Size:** the heaviest first visit went from 238 KB to 222 KB.
+  - **Fonts were 343 KB on a first visit, more than the JavaScript.** Three weights now, not four: medium text uses semibold, which is a little bolder (256 KB). They download after the text is showing, once.
+- **Accessibility:** `everyscreen.spec.ts` visits every route in the router's own list, with real data on them, in both languages at both sizes, and fails if a new route isn't covered. No problems found on any screen. Dialogs are checked in each feature's tests.
+- **Errors (`lib/reporting.ts`):** `@sentry/browser`, not `@sentry/react` as planned, since nothing here needed the React parts. Only with a DSN at build time, and loaded after the page. No breadcrumbs. Addresses lose their query and `#` (an invite's secret is there), and long numbers leave messages. Checked once by hand with a fake DSN: one event went out, with the number replaced and no address.
+- **Phone numbers** now show as `০১৭১২-৩৪৫৬৭৮` everywhere, as the slips print them; links and searches keep the full form.
+- **`docs/bangla-review.csv`** (`npm run texts:review`): every text, English beside Bangla, for reading through in a spreadsheet. The admin screens' words are in `features/admin/texts.ts`.
+- **Not tested:** on a real phone. The speed figures are a simulated profile, and adding to the home screen needs a real Android phone over HTTPS, so that belongs with the seller sessions. The service worker isn't exercised in the deploy drill, because browsers refuse one over its local certificate; the drill checks its files are served.
 
 ## Small backend changes the frontend will need
 

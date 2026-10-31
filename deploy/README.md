@@ -130,6 +130,7 @@ Storing the private key in GitHub is the price of an automatic drill. Without it
 ## Monitoring
 
 - **Errors:** set `SENTRY_DSN`. Every error the app logs (failed requests, jobs, emails) becomes a Sentry event, without customers' details.
+- **Errors in the web app:** a separate Sentry project is tidiest. Set its DSN as the `WEB_SENTRY_DSN` variable in the GitHub repository (Settings > Secrets and variables > Actions), and the DSN's host as `WEB_SENTRY_ORIGIN` in `.env`, then rebuild. Addresses and phone numbers are taken out before anything is sent (`frontend/src/lib/reporting.ts`).
 - **Uptime:**
   - **Built in:** set the repository variable `HEALTHZ_URL` to `https://<APP_DOMAIN>/healthz`. `.github/workflows/uptime.yml` checks it every 10 minutes and GitHub emails a failure.
   - **Faster:** a dedicated monitor (UptimeRobot, Better Stack) on the same URL alerts sooner.

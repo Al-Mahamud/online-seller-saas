@@ -1,0 +1,17 @@
+{
+  "name": "মজুদ",
+  "short_name": "মজুদ",
+  "description": "অনলাইন বিক্রেতাদের স্টক, অর্ডার ও ডেলিভারির হিসাব",
+  "lang": "bn",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F6F7F5",
+  "theme_color": "#0B6B4F",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

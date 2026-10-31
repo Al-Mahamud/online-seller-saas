@@ -30,6 +30,8 @@
 }
 
 @theme inline {
+  /* Three weights of the font, not four: each is about 80 KB on a first visit. Medium text uses semibold. */
+  --font-weight-medium: 600;
   --font-sans: "Hind Siliguri", system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

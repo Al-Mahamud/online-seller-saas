@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { Plus, Printer } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, call } from "@/api/client";
 import { Field } from "@/components/form/Field";
@@ -14,9 +14,11 @@ import { useCanWrite } from "@/features/billing/status";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type BulkResult, type OrderSummary, orderCountsQuery, ordersChanged, ordersQuery, slipsUrl } from "./api";
-import { BulkShipDialog } from "./BulkShipDialog";
 import { StatusBadge } from "./StatusBadge";
 import { ORDER_STATUSES, type OrderFilters } from "./search";
+
+// Only when used: it brings the dialog library, which the list otherwise doesn't need.
+const BulkShipDialog = lazy(() => import("./BulkShipDialog"));
 
 const route = getRouteApi("/_app/orders/");
 const MAX_BULK = 100;
@@ -260,14 +262,16 @@ export function OrdersPage() {
       )}
       <LoadMore query={orders} />
       {shipping && (
-        <BulkShipDialog
-          orders={chosen}
-          onDone={(answers) => {
-            setShipping(false);
-            finished(answers);
-          }}
-          onClose={() => setShipping(false)}
-        />
+        <Suspense fallback={null}>
+          <BulkShipDialog
+            orders={chosen}
+            onDone={(answers) => {
+              setShipping(false);
+              finished(answers);
+            }}
+            onClose={() => setShipping(false)}
+          />
+        </Suspense>
       )}
     </div>
   );

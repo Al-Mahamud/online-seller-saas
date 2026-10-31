@@ -5,11 +5,12 @@
 }
 
 # The web app's own headers. Its scripts, styles, fonts and images all come from this server, and
-# it talks only to this server's API. Inline styles stay allowed: toasts and menus set them.
+# it talks only to this server's API, and to Sentry when WEB_SENTRY_ORIGIN says where that is. Inline
+# styles stay allowed: toasts and menus set them.
 (web_headers) {
 	header {
 		Strict-Transport-Security "max-age=31536000"
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' {$WEB_SENTRY_ORIGIN}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "same-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"

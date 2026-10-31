@@ -92,7 +92,12 @@ test("finds a business, and suspending it shows that business the banner", async
   await page.getByRole("link", { name: new RegExp(shop) }).click();
   await expect(heading(page, shop)).toBeVisible();
   await expect(page.getByText("ফ্রি ট্রায়াল")).toBeVisible();
-  await expect(page.getByText(account.phone.slice(-8))).toBeVisible();
+  // As people write it, in the language on screen.
+  const shown = `${account.phone.slice(0, 5)}-${account.phone.slice(5)}`.replace(
+    /\d/g,
+    (digit) => "০১২৩৪৫৬৭৮৯"[Number(digit)] as string,
+  );
+  await expect(page.getByText(shown)).toBeVisible();
   await expectAccessible(page);
 
   await page.getByRole("button", { name: "স্থগিত করুন" }).click();

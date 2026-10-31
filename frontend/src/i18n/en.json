@@ -191,7 +191,8 @@
       "done": "Your password has been changed."
     },
     "profile": "Profile",
-    "admin": "Admin"
+    "admin": "Admin",
+    "install": "Add the app to your phone"
   },
   "field": {
     "required": "Please fill this in.",

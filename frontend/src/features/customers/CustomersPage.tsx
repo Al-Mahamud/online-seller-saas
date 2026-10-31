@@ -51,7 +51,7 @@ export function CustomersPage() {
               >
                 <span className="min-w-0">
                   <span className="block truncate font-semibold">{customer.name}</span>
-                  <span className="block text-sm text-muted-foreground">{customer.phone}</span>
+                  <span className="block text-sm text-muted-foreground">{format.phone(customer.phone)}</span>
                 </span>
                 <span className="flex-none text-right text-sm text-muted-foreground">
                   <span className="block">

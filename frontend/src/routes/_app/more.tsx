@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/form/ConfirmDialog";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "@/features/account/useSignOut";
+import { useInstallApp } from "@/lib/install";
 
 export const Route = createFileRoute("/_app/more")({
   component: More,
@@ -22,9 +23,11 @@ function More() {
   const me = useMe();
   const business = useBusiness();
   const signOut = useSignOut();
+  const install = useInstallApp();
   return (
     <div className="flex max-w-md flex-col gap-4">
       <PageHeader title={t("nav.more")} />
+      {install && <Button onClick={install}>{t("account.install")}</Button>}
       <section className="rounded-xl border bg-card px-4 py-1">
         <nav aria-label={t("customers.title")} className="flex flex-col">
           <MoreLink to="/customers" label={t("customers.title")} />

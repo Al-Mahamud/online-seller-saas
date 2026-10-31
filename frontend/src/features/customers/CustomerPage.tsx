@@ -82,11 +82,11 @@ export function CustomerPage() {
       <Section title={t("customers.details")}>
         <div className="flex flex-col gap-1">
           <a href={`tel:${customer.phone}`} className="w-fit font-medium text-primary">
-            {customer.phone}
+            {format.phone(customer.phone)}
           </a>
           {customer.altPhone && (
             <a href={`tel:${customer.altPhone}`} className="w-fit text-primary">
-              {customer.altPhone}
+              {format.phone(customer.altPhone)}
             </a>
           )}
           {customer.address && <p className="whitespace-pre-wrap">{customer.address}</p>}

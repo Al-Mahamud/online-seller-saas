@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { useFormat } from "@/lib/format";
 import { parseTaka, takaInput } from "@/lib/money";
 import { areasQuery, type Named, usePlaceName } from "./geo";
-import { PickDialog, PlacePicker, type PlaceValue, useDistrictGroups } from "./PlacePicker";
+import PickDialog from "./PickDialog";
+import { PlacePicker, type PlaceValue, useDistrictGroups } from "./PlacePicker";
 
 type Zone = components["schemas"]["DeliveryZonesZone"];
 

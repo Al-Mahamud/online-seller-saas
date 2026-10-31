@@ -101,7 +101,7 @@ export function BusinessPage() {
         <Section title={text.business.owner}>
           <dl className="flex flex-col gap-1">
             {business.owner && <Row label={text.business.owner}>{business.owner.name}</Row>}
-            {business.owner?.phone && <Row label={text.business.phone}>{business.owner.phone}</Row>}
+            {business.owner?.phone && <Row label={text.business.phone}>{format.phone(business.owner.phone)}</Row>}
             {business.owner?.email && <Row label={text.business.email}>{business.owner.email}</Row>}
             <Row label={text.business.members}>{format.number(business.members)}</Row>
             <Row label={text.business.created}>{format.date(business.createdAt)}</Row>

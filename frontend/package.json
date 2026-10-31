@@ -16,11 +16,14 @@
     "test": "vitest run",
     "api:types": "openapi-typescript src/api/openapi.json --output src/api/schema.d.ts",
     "size": "node scripts/check-size.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "perf": "npm run build && playwright test --config playwright.perf.config.ts",
+    "texts:review": "node scripts/texts-for-review.mjs"
   },
   "dependencies": {
     "@fontsource/hind-siliguri": "5.3.0",
     "@hookform/resolvers": "6.0.2",
+    "@sentry/browser": "11.10.0",
     "@tanstack/react-query": "5.105.0",
     "@tanstack/react-router": "1.170.46",
     "class-variance-authority": "0.7.1",
