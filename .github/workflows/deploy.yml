@@ -33,7 +33,7 @@ jobs:
           echo "CI_BACKUPS=$RUNNER_TEMP/backups" >> "$GITHUB_ENV"
           echo "CI_BACKUP_KEY=$RUNNER_TEMP/backup-key.txt" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
