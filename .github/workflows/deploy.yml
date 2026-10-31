@@ -91,7 +91,7 @@ jobs:
           asset=$(curl -ksf https://localhost/ | grep -o '/assets/index-[A-Za-z0-9_-]*\.js' | head -n 1)
           curl -ksfI "https://localhost$asset" | grep -i '^cache-control: public, max-age=31536000, immutable' > /dev/null
           test "$(curl -ks -o /dev/null -w '%{http_code}' https://localhost/assets/missing.js)" = 404
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
