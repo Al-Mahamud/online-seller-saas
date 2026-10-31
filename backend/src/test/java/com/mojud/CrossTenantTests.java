@@ -338,6 +338,7 @@ class CrossTenantTests {
         });
         // Reports: B's dashboard holds only B's figures (A's products never appear among top products).
         CASES.put("GET /api/v1/dashboard/today", (a, b) -> expectNoLeak(b.owner().get("/api/v1/dashboard/today"), a));
+        CASES.put("GET /api/v1/dashboard/overview", (a, b) -> expectNoLeak(b.owner().get("/api/v1/dashboard/overview"), a));
         CASES.put("GET /api/v1/reports/sales", (a, b) -> {
             expectNoLeak(b.owner().get("/api/v1/reports/sales?groupBy=product"), a);
             expectNoLeak(b.owner().get("/api/v1/reports/sales?groupBy=category"), a);

@@ -31,6 +31,15 @@ class ProductReports implements CatalogReports {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean hasProducts() {
+        return jdbc.sql("select exists (select 1 from products where business_id = :business)")
+                .param("business", TenantScope.current().orElseThrow())
+                .query(Boolean.class)
+                .single();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Map<UUID, String> categoryPaths(Collection<UUID> variantIds) {
         Map<UUID, String> paths = new HashMap<>();
         if (variantIds.isEmpty()) {

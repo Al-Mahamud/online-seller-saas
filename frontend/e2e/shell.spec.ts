@@ -56,17 +56,13 @@ test("switches to English and saves it on the account", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "অর্ডার" })).toBeVisible();
 });
 
-test("shows the new-order button on phones only", async ({ page, isMobile }) => {
+test("Today leads to a new order: the + on phones, the page's own button on a laptop", async ({ page }) => {
   await page.goto("/");
-  const newOrder = page.getByRole("link", { name: "নতুন অর্ডার" });
 
-  if (isMobile) {
-    await newOrder.click();
-    await expect(page).toHaveURL(/\/orders\/new$/);
-    await expect(page.getByRole("heading", { level: 1, name: "নতুন অর্ডার" })).toBeVisible();
-  } else {
-    await expect(newOrder).toBeHidden();
-  }
+  await page.getByRole("link", { name: "নতুন অর্ডার" }).click();
+
+  await expect(page).toHaveURL(/\/orders\/new$/);
+  await expect(page.getByRole("heading", { level: 1, name: "নতুন অর্ডার" })).toBeVisible();
 });
 
 test("says when a page does not exist", async ({ page }) => {

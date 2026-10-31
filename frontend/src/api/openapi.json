@@ -1500,6 +1500,53 @@
         "required" : [ "orders", "value" ],
         "type" : "object"
       },
+      "DashboardOverview" : {
+        "properties" : {
+          "couriers" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OrderReportsCourierParcels"
+            },
+            "type" : "array"
+          },
+          "hasOrders" : {
+            "type" : "boolean"
+          },
+          "hasProducts" : {
+            "type" : "boolean"
+          },
+          "lateAfterDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "lateParcels" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "returnReasons" : {
+            "additionalProperties" : {
+              "format" : "int32",
+              "type" : "integer"
+            },
+            "type" : "object"
+          },
+          "stuckAfterDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "stuckCod" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OrderReportsCourierCash"
+            },
+            "type" : "array"
+          },
+          "windowDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "couriers", "hasOrders", "hasProducts", "lateAfterDays", "lateParcels", "returnReasons", "stuckAfterDays", "stuckCod", "windowDays" ],
+        "type" : "object"
+      },
       "DashboardToday" : {
         "properties" : {
           "byStatus" : {
@@ -2928,6 +2975,40 @@
           }
         },
         "required" : [ "amount", "method" ],
+        "type" : "object"
+      },
+      "OrderReportsCourierCash" : {
+        "properties" : {
+          "amount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "courier" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "courier" ],
+        "type" : "object"
+      },
+      "OrderReportsCourierParcels" : {
+        "properties" : {
+          "courier" : {
+            "type" : "string"
+          },
+          "delivered" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "onTheWay" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "returned" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "courier", "delivered", "onTheWay", "returned" ],
         "type" : "object"
       },
       "OrderReportsProfit" : {
@@ -5577,6 +5658,24 @@
           }
         },
         "tags" : [ "customer-controller" ]
+      }
+    },
+    "/api/v1/dashboard/overview" : {
+      "get" : {
+        "operationId" : "overview",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DashboardOverview"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "dashboard-controller" ]
       }
     },
     "/api/v1/dashboard/today" : {

@@ -435,6 +435,7 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 
 **As built (F7):**
 - **Room in the budget first:** the form pages moved from `zod` to `zod/mini` (5 KB against 22 KB, the same rules). The heaviest first visit went from 249.2 KB to 232 KB, and is 233.6 KB with F7's text. Mini has no default messages, so every rule names its own text key; an SKU that was too long used to get an English message.
+- **Replaced Nov 1, 2026:** Today was redesigned; see `dashboard-redesign.md`. The notes on Today below describe the first version.
 - **Today (`/`, `?date=` for another day):** as in the mockup: tiles for sales, to pack, with couriers, COD outstanding and low stock, each leading to that work; orders by status; best sellers; running low.
   - Managers and owners also see profit on goods. Staff get `profit: null` from the server.
   - COD, low stock and open orders are as they are now; the server doesn't keep them per day.

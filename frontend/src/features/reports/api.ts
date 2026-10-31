@@ -3,6 +3,7 @@ import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";
 
 export type Today = components["schemas"]["DashboardToday"];
+export type Overview = components["schemas"]["DashboardOverview"];
 export type SalesRow = components["schemas"]["SalesReportsRow"];
 export type GroupBy = "day" | "product" | "category";
 
@@ -14,6 +15,12 @@ export const dashboardQuery = (date: string | undefined) =>
     // A day out of reach fails the same way every time the seller comes back to the app.
     retry: false,
   });
+
+export const overviewQuery = queryOptions({
+  queryKey: ["dashboard", "overview"],
+  queryFn: () => call(api.GET("/api/v1/dashboard/overview")),
+  meta: { showsOwnErrors: true },
+});
 
 export const salesQuery = (from: string, to: string, groupBy: GroupBy) =>
   queryOptions({

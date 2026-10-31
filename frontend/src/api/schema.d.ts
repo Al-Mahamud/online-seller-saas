@@ -740,6 +740,22 @@ export interface paths {
         patch: operations["update_4"];
         trace?: never;
     };
+    "/api/v1/dashboard/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard/today": {
         parameters: {
             query?: never;
@@ -2507,6 +2523,23 @@ export interface components {
             /** Format: int64 */
             value: number;
         };
+        DashboardOverview: {
+            couriers: components["schemas"]["OrderReportsCourierParcels"][];
+            hasOrders: boolean;
+            hasProducts: boolean;
+            /** Format: int32 */
+            lateAfterDays: number;
+            /** Format: int32 */
+            lateParcels: number;
+            returnReasons: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            stuckAfterDays: number;
+            stuckCod: components["schemas"]["OrderReportsCourierCash"][];
+            /** Format: int32 */
+            windowDays: number;
+        };
         DashboardToday: {
             byStatus: {
                 [key: string]: number;
@@ -3029,6 +3062,20 @@ export interface components {
             /** @enum {string} */
             method: "BKASH" | "NAGAD" | "ROCKET" | "BANK" | "CASH" | "CARD" | "OTHER";
             reference?: string;
+        };
+        OrderReportsCourierCash: {
+            /** Format: int64 */
+            amount: number;
+            courier: string;
+        };
+        OrderReportsCourierParcels: {
+            courier: string;
+            /** Format: int32 */
+            delivered: number;
+            /** Format: int32 */
+            onTheWay: number;
+            /** Format: int32 */
+            returned: number;
         };
         OrderReportsProfit: {
             /** Format: int64 */
@@ -4739,6 +4786,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerView"];
+                };
+            };
+        };
+    };
+    overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardOverview"];
                 };
             };
         };

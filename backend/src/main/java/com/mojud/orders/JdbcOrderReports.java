@@ -3,6 +3,7 @@ package com.mojud.orders;
 import com.mojud.shared.tenant.TenantScope;
 import com.mojud.shared.time.DhakaTime;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -123,6 +124,63 @@ class JdbcOrderReports implements OrderReports {
         return new Day(date, totals.orders(), totals.value(), activity.cancelled(), byStatus, activity.shipped(),
                 activity.delivered(), activity.inTransit(), activity.withCourier(), top,
                 new Profit(totals.revenue(), totals.cost(), totals.revenue() - totals.cost(), totals.costMissing()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Deliveries deliveries(Instant lateBefore, Instant stuckBefore, Instant shippedSince) {
+        UUID business = TenantScope.current().orElseThrow();
+        Timestamp since = Timestamp.from(shippedSince);
+
+        int late = jdbc.sql("""
+                        select count(*) from shipments
+                        where business_id = :business and status = 'IN_TRANSIT' and shipped_at < :before
+                        """)
+                .param("business", business).param("before", Timestamp.from(lateBefore))
+                .query(Integer.class).single();
+
+        List<CourierCash> stuck = jdbc.sql("""
+                        select courier, sum(cod_collected) from shipments
+                        where business_id = :business and status = 'DELIVERED' and cod_status = 'WITH_COURIER'
+                          and delivered_at < :before and cod_collected > 0
+                        group by courier
+                        order by 2 desc, courier
+                        """)
+                .param("business", business).param("before", Timestamp.from(stuckBefore))
+                .query((rs, n) -> new CourierCash(rs.getString(1), rs.getLong(2)))
+                .list();
+
+        List<CourierParcels> couriers = jdbc.sql("""
+                        select courier,
+                               count(*) filter (where status = 'IN_TRANSIT'),
+                               count(*) filter (where status = 'DELIVERED' and shipped_at >= :since),
+                               count(*) filter (where status = 'RETURNED' and shipped_at >= :since)
+                        from shipments
+                        where business_id = :business and (status = 'IN_TRANSIT' or shipped_at >= :since)
+                        group by courier
+                        order by count(*) filter (where status <> 'IN_TRANSIT' and shipped_at >= :since) desc, 2 desc, courier
+                        """)
+                .param("business", business).param("since", since)
+                .query((rs, n) -> new CourierParcels(rs.getString(1), rs.getInt(2), rs.getInt(3), rs.getInt(4)))
+                .list();
+
+        Map<String, Integer> reasons = new LinkedHashMap<>();
+        for (ReturnKind kind : ReturnKind.values()) {
+            reasons.put(kind.name(), 0);
+        }
+        jdbc.sql("""
+                        select r.kind, count(*) from returns r
+                        join shipments s on s.business_id = r.business_id and s.id = r.shipment_id
+                        where r.business_id = :business and s.shipped_at >= :since
+                        group by r.kind
+                        """)
+                .param("business", business).param("since", since)
+                .query((rs, n) -> reasons.put(rs.getString(1), rs.getInt(2)))
+                .list();
+
+        boolean hasOrders = jdbc.sql("select exists (select 1 from orders where business_id = :business)")
+                .param("business", business).query(Boolean.class).single();
+        return new Deliveries(late, stuck, couriers, reasons, hasOrders);
     }
 
     /** What the customer still owes for goods (after discount and returns), as SQL on day_orders. */

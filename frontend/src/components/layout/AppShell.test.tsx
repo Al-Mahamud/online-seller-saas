@@ -117,7 +117,7 @@ describe("app shell", () => {
   it("links the + button to a new order", async () => {
     await renderApp();
 
-    expect(screen.getByRole("link", { name: "নতুন অর্ডার" })).toHaveAttribute("href", "/orders/new");
+    expect(screen.getAllByRole("link", { name: "নতুন অর্ডার" })[0]).toHaveAttribute("href", "/orders/new");
   });
 
   it("sends someone signed out to sign-in, remembering the page", async () => {

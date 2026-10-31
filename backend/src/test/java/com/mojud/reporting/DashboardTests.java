@@ -151,6 +151,73 @@ class DashboardTests {
                 "costMissing", false));
     }
 
+    @Test
+    void theOverviewSaysWhatNeedsAttentionAndHowCouriersDo() {
+        ApiResponse empty = owner.get("/api/v1/dashboard/overview").expectStatus(200);
+        assertThat(empty.<Boolean>json("$.hasProducts")).isTrue();
+        assertThat(empty.<Boolean>json("$.hasOrders")).isFalse();
+        assertThat(empty.<List<Object>>json("$.couriers")).isEmpty();
+        assertThat(empty.<Map<String, Integer>>json("$.returnReasons")).isEqualTo(Map.of("FAILED_DELIVERY", 0,
+                "PARTIAL_DELIVERY", 0, "CUSTOMER_RETURN", 0));
+
+        // On the way: one just shipped, one six days ago (late), one 40 days ago (late, outside the window).
+        ship(order(Map.of(), item(wallet, 1)));
+        String sixDays = order(Map.of(), item(wallet, 1));
+        ship(sixDays);
+        shippedDaysAgo(sixDays, 6);
+        String fortyDays = order(Map.of(), item(wallet, 1));
+        ship(fortyDays);
+        shippedDaysAgo(fortyDays, 40);
+        // Pathao delivered: COD collected eight days ago is stuck, one collected today isn't.
+        String stuck = order(Map.of(), item(kurti, 1));
+        shipAndDeliver(stuck, null);
+        systemDatabase.jdbc().sql("update shipments set delivered_at = ? where order_id = ?")
+                .params(daysAgo(8), UUID.fromString(stuck)).update();
+        shipAndDeliver(order(Map.of(), item(kurti, 1)), null);
+        // Steadfast: one came back, with a customer's return on a delivered one.
+        String failed = order(Map.of(), item(kurti, 1));
+        confirm(failed);
+        owner.post("/api/v1/orders/" + failed + "/ship", Map.of("courier", "Steadfast")).expectStatus(200);
+        owner.post("/api/v1/orders/" + failed + "/returns", Map.of("kind", "FAILED_DELIVERY", "reason", "Not home", "items",
+                List.of(back(itemId(owner.get("/api/v1/orders/" + failed), "Kurti"), "RESTOCK")))).expectStatus(201);
+        String kept = order(Map.of(), item(kurti, 1));
+        confirm(kept);
+        owner.post("/api/v1/orders/" + kept + "/ship", Map.of("courier", "Steadfast")).expectStatus(200);
+        owner.post("/api/v1/orders/" + kept + "/deliver", Map.of()).expectStatus(200);
+        owner.post("/api/v1/orders/" + kept + "/returns", Map.of("kind", "CUSTOMER_RETURN", "reason", "Wrong colour",
+                "items", List.of(back(itemId(owner.get("/api/v1/orders/" + kept), "Kurti"), "RESTOCK")))).expectStatus(201);
+        // A return on a parcel shipped outside the window isn't counted, nor is that parcel.
+        String old = order(Map.of(), item(kurti, 1));
+        shipAndDeliver(old, null);
+        owner.post("/api/v1/orders/" + old + "/returns", Map.of("kind", "CUSTOMER_RETURN", "reason", "Too small",
+                "items", List.of(back(itemId(owner.get("/api/v1/orders/" + old), "Kurti"), "RESTOCK")))).expectStatus(201);
+        shippedDaysAgo(old, 31);
+
+        ApiResponse overview = owner.get("/api/v1/dashboard/overview").expectStatus(200);
+
+        assertThat(overview.<Boolean>json("$.hasOrders")).isTrue();
+        assertThat(overview.<Integer>json("$.lateParcels")).isEqualTo(2);
+        assertThat(overview.<List<String>>json("$.stuckCod[*].courier")).containsExactly("Pathao");
+        // The Kurti at ৳1,500 and ৳70 delivery.
+        assertThat(overview.<List<Integer>>json("$.stuckCod[*].amount")).containsExactly(157000);
+        // Pathao: three on the way, two delivered in the window. Steadfast: one delivered, one back.
+        assertThat(overview.<List<String>>json("$.couriers[*].courier")).containsExactly("Pathao", "Steadfast");
+        assertThat(overview.<List<Integer>>json("$.couriers[*].onTheWay")).containsExactly(3, 0);
+        assertThat(overview.<List<Integer>>json("$.couriers[*].delivered")).containsExactly(2, 1);
+        assertThat(overview.<List<Integer>>json("$.couriers[*].returned")).containsExactly(0, 1);
+        assertThat(overview.<Map<String, Integer>>json("$.returnReasons")).isEqualTo(Map.of("FAILED_DELIVERY", 1,
+                "PARTIAL_DELIVERY", 0, "CUSTOMER_RETURN", 1));
+    }
+
+    private void shippedDaysAgo(String orderId, int days) {
+        systemDatabase.jdbc().sql("update shipments set shipped_at = ? where order_id = ?")
+                .params(daysAgo(days), UUID.fromString(orderId)).update();
+    }
+
+    private static Timestamp daysAgo(int days) {
+        return Timestamp.from(Instant.now().minus(Duration.ofDays(days)));
+    }
+
     private String variant(String name, long price, Long cost, int stock) {
         Map<String, Object> body = new HashMap<>(Map.of("name", name, "price", price, "openingStock", stock));
         if (cost != null) {
