@@ -1,5 +1,13 @@
 import type { Browser, Page } from "@playwright/test";
-import { newEmail, newUserId, PASSWORD, readCode, readInviteToken, signUp, signUpWithBusiness } from "./support/accounts";
+import {
+  newEmail,
+  newUserId,
+  PASSWORD,
+  readCode,
+  readInviteToken,
+  signUp,
+  signUpWithBusiness,
+} from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { expect, test } from "./support/test";
 
@@ -31,6 +39,7 @@ async function joinAsNewPerson(owner: Page, member: Page, name: string, email: s
   await label(member, "ইউজার আইডি").fill(newUserId());
   await label(member, "ইমেইল (ঐচ্ছিক)").fill(email);
   await label(member, "পাসওয়ার্ড").fill(PASSWORD);
+  await label(member, "পাসওয়ার্ড আবার দিন").fill(PASSWORD);
   await member.getByRole("radio", { name: "ইমেইল" }).check();
   await member.getByRole("button", { name: "এগিয়ে যান" }).click();
   await label(member, "৬ সংখ্যার কোড").fill(await readCode(owner.request, email));

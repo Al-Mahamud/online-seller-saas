@@ -36,6 +36,7 @@ test("signs up with a code by SMS, stays signed in, signs out", async ({ page })
   await label(page, "ফোন নম্বর").fill(phone.replace(/\d/g, (digit) => "০১২৩৪৫৬৭৮৯"[Number(digit)] as string));
   await label(page, "ইউজার আইডি").fill(newUserId());
   await label(page, "পাসওয়ার্ড").fill(PASSWORD);
+  await label(page, "পাসওয়ার্ড আবার দিন").fill(PASSWORD);
   await page.getByRole("button", { name: "এগিয়ে যান" }).click();
 
   await expect(page.getByRole("heading", { level: 1, name: "কোড দিন" })).toBeVisible();
@@ -62,6 +63,7 @@ test("signs up with a code by email and signs in with the User ID", async ({ pag
   await label(page, "ইউজার আইডি").fill(userId);
   await label(page, "ইমেইল (ঐচ্ছিক)").fill(email);
   await label(page, "পাসওয়ার্ড").fill(PASSWORD);
+  await label(page, "পাসওয়ার্ড আবার দিন").fill(PASSWORD);
   await page.getByRole("radio", { name: "ইমেইল" }).check();
   await page.getByRole("button", { name: "এগিয়ে যান" }).click();
 
@@ -88,6 +90,29 @@ test("checks the sign-up form before sending anything", async ({ page }) => {
   await expect(page.getByText("The password must be at least 8 characters.")).toBeVisible();
 });
 
+test("the two passwords must match before a code is sent", async ({ page }) => {
+  const phone = newPhone();
+  await page.goto("/sign-up");
+
+  await label(page, "আপনার নাম").fill("Rahima Khatun");
+  await label(page, "ফোন নম্বর").fill(phone);
+  await label(page, "ইউজার আইডি").fill(newUserId());
+  await label(page, "পাসওয়ার্ড").fill(PASSWORD);
+  await label(page, "পাসওয়ার্ড আবার দিন").fill(`${PASSWORD}x`);
+  await page.getByRole("button", { name: "এগিয়ে যান" }).click();
+
+  await expect(page.getByText("পাসওয়ার্ড দুটি মেলেনি।")).toBeVisible();
+  await expect(label(page, "পাসওয়ার্ড আবার দিন")).toHaveAttribute("aria-invalid", "true");
+  await expectAccessible(page);
+  expect(await lastCode(page.request, phone)).toBeNull();
+
+  await label(page, "পাসওয়ার্ড আবার দিন").fill(PASSWORD);
+  await page.getByRole("button", { name: "এগিয়ে যান" }).click();
+  await label(page, "৬ সংখ্যার কোড").fill(await readCode(page.request, phone));
+  await page.getByRole("button", { name: "অ্যাকাউন্ট খুলুন" }).click();
+  await expectFirstRun(page);
+});
+
 test("a detail the server refuses leads back to the details, with the problem under its field", async ({ page }) => {
   const phone = newPhone();
   await page.goto("/sign-up");
@@ -97,6 +122,7 @@ test("a detail the server refuses leads back to the details, with the problem un
   await label(page, "ইউজার আইডি").fill(newUserId());
   await label(page, "ইমেইল (ঐচ্ছিক)").fill("not-an-email");
   await label(page, "পাসওয়ার্ড").fill(PASSWORD);
+  await label(page, "পাসওয়ার্ড আবার দিন").fill(PASSWORD);
   await page.getByRole("button", { name: "এগিয়ে যান" }).click();
   await label(page, "৬ সংখ্যার কোড").fill(await readCode(page.request, phone));
   await page.getByRole("button", { name: "অ্যাকাউন্ট খুলুন" }).click();
@@ -241,6 +267,7 @@ test("going on with a taken User ID stops before a code is sent", async ({ page 
   await label(page, "ফোন নম্বর").fill(phone);
   await label(page, "ইউজার আইডি").fill(existing.userId);
   await label(page, "পাসওয়ার্ড").fill(PASSWORD);
+  await label(page, "পাসওয়ার্ড আবার দিন").fill(PASSWORD);
   await page.getByRole("button", { name: "এগিয়ে যান" }).click();
 
   await expect(page.getByText("এই ইউজার আইডিটি আগেই নেওয়া হয়েছে। অন্যটি দিন।")).toBeVisible();
