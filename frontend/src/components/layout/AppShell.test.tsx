@@ -11,6 +11,7 @@ import { createAppRouter } from "@/router";
 
 const me = {
   id: "01a18877-ca42-75fd-abc5-98a57110a442",
+  userId: "test_seller",
   name: "Test Seller",
   phone: "+8801712345678",
   email: null,

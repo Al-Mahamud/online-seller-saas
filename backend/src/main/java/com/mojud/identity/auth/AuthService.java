@@ -4,7 +4,9 @@ import com.mojud.identity.AuthenticatedUser;
 import com.mojud.identity.account.ContactConflicts;
 import com.mojud.identity.account.MeResponse;
 import com.mojud.identity.account.User;
+import com.mojud.identity.account.UserIds;
 import com.mojud.identity.account.UserRepository;
+import com.mojud.identity.otp.OtpChannel;
 import com.mojud.identity.otp.OtpDestination;
 import com.mojud.identity.otp.OtpPurpose;
 import com.mojud.identity.otp.OtpService;
@@ -16,9 +18,8 @@ import com.mojud.shared.phone.PhoneNumber;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,7 +34,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * own short transaction ({@link OtpService#consume}) before any other work, so a request never
  * holds two database connections, and a failed guess is counted whatever happens afterwards.
  *
- * <p>Only verified phones and emails identify an account (V5__verified_contacts_unique.sql).
+ * <p>People sign in with a User ID and password. Only verified phones and emails identify an
+ * account for recovery (V5__verified_contacts_unique.sql).
  */
 @Service
 class AuthService {
@@ -66,52 +68,98 @@ class AuthService {
 
     /**
      * Sends a code only when it can be used: sign-up codes to a phone or email no account has
-     * verified, sign-in codes to one an account has verified. The answer is the same either way,
-     * the limits apply before the lookup, and sending happens after the answer, so callers cannot
-     * learn whether an account exists.
+     * verified, User ID recovery codes to one an account has verified. The answer is the same
+     * either way, the limits apply before the lookup, and sending happens after the answer, so
+     * callers cannot learn whether an account exists.
      */
     void requestCode(OtpDestination destination, OtpPurpose purpose, String clientIp) {
-        if (purpose == OtpPurpose.VERIFY_CONTACT) {
-            // Only for signed-in users, through /api/v1/me/contact/code.
+        if (purpose == OtpPurpose.VERIFY_CONTACT || purpose == OtpPurpose.PASSWORD_RESET) {
+            // Through /api/v1/me/contact/code and /api/v1/auth/password/code.
             throw ApiException.invalidField("purpose", "field.invalid_value");
         }
         otp.requireAvailable(destination.channel());
         limits.codeRequested(destination.value(), purpose, clientIp);
         Optional<User> holder = users.findVerified(destination);
-        boolean registered = holder.isPresent();
         // A disabled account gets no codes: it cannot use them, and each SMS costs money.
-        boolean active = holder.map(User::isActive).orElse(false);
-        boolean usable = switch (purpose) {
-            case SIGNUP -> !registered;
-            case LOGIN, PASSWORD_RESET -> active;
-            case VERIFY_CONTACT -> false;
-        };
+        boolean usable = purpose == OtpPurpose.SIGNUP ? holder.isEmpty() : holder.map(User::isActive).orElse(false);
         if (usable) {
             otp.issue(destination, purpose);
         }
     }
 
     /**
-     * Creates the account and signs it in. The code is checked first, so a wrong code never
-     * reveals whether the phone or email is taken. Guesses at one code are limited by the code
-     * itself (five per code, five codes per hour per destination); the per-IP limit stops a client
-     * from trying many codes.
+     * Sends a PASSWORD_RESET code to the phone or email of the account with this User ID. As with
+     * {@link #requestCode}, the answer is the same whether or not there is such an account.
+     */
+    void requestPasswordCode(String userId, String clientIp) {
+        if (otp.availableChannels().isEmpty()) {
+            throw new ApiException(ErrorCode.OTP_CHANNEL_UNAVAILABLE);
+        }
+        limits.codeRequested(userId, OtpPurpose.PASSWORD_RESET, clientIp);
+        users.findByUserId(userId).filter(User::isActive).flatMap(this::recoveryDestination)
+                .ifPresent(destination -> otp.issue(destination, OtpPurpose.PASSWORD_RESET));
+    }
+
+    /** The account's verified phone, or its verified email: whichever can be reached right now. */
+    private Optional<OtpDestination> recoveryDestination(User user) {
+        Set<OtpChannel> channels = otp.availableChannels();
+        if (user.isPhoneVerified() && channels.contains(OtpChannel.PHONE)) {
+            return Optional.of(OtpDestination.phone(user.getPhone()));
+        }
+        if (user.isEmailVerified() && channels.contains(OtpChannel.EMAIL)) {
+            return user.getEmail().map(OtpDestination::email);
+        }
+        return Optional.empty();
+    }
+
+    /** False when taken or reserved. Every check says whether an ID exists, so they are limited per IP. */
+    boolean isUserIdAvailable(String input, String clientIp) {
+        limits.userIdCheckPerIp.acquire(clientIp);
+        String userId = UserIds.require(input, "userId");
+        return !UserIds.isReserved(userId) && !users.existsByUserId(userId);
+    }
+
+    /** Proving the phone or email with a code is what earns the answer, so strangers learn nothing. */
+    String recoverUserId(OtpDestination destination, String code, String clientIp) {
+        limits.checkReset(destination.value(), clientIp);
+        try {
+            otp.consume(destination, OtpPurpose.USER_ID_RECOVERY, code);
+        } catch (ApiException e) {
+            limits.resetFailed(destination.value(), clientIp);
+            throw e;
+        }
+        User user = users.findVerified(destination).orElseThrow(() -> new ApiException(ErrorCode.OTP_INVALID));
+        if (!user.isActive()) {
+            throw new ApiException(ErrorCode.ACCOUNT_DISABLED);
+        }
+        return user.getUserId();
+    }
+
+    /**
+     * Creates the account and signs it in. The code is checked before the phone or email is
+     * compared, so a wrong code never reveals whether one is taken. Guesses at one code are limited
+     * by the code itself (five per code, five codes per hour per destination); the per-IP limit
+     * stops a client from trying many codes.
      */
     MeResponse signUp(SignUp command, String clientIp, HttpServletRequest request, HttpServletResponse response) {
         limits.signupPerIp.acquire(clientIp);
-        // Checked before the code, so a bad name does not use the code up.
+        // Checked before the code, so a bad name or a taken User ID does not use the code up. The
+        // availability check says as much about the ID to anyone who asks.
         User.cleanName(command.name());
+        if (UserIds.isReserved(command.userId()) || users.existsByUserId(command.userId())) {
+            throw new ApiException(ErrorCode.USER_ID_TAKEN);
+        }
         OtpDestination verified = command.codeSentToPhone()
                 ? OtpDestination.phone(command.phone())
                 : OtpDestination.email(command.email());
         otp.consume(verified, OtpPurpose.SIGNUP, command.code());
         // Hashing takes a moment on purpose, so it happens before the transaction starts.
-        User account = User.signUp(command.name(), command.phone(), command.email(),
+        User account = User.signUp(command.userId(), command.name(), command.phone(), command.email(),
                 passwords.encode(command.password()), command.locale(), command.codeSentToPhone(), clock.instant());
         User user;
         try {
-            // No "already taken?" query first: the unique indexes decide, which also covers two
-            // sign-ups racing for the same phone or email.
+            // The unique indexes decide, which also covers two sign-ups racing for the same phone,
+            // email or User ID.
             user = transactions.execute(status -> users.saveAndFlush(account));
         } catch (DataIntegrityViolationException e) {
             throw ContactConflicts.translate(e);
@@ -121,48 +169,30 @@ class AuthService {
     }
 
     /**
-     * Signed in: the account. Empty: the password or code was right, but the account has two-step
-     * sign-in, so the session waits for a code from the app ({@link #completeSecondStep}).
+     * Signed in: the account. Empty: the password was right, but the account has two-step sign-in,
+     * so the session waits for a code from the app ({@link #completeSecondStep}).
      */
-    Optional<MeResponse> logInWithPassword(LoginIdentifier login, String password, String clientIp,
+    Optional<MeResponse> logIn(String userId, String password, String clientIp,
             HttpServletRequest request, HttpServletResponse response) {
-        limits.checkLogin(login.value(), clientIp);
+        limits.checkLogin(userId, clientIp);
         Authentication result;
         try {
-            result = authentication.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(login.value(), password));
+            result = authentication.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(userId, password));
         } catch (AuthenticationException e) {
-            limits.loginFailed(login.value(), clientIp);
+            limits.loginFailed(userId, clientIp);
             throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
         }
         AccountUserDetailsService.Account account = (AccountUserDetailsService.Account) result.getPrincipal();
-        return start(users.findById(account.id()).orElseThrow(), login, clientIp, request, response);
-    }
-
-    Optional<MeResponse> logInWithCode(LoginIdentifier login, String code, String clientIp,
-            HttpServletRequest request, HttpServletResponse response) {
-        limits.checkLogin(login.value(), clientIp);
-        try {
-            otp.consume(login.destination(), OtpPurpose.LOGIN, code);
-        } catch (ApiException e) {
-            limits.loginFailed(login.value(), clientIp);
-            throw e;
-        }
-        User user = users.findVerified(login.destination())
-                .orElseThrow(() -> new ApiException(ErrorCode.INVALID_CREDENTIALS));
-        return start(user, login, clientIp, request, response);
-    }
-
-    private Optional<MeResponse> start(User user, LoginIdentifier login, String clientIp,
-            HttpServletRequest request, HttpServletResponse response) {
+        User user = users.findById(account.id()).orElseThrow();
         if (!user.isActive()) {
             throw new ApiException(ErrorCode.ACCOUNT_DISABLED);
         }
         if (user.isTwoFactorEnabled()) {
             // The failure count is cleared only once the second step is passed too.
-            sessions.awaitSecondStep(user.getId(), login.value(), request);
+            sessions.awaitSecondStep(user.getId(), userId, request);
             return Optional.empty();
         }
-        limits.loginSucceeded(login.value(), clientIp);
+        limits.loginSucceeded(userId, clientIp);
         sessions.start(principal(user, false), user.getLocale(), request, response);
         return Optional.of(MeResponse.of(user));
     }
@@ -197,20 +227,23 @@ class AuthService {
     }
 
     /**
-     * Sets a new password after proving the phone or email with a code, and signs the user out on
-     * every device, in case someone else knew the old password. Wrong codes count as failed
-     * sign-ins. The user then signs in with the new password.
+     * Sets a new password after proving the account's phone or email with a code, and signs the
+     * user out on every device, in case someone else knew the old password. Wrong codes count as
+     * failed sign-ins, and an unknown User ID answers as a wrong code does. The user then signs in
+     * with the new password.
      */
-    void resetPassword(LoginIdentifier login, String code, String newPassword, String clientIp) {
-        limits.checkReset(login.value(), clientIp);
+    void resetPassword(String userId, String code, String newPassword, String clientIp) {
+        limits.checkReset(userId, clientIp);
+        User user;
         try {
-            otp.consume(login.destination(), OtpPurpose.PASSWORD_RESET, code);
+            user = users.findByUserId(userId).orElseThrow(() -> new ApiException(ErrorCode.OTP_INVALID));
+            OtpDestination destination = recoveryDestination(user)
+                    .orElseThrow(() -> new ApiException(ErrorCode.OTP_INVALID));
+            otp.consume(destination, OtpPurpose.PASSWORD_RESET, code);
         } catch (ApiException e) {
-            limits.resetFailed(login.value(), clientIp);
+            limits.resetFailed(userId, clientIp);
             throw e;
         }
-        User user = users.findVerified(login.destination())
-                .orElseThrow(() -> new ApiException(ErrorCode.OTP_INVALID));
         // Reported only after a right code, as for sign-in, so it reveals nothing to strangers.
         if (!user.isActive()) {
             throw new ApiException(ErrorCode.ACCOUNT_DISABLED);
@@ -220,9 +253,7 @@ class AuthService {
             User current = users.findById(user.getId()).orElseThrow();
             current.changePassword(hash, clock.instant());
         });
-        List<String> logins = new ArrayList<>(List.of(user.getPhone().e164()));
-        user.getEmail().ifPresent(email -> logins.add(email.value()));
-        limits.accountRecovered(logins, clientIp);
+        limits.accountRecovered(userId, clientIp);
         sessions.revokeAll(user.getId());
     }
 
@@ -231,7 +262,7 @@ class AuthService {
     }
 
     /** A validated sign-up; {@code email} may be null only when the code went to the phone. */
-    record SignUp(String name, PhoneNumber phone, EmailAddress email, String password, String locale,
+    record SignUp(String userId, String name, PhoneNumber phone, EmailAddress email, String password, String locale,
             boolean codeSentToPhone, String code) {
     }
 }

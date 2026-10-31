@@ -6,25 +6,20 @@ import com.mojud.shared.error.ApiException;
 import com.mojud.shared.phone.PhoneNumber;
 
 /**
- * What a user types to sign in: a phone number in any common form, or an email address. Normalised
- * to the stored form, so it doubles as the destination of a sign-in code.
+ * A phone number in any common form, or an email address, as typed. Normalised to the stored form,
+ * so it doubles as the destination of a code.
  */
-record LoginIdentifier(OtpDestination destination) {
+record ContactInput(OtpDestination destination) {
 
     /** @throws ApiException a validation error on {@code field} when it is neither */
-    static LoginIdentifier parse(String input, String field) {
+    static ContactInput parse(String input, String field) {
         if (input != null && input.contains("@")) {
             return EmailAddress.tryParse(input)
-                    .map(email -> new LoginIdentifier(OtpDestination.email(email)))
+                    .map(email -> new ContactInput(OtpDestination.email(email)))
                     .orElseThrow(() -> ApiException.invalidField(field, "field.login_invalid"));
         }
         return PhoneNumber.tryParse(input)
-                .map(phone -> new LoginIdentifier(OtpDestination.phone(phone)))
+                .map(phone -> new ContactInput(OtpDestination.phone(phone)))
                 .orElseThrow(() -> ApiException.invalidField(field, "field.login_invalid"));
-    }
-
-    /** The stored phone or email: the key for limits and for the password check. */
-    String value() {
-        return destination.value();
     }
 }

@@ -87,6 +87,8 @@ mojud:
       login-failures-per-account-and-ip: { max: 10, window: 15m }
       login-failures-per-account: { max: 50, window: 15m }
       signup-per-ip: { max: 20, window: 1h }
+      # Each check says whether a User ID exists, so nobody gets to run through a list of them.
+      user-id-check-per-ip: { max: 60, window: 1h }
       otp-per-ip: { max: 20, window: 1h }
       otp-cooldown: { max: 1, window: 60s }
       otp-per-destination-and-ip: { max: 5, window: 1h }

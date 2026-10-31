@@ -49,7 +49,7 @@ class AdminBusinessController {
         this.audit = audit;
     }
 
-    /** {@code q}: part of the name, or the owner's phone or email; newest first, up to {@code limit} (100). */
+    /** {@code q}: part of the name, or the owner's phone, email or User ID; newest first, up to {@code limit} (100). */
     @GetMapping("/api/v1/admin/businesses")
     List<Row> search(@RequestParam(required = false) String q, @RequestParam(defaultValue = "50") int limit) {
         List<BusinessDirectory.BusinessSummary> found = businesses.search(q, Math.max(1, Math.min(limit, 100)));

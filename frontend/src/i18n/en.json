@@ -226,8 +226,6 @@
       "title": "Welcome back",
       "subtitle": "Your stock, orders and deliveries in one place.",
       "submit": "Sign in",
-      "withCode": "Sign in with a code",
-      "withPassword": "Sign in with a password",
       "forgot": "Forgot your password?",
       "newHere": "New here? Try Pro free for 14 days.",
       "createAccount": "Create an account"
@@ -257,11 +255,38 @@
     },
     "forgot": {
       "title": "Forgot your password?",
-      "description": "Enter your phone number or email and we'll send you a code.",
+      "description": "Enter your user ID and we'll send a code to the account's phone or email.",
       "newPassword": "New password",
       "submit": "Change password",
       "done": "Your password has been changed. Now sign in.",
-      "backToSignIn": "Back to sign in"
+      "backToSignIn": "Back to sign in",
+      "codeSent": "If this user ID exists, we've sent a code to the account's phone or email. It works for 5 minutes."
+    },
+    "step": "Step {{step}} of 2",
+    "panel": {
+      "headline": "Your accounts, off the ledger and onto your phone.",
+      "stock": "Stock",
+      "stockNote": "What you have, what's running low",
+      "orders": "Orders",
+      "ordersNote": "What needs packing",
+      "delivery": "Delivery",
+      "deliveryNote": "Which parcels are with couriers",
+      "cod": "COD",
+      "codNote": "How much is owed, how much is on the way"
+    },
+    "userId": {
+      "label": "User ID",
+      "forgot": "Forgot your user ID?",
+      "check": "Check",
+      "checking": "Checking…",
+      "rules": "4–20 characters: lowercase English letters, numbers and _",
+      "available": "This user ID is available.",
+      "taken": "This user ID is already taken. Try another.",
+      "notAllowed": "Use 4–20 characters: only lowercase English letters, numbers and _",
+      "description": "Enter your account's phone number or email and we'll send you a code.",
+      "yours": "Your user ID",
+      "yoursNote": "Sign in with this. Write it down for next time.",
+      "passwordToo": "Forgot your password too?"
     }
   },
   "twoFactor": {

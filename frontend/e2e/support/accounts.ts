@@ -5,6 +5,11 @@ export function newPhone(): string {
   return `017${String(Math.floor(Math.random() * 100_000_000)).padStart(8, "0")}`;
 }
 
+/** A User ID nobody has chosen yet. */
+export function newUserId(): string {
+  return `e2e_${Date.now().toString(36)}${Math.floor(Math.random() * 46_656).toString(36)}`.slice(0, 20);
+}
+
 export function newEmail(): string {
   return `seller-${newPhone()}@example.com`;
 }
@@ -61,6 +66,7 @@ async function csrfToken(request: APIRequestContext): Promise<string> {
  */
 export async function signUp(request: APIRequestContext, { name = "Test Seller", language = "bn" } = {}) {
   const phone = newPhone();
+  const userId = newUserId();
   const headers = { "X-XSRF-TOKEN": await csrfToken(request), "Accept-Language": language };
 
   const sent = await request.post("/api/v1/auth/otp", { headers, data: { to: phone, purpose: "SIGNUP" } });
@@ -69,10 +75,10 @@ export async function signUp(request: APIRequestContext, { name = "Test Seller",
 
   const created = await request.post("/api/v1/auth/signup", {
     headers,
-    data: { name, phone, password: PASSWORD, codeSentTo: "PHONE", code },
+    data: { userId, name, phone, password: PASSWORD, codeSentTo: "PHONE", code },
   });
   expect(created.status()).toBe(201);
-  return { phone, password: PASSWORD, name };
+  return { userId, phone, password: PASSWORD, name };
 }
 
 /** An account with a business, signed in: what most tests start from. */
@@ -105,6 +111,7 @@ export async function joinAsStaff(owner: Page, browser: Browser): Promise<Page> 
   await staff.request.post("/api/v1/auth/signup", {
     headers: staffHeaders,
     data: {
+      userId: newUserId(),
       name: "Sumi Staff",
       phone: `018${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`,
       email,

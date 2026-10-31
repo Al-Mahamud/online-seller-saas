@@ -60,7 +60,10 @@ class CrossTenantTests {
         CASES.put("POST /api/v1/auth/signup", notBusinessData(auth));
         CASES.put("POST /api/v1/auth/login", notBusinessData(auth));
         CASES.put("POST /api/v1/auth/login/two-factor", notBusinessData(auth));
+        CASES.put("POST /api/v1/auth/password/code", notBusinessData(auth));
         CASES.put("POST /api/v1/auth/password/reset", notBusinessData(auth));
+        CASES.put("GET /api/v1/auth/user-id/availability", notBusinessData(auth));
+        CASES.put("POST /api/v1/auth/user-id/recover", notBusinessData(auth));
 
         // The caller's own account.
         String ownAccount = "acts on the signed-in user's own account only";

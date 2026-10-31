@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { lastCode, newEmail, newPhone, PASSWORD, readCode, signUpWithBusiness } from "./support/accounts";
+import { lastCode, newEmail, newPhone, newUserId, PASSWORD, readCode, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { expect, test } from "./support/test";
 
@@ -21,8 +21,8 @@ async function signOutFromFirstRun(page: Page) {
   await expect(page.getByRole("heading", { level: 1, name: "আবার স্বাগতম" })).toBeVisible();
 }
 
-async function signInWithPassword(page: Page, login: string, password: string) {
-  await label(page, "ফোন নম্বর বা ইমেইল").fill(login);
+async function signInWithPassword(page: Page, userId: string, password: string) {
+  await label(page, "ইউজার আইডি").fill(userId);
   await label(page, "পাসওয়ার্ড").fill(password);
   await page.getByRole("button", { name: "লগ ইন", exact: true }).click();
 }
@@ -34,6 +34,7 @@ test("signs up with a code by SMS, stays signed in, signs out", async ({ page })
   await label(page, "আপনার নাম").fill("Rahima Khatun");
   // Bangla digits, as a Bangla keyboard types them.
   await label(page, "ফোন নম্বর").fill(phone.replace(/\d/g, (digit) => "০১২৩৪৫৬৭৮৯"[Number(digit)] as string));
+  await label(page, "ইউজার আইডি").fill(newUserId());
   await label(page, "পাসওয়ার্ড").fill(PASSWORD);
   await page.getByRole("button", { name: "এগিয়ে যান" }).click();
 
@@ -51,12 +52,14 @@ test("signs up with a code by SMS, stays signed in, signs out", async ({ page })
   await expect(page).toHaveURL(/\/sign-in/);
 });
 
-test("signs up with a code by email and signs in with that email", async ({ page }) => {
+test("signs up with a code by email and signs in with the User ID", async ({ page }) => {
   const email = newEmail();
+  const userId = newUserId();
   await page.goto("/sign-up");
 
   await label(page, "আপনার নাম").fill("Rahima Khatun");
   await label(page, "ফোন নম্বর").fill(newPhone());
+  await label(page, "ইউজার আইডি").fill(userId);
   await label(page, "ইমেইল (ঐচ্ছিক)").fill(email);
   await label(page, "পাসওয়ার্ড").fill(PASSWORD);
   await page.getByRole("radio", { name: "ইমেইল" }).check();
@@ -67,7 +70,7 @@ test("signs up with a code by email and signs in with that email", async ({ page
   await expectFirstRun(page);
 
   await signOutFromFirstRun(page);
-  await signInWithPassword(page, email, PASSWORD);
+  await signInWithPassword(page, userId, PASSWORD);
   await expectFirstRun(page);
 });
 
@@ -91,6 +94,7 @@ test("a detail the server refuses leads back to the details, with the problem un
 
   await label(page, "আপনার নাম").fill("Rahima Khatun");
   await label(page, "ফোন নম্বর").fill(phone);
+  await label(page, "ইউজার আইডি").fill(newUserId());
   await label(page, "ইমেইল (ঐচ্ছিক)").fill("not-an-email");
   await label(page, "পাসওয়ার্ড").fill(PASSWORD);
   await page.getByRole("button", { name: "এগিয়ে যান" }).click();
@@ -118,7 +122,7 @@ test("signs in with a password and returns to the page asked for", async ({ page
   await page.goto("/products");
   await expect(page).toHaveURL(/redirect=/);
 
-  await signInWithPassword(page, account.phone, account.password);
+  await signInWithPassword(page, account.userId, account.password);
 
   await expect(page).toHaveURL(/\/products$/);
   await expect(page.getByRole("heading", { level: 1, name: "পণ্য" })).toBeVisible();
@@ -128,7 +132,7 @@ test("a wrong password shows the server's message, in the language on screen", a
   const account = await signedOutAccount(page);
   await page.goto("/sign-in");
 
-  await signInWithPassword(page, account.phone, "not-the-password");
+  await signInWithPassword(page, account.userId, "not-the-password");
   const bangla = page.getByRole("alert").filter({ hasNotText: /[A-Za-z]{4,}/ });
   await expect(bangla).toBeVisible();
 
@@ -139,24 +143,108 @@ test("a wrong password shows the server's message, in the language on screen", a
   await expect(page).toHaveURL(/\/sign-in/);
 });
 
-test("signs in with a code, and refuses a wrong one", async ({ page }) => {
+test("offers no way to sign in except the User ID and password", async ({ page }) => {
+  const account = await signedOutAccount(page);
+  await page.goto("/sign-in");
+
+  await expect(page.getByRole("button", { name: "কোড দিয়ে লগ ইন" })).toHaveCount(0);
+
+  await signInWithPassword(page, account.phone, account.password);
+  await expect(page.getByRole("alert")).toContainText("ইউজার আইডি বা পাসওয়ার্ড সঠিক নয়।");
+  await expect(label(page, "পাসওয়ার্ড")).toHaveValue("");
+  await expect(label(page, "ইউজার আইডি")).toHaveValue(account.phone);
+});
+
+test("takes the User ID with capitals, as a phone's keyboard may", async ({ page }) => {
+  const account = await signedOutAccount(page);
+  await page.goto("/sign-in");
+
+  await signInWithPassword(page, account.userId.toUpperCase(), account.password);
+
+  await expectToday(page);
+});
+
+test("recovers a forgotten User ID with a code, and fills it in", async ({ page }) => {
   const account = await signedOutAccount(page);
   const earlier = await lastCode(page.request, account.phone);
   await page.goto("/sign-in");
 
-  await page.getByRole("button", { name: "কোড দিয়ে লগ ইন" }).click();
+  await page.getByRole("link", { name: "ইউজার আইডি ভুলে গেছেন?" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "ইউজার আইডি ভুলে গেছেন?" })).toBeVisible();
+  await expectAccessible(page);
   await label(page, "ফোন নম্বর বা ইমেইল").fill(account.phone);
   await page.getByRole("button", { name: "কোড পাঠান" }).click();
-  const code = await readCode(page.request, account.phone, earlier);
 
+  const code = await readCode(page.request, account.phone, earlier);
   const wrong = code === "000000" ? "000001" : "000000";
   await label(page, "৬ সংখ্যার কোড").fill(wrong);
-  await page.getByRole("button", { name: "লগ ইন", exact: true }).click();
+  await page.getByRole("button", { name: "নিশ্চিত করুন" }).click();
   await expect(label(page, "৬ সংখ্যার কোড")).toHaveAttribute("aria-invalid", "true");
+  await expectAccessible(page);
 
   await label(page, "৬ সংখ্যার কোড").fill(code);
-  await page.getByRole("button", { name: "লগ ইন", exact: true }).click();
-  await expectToday(page);
+  await page.getByRole("button", { name: "নিশ্চিত করুন" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "আপনার ইউজার আইডি" })).toBeVisible();
+  await expect(page.getByText(account.userId, { exact: true })).toBeVisible();
+  await expectAccessible(page);
+
+  await page.getByRole("link", { name: "লগ ইন করুন" }).click();
+  await expect(label(page, "ইউজার আইডি")).toHaveValue(account.userId);
+});
+
+test("the code boxes take a pasted code with spaces and Bangla digits", async ({ page }) => {
+  const account = await signedOutAccount(page);
+  await page.goto("/forgot-user-id");
+  await label(page, "ফোন নম্বর বা ইমেইল").fill(account.phone);
+  await page.getByRole("button", { name: "কোড পাঠান" }).click();
+  await expect(label(page, "৬ সংখ্যার কোড")).toBeVisible();
+
+  await label(page, "৬ সংখ্যার কোড").fill("১২৩ 456 789");
+
+  await expect(label(page, "৬ সংখ্যার কোড")).toHaveValue("১২৩456");
+});
+
+test("checks a User ID: free, taken, and against the rules", async ({ page }) => {
+  const existing = await signedOutAccount(page);
+  await page.goto("/sign-up");
+  const box = label(page, "ইউজার আইডি");
+  const check = page.getByRole("button", { name: "যাচাই করুন" });
+
+  await box.fill("my shop!");
+  await check.click();
+  await expect(page.getByText("৪–২০ অক্ষর দিন: শুধু ইংরেজি ছোট হাতের অক্ষর, সংখ্যা আর _")).toBeVisible();
+  await expect(box).toHaveAttribute("aria-invalid", "true");
+
+  await box.fill(existing.userId);
+  await expect(box).not.toHaveAttribute("aria-invalid", "true");
+  await check.click();
+  await expect(page.getByText("এই ইউজার আইডিটি আগেই নেওয়া হয়েছে। অন্যটি দিন।")).toBeVisible();
+  await expectAccessible(page);
+
+  await box.fill(newUserId().toUpperCase());
+  await expect(box).toHaveValue(/^[a-z0-9_]+$/);
+  await check.click();
+  await expect(page.getByText("এই ইউজার আইডিটি নেওয়া যাবে।").first()).toBeVisible();
+  await expectAccessible(page);
+
+  // Typing again means the answer no longer stands.
+  await box.fill(`${newUserId()}x`.slice(0, 20));
+  await expect(page.getByText("এই ইউজার আইডিটি নেওয়া যাবে।")).toHaveCount(0);
+});
+
+test("going on with a taken User ID stops before a code is sent", async ({ page }) => {
+  const existing = await signedOutAccount(page);
+  const phone = newPhone();
+  await page.goto("/sign-up");
+
+  await label(page, "আপনার নাম").fill("Rahima Khatun");
+  await label(page, "ফোন নম্বর").fill(phone);
+  await label(page, "ইউজার আইডি").fill(existing.userId);
+  await label(page, "পাসওয়ার্ড").fill(PASSWORD);
+  await page.getByRole("button", { name: "এগিয়ে যান" }).click();
+
+  await expect(page.getByText("এই ইউজার আইডিটি আগেই নেওয়া হয়েছে। অন্যটি দিন।")).toBeVisible();
+  expect(await lastCode(page.request, phone)).toBeNull();
 });
 
 test("sets a new password with a code", async ({ page }) => {
@@ -165,16 +253,19 @@ test("sets a new password with a code", async ({ page }) => {
   await page.goto("/sign-in");
 
   await page.getByRole("link", { name: "পাসওয়ার্ড ভুলে গেছেন?" }).click();
-  // The sign-in page has a box with this label too: wait for the new page, or the number goes in the old one.
+  // The sign-in page has a box with this label too: wait for the new page, or the ID goes in the old one.
   await expect(page.getByRole("heading", { level: 1, name: "পাসওয়ার্ড ভুলে গেছেন?" })).toBeVisible();
-  await label(page, "ফোন নম্বর বা ইমেইল").fill(account.phone);
+  await label(page, "ইউজার আইডি").fill(account.userId);
   await page.getByRole("button", { name: "কোড পাঠান" }).click();
   await label(page, "৬ সংখ্যার কোড").fill(await readCode(page.request, account.phone, earlier));
   await label(page, "নতুন পাসওয়ার্ড").fill("a-new-password-2");
+  await expectAccessible(page);
   await page.getByRole("button", { name: "পাসওয়ার্ড বদলান" }).click();
 
   await expect(page.getByRole("heading", { level: 1, name: "আবার স্বাগতম" })).toBeVisible();
-  await signInWithPassword(page, account.phone, "a-new-password-2");
+  await expect(page.getByRole("status").filter({ hasText: "পাসওয়ার্ড বদলানো হয়েছে" })).toBeVisible();
+  await expect(label(page, "ইউজার আইডি")).toHaveValue(account.userId);
+  await signInWithPassword(page, account.userId, "a-new-password-2");
   await expectToday(page);
 });
 

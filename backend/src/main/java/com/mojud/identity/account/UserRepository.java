@@ -12,6 +12,10 @@ import org.springframework.data.jpa.repository.Query;
  */
 public interface UserRepository extends JpaRepository<User, UUID> {
 
+    Optional<User> findByUserId(String userId);
+
+    boolean existsByUserId(String userId);
+
     @Query("select u from User u where u.phone = :phone and u.phoneVerifiedAt is not null")
     Optional<User> findByVerifiedPhone(String phone);
 

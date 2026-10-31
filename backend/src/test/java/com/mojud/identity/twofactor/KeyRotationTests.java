@@ -69,7 +69,7 @@ class KeyRotationTests {
             new TwoFactor(dataSource, new SecretBox(currentKey, newKey), clock).resealWithCurrentKey();
         }
         clock.advance(Duration.ofSeconds(30));
-        new ApiClient(port).post("/api/v1/auth/login", Map.of("login", client.get("/api/v1/me").json("$.email"),
+        new ApiClient(port).post("/api/v1/auth/login", Map.of("userId", client.get("/api/v1/me").json("$.userId"),
                 "password", TestAccounts.PASSWORD)).expectStatus(202);
     }
 }

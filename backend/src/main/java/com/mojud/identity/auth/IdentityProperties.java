@@ -16,6 +16,7 @@ public record IdentityProperties(Otp otp, RateLimits rateLimits) {
             Limit loginFailuresPerAccountAndIp,
             Limit loginFailuresPerAccount,
             Limit signupPerIp,
+            Limit userIdCheckPerIp,
             Limit otpPerIp,
             Limit otpCooldown,
             Limit otpPerDestinationAndIp,

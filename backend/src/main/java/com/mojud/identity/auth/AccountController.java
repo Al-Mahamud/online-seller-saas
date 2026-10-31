@@ -66,7 +66,7 @@ class AccountController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     void requestContactCode(@AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody ContactCodeRequest body, HttpServletRequest request) {
-        accounts.requestContactCode(user.id(), LoginIdentifier.parse(body.to(), "to").destination(),
+        accounts.requestContactCode(user.id(), ContactInput.parse(body.to(), "to").destination(),
                 request.getRemoteAddr());
     }
 
@@ -80,7 +80,7 @@ class AccountController {
     @PostMapping("/contact")
     MeResponse confirmContact(@AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody ContactConfirmation body, HttpServletRequest request) {
-        return accounts.confirmContact(user.id(), LoginIdentifier.parse(body.to(), "to").destination(), body.code(),
+        return accounts.confirmContact(user.id(), ContactInput.parse(body.to(), "to").destination(), body.code(),
                 body.currentPassword(), request.getRemoteAddr());
     }
 }

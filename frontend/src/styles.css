@@ -27,6 +27,15 @@
   --border: #e3e5e1;
   --input: #cbd0cb;
   --ring: #0b6b4f;
+  /* The sign-in pages' ledger look (docs/auth-redesign.md). */
+  --ledger: #07392b;
+  --ledger-line: #1f5848;
+  --ledger-text: #bfd6cb;
+  --ledger-outline: #2f6b59;
+  --marigold: #e8a93a;
+  --marigold-text: #f0b94f;
+  --danger-soft: #fbeae8;
+  --danger-ink: #8f1c13;
 }
 
 @theme inline {
@@ -57,6 +66,14 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-ledger: var(--ledger);
+  --color-ledger-line: var(--ledger-line);
+  --color-ledger-text: var(--ledger-text);
+  --color-ledger-outline: var(--ledger-outline);
+  --color-marigold: var(--marigold);
+  --color-marigold-text: var(--marigold-text);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
 }
 
 @layer base {

@@ -9,6 +9,8 @@ import com.mojud.support.IntegrationTest;
 import com.mojud.support.TestAccounts;
 import com.mojud.support.TestAccounts.Account;
 import com.mojud.support.TestClock;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -57,6 +59,7 @@ class AuthTests {
         Account account = TestAccounts.signUp(client, messages);
 
         ApiResponse me = client.get("/api/v1/me").expectStatus(200);
+        assertThat(me.<String>json("$.userId")).isEqualTo(account.userId());
         assertThat(me.<String>json("$.phone")).isEqualTo(account.e164());
         assertThat(me.<String>json("$.email")).isEqualTo(account.email());
         assertThat(me.<String>json("$.name")).isEqualTo("Test Seller");
@@ -72,7 +75,7 @@ class AuthTests {
         client.post("/api/v1/auth/otp", Map.of("to", phone, "purpose", "SIGNUP")).expectStatus(202);
 
         ApiResponse created = client.post("/api/v1/auth/signup", Map.of(
-                "name", "Rahima", "phone", phone, "password", TestAccounts.PASSWORD,
+                "userId", TestAccounts.newUserId(), "name", "Rahima", "phone", phone, "password", TestAccounts.PASSWORD,
                 "codeSentTo", "PHONE", "code", codeFor("+88" + phone))).expectStatus(201);
 
         assertThat(created.<Boolean>json("$.phoneVerified")).isTrue();
@@ -114,24 +117,20 @@ class AuthTests {
     }
 
     @Test
-    void anUnverifiedPhoneBlocksNobodyAndCannotBeUsedToSignIn() {
+    void anUnverifiedPhoneBlocksNobody() {
         // A stranger signs up with an email code and someone else's phone number.
         Account squatter = TestAccounts.signUp(client(), messages);
-
-        client().post("/api/v1/auth/login", Map.of("login", squatter.phone(), "password", squatter.password()))
-                .expectError(401, "auth.invalid_credentials");
 
         // The number's owner can still sign up with it, proving it with a code.
         ApiClient owner = client();
         owner.post("/api/v1/auth/otp", Map.of("to", squatter.phone(), "purpose", "SIGNUP")).expectStatus(202);
         Map<String, Object> body = signUp(squatter.phone(), null, codeFor(squatter.e164()));
         body.put("codeSentTo", "PHONE");
-        String ownerId = owner.post("/api/v1/auth/signup", body).expectStatus(201).json("$.id");
+        ApiResponse created = owner.post("/api/v1/auth/signup", body).expectStatus(201);
 
-        ApiResponse login = client()
-                .post("/api/v1/auth/login", Map.of("login", squatter.phone(), "password", TestAccounts.PASSWORD))
-                .expectStatus(200);
-        assertThat(login.<String>json("$.id")).isEqualTo(ownerId);
+        ApiResponse login = client().post("/api/v1/auth/login",
+                Map.of("userId", created.<String>json("$.userId"), "password", TestAccounts.PASSWORD)).expectStatus(200);
+        assertThat(login.<String>json("$.id")).isEqualTo(created.<String>json("$.id"));
     }
 
     @Test
@@ -193,7 +192,7 @@ class AuthTests {
         Account account = TestAccounts.signUp(client, messages);
         String signUpCode = codeFor(account.email());
 
-        client().post("/api/v1/auth/login", Map.of("login", account.email(), "code", signUpCode))
+        client().post("/api/v1/auth/user-id/recover", Map.of("to", account.email(), "code", signUpCode))
                 .expectError(400, "otp.invalid");
         client().post("/api/v1/auth/signup", signUp(TestAccounts.newPhone(), account.email(), signUpCode))
                 .expectError(400, "otp.invalid");
@@ -202,12 +201,118 @@ class AuthTests {
     @Test
     void signUpFieldsAreValidated() {
         ApiResponse response = client().post("/api/v1/auth/signup", Map.of(
-                        "name", "", "phone", "12345", "password", "short", "codeSentTo", "EMAIL", "code", "12"))
+                        "userId", "x", "name", "", "phone", "12345", "password", "short", "codeSentTo", "EMAIL", "code", "12"))
                 .expectError(400, "validation.failed");
 
         assertThat(response.<List<String>>json("$.errors[*].field")).contains("name", "password", "code");
         assertThat(response.<List<String>>json("$.errors[?(@.field == 'code')].message"))
                 .containsExactly("must be the 6-digit code");
+    }
+
+    // User IDs.
+
+    @Test
+    void theAvailabilityCheckAnswersForFreeTakenAndReservedIds() {
+        Account account = TestAccounts.signUp(client(), messages);
+
+        assertThat(availability(TestAccounts.newUserId())).isTrue();
+        assertThat(availability(account.userId())).isFalse();
+        assertThat(availability(account.userId().toUpperCase())).isFalse();
+        assertThat(availability("mojud")).isFalse();
+    }
+
+    @Test
+    void theAvailabilityCheckRefusesAnIdThatBreaksTheRules() {
+        for (String broken : List.of("abc", "my shop", "a".repeat(21), "রহিম", "dash-ed")) {
+            ApiResponse response = client().get("/api/v1/auth/user-id/availability?userId="
+                    + URLEncoder.encode(broken, StandardCharsets.UTF_8)).expectError(400, "validation.failed");
+            assertThat(response.<List<String>>json("$.errors[*].field")).containsExactly("userId");
+        }
+    }
+
+    @Test
+    void capitalsInAChosenIdAreFolded() {
+        String email = TestAccounts.newEmail();
+        String chosen = TestAccounts.newUserId();
+        client().post("/api/v1/auth/otp", Map.of("to", email, "purpose", "SIGNUP")).expectStatus(202);
+        Map<String, Object> body = signUp(TestAccounts.newPhone(), email, codeFor(email));
+        body.put("userId", chosen.toUpperCase());
+
+        ApiResponse created = client().post("/api/v1/auth/signup", body).expectStatus(201);
+
+        assertThat(created.<String>json("$.userId")).isEqualTo(chosen);
+    }
+
+    @Test
+    void aTakenOrReservedIdIsRefusedWithoutUsingTheCodeUp() {
+        Account existing = TestAccounts.signUp(client(), messages);
+        String email = TestAccounts.newEmail();
+        client().post("/api/v1/auth/otp", Map.of("to", email, "purpose", "SIGNUP")).expectStatus(202);
+        Map<String, Object> body = signUp(TestAccounts.newPhone(), email, codeFor(email));
+
+        body.put("userId", existing.userId());
+        client().post("/api/v1/auth/signup", body).expectError(409, "account.user_id_taken");
+        body.put("userId", "support");
+        client().post("/api/v1/auth/signup", body).expectError(409, "account.user_id_taken");
+
+        body.put("userId", TestAccounts.newUserId());
+        client().post("/api/v1/auth/signup", body).expectStatus(201);
+    }
+
+    @Test
+    void twoSignUpsRacingForOneIdGetOneAccount() throws Exception {
+        String chosen = TestAccounts.newUserId();
+        List<String> emails = List.of(TestAccounts.newEmail(), TestAccounts.newEmail(), TestAccounts.newEmail());
+        List<Map<String, Object>> bodies = new ArrayList<>();
+        for (String email : emails) {
+            client().post("/api/v1/auth/otp", Map.of("to", email, "purpose", "SIGNUP")).expectStatus(202);
+            Map<String, Object> body = signUp(TestAccounts.newPhone(), email, codeFor(email));
+            body.put("userId", chosen);
+            bodies.add(body);
+        }
+
+        List<ApiResponse> answers = inParallel(3, bodies::get);
+
+        assertThat(answers).filteredOn(answer -> answer.status() == 201).hasSize(1);
+        assertThat(answers).filteredOn(answer -> answer.status() == 409).hasSize(2)
+                .allSatisfy(answer -> answer.expectError(409, "account.user_id_taken"));
+    }
+
+    @Test
+    void aForgottenIdComesBackToWhoeverProvesThePhoneOrEmail() {
+        Account account = TestAccounts.signUp(client(), messages);
+        ApiClient forgetful = client().withHeader("X-Forwarded-For", "203.0.113.70");
+
+        forgetful.post("/api/v1/auth/otp", Map.of("to", account.email(), "purpose", "USER_ID_RECOVERY")).expectStatus(202);
+        ApiResponse recovered = forgetful.post("/api/v1/auth/user-id/recover",
+                Map.of("to", account.email(), "code", codeFor(account.email()))).expectStatus(200);
+
+        assertThat(recovered.<String>json("$.userId")).isEqualTo(account.userId());
+    }
+
+    @Test
+    void recoveringAnIdRevealsNothingWithoutTheCode() {
+        Account account = TestAccounts.signUp(client(), messages);
+        String unknown = TestAccounts.newEmail();
+
+        ApiResponse known = client().post("/api/v1/auth/user-id/recover", Map.of("to", account.email(), "code", "000000"))
+                .expectError(400, "otp.invalid");
+        ApiResponse stranger = client().post("/api/v1/auth/user-id/recover", Map.of("to", unknown, "code", "000000"))
+                .expectError(400, "otp.invalid");
+
+        assertThat(stranger.body()).isEqualTo(known.body());
+    }
+
+    @Test
+    void recoveryCodesAreNotSentToUnknownOrUnverifiedContacts() {
+        String unknown = TestAccounts.newPhone();
+        Account account = TestAccounts.signUp(client(), messages);
+
+        client().post("/api/v1/auth/otp", Map.of("to", unknown, "purpose", "USER_ID_RECOVERY")).expectStatus(202);
+        client().post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "USER_ID_RECOVERY")).expectStatus(202);
+
+        assertThat(messages.to("+88" + unknown)).isEmpty();
+        assertThat(messages.to(account.e164())).isEmpty();
     }
 
     @Test
@@ -222,25 +327,26 @@ class AuthTests {
     // Sign-in.
 
     @Test
-    void passwordSignInAcceptsAVerifiedPhoneInAnyForm() {
-        Account account = TestAccounts.signUpWithPhone(client(), messages);
-        String spaced = account.phone().substring(0, 5) + "-" + account.phone().substring(5);
+    void signingInTakesTheUserIdInAnyCase() {
+        Account account = TestAccounts.signUp(client(), messages);
 
-        for (String login : List.of(account.phone(), "+88" + account.phone(), spaced)) {
+        for (String typed : List.of(account.userId(), account.userId().toUpperCase(), " " + account.userId() + " ")) {
             ApiClient client = client();
-            client.post("/api/v1/auth/login", Map.of("login", login, "password", account.password())).expectStatus(200);
+            client.post("/api/v1/auth/login", Map.of("userId", typed, "password", account.password())).expectStatus(200);
             client.get("/api/v1/me").expectStatus(200);
         }
     }
 
     @Test
-    void passwordSignInAcceptsAVerifiedEmailInAnyCase() {
-        Account account = TestAccounts.signUp(client(), messages);
-        ApiClient client = client();
+    void aPhoneOrEmailNoLongerSignsIn() {
+        ApiClient signedUp = client();
+        Account withPhone = TestAccounts.signUpWithPhone(signedUp, messages);
+        Account withEmail = TestAccounts.signUp(client(), messages);
 
-        client.post("/api/v1/auth/login", Map.of("login", account.email().toUpperCase(), "password", account.password()))
-                .expectStatus(200);
-        client.get("/api/v1/me").expectStatus(200);
+        for (String typed : List.of(withPhone.phone(), withPhone.e164(), withEmail.email())) {
+            client().post("/api/v1/auth/login", Map.of("userId", typed, "password", TestAccounts.PASSWORD))
+                    .expectError(401, "auth.invalid_credentials");
+        }
     }
 
     @Test
@@ -248,48 +354,36 @@ class AuthTests {
         Account account = TestAccounts.signUp(client(), messages);
 
         ApiResponse wrongPassword = client()
-                .post("/api/v1/auth/login", Map.of("login", account.email(), "password", "wrong password"))
+                .post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", "wrong password"))
                 .expectError(401, "auth.invalid_credentials");
         ApiResponse unknown = client()
-                .post("/api/v1/auth/login", Map.of("login", TestAccounts.newPhone(), "password", "wrong password"))
+                .post("/api/v1/auth/login", Map.of("userId", TestAccounts.newUserId(), "password", "wrong password"))
+                .expectError(401, "auth.invalid_credentials");
+        ApiResponse notEvenAnId = client()
+                .post("/api/v1/auth/login", Map.of("userId", "not an id!", "password", "wrong password"))
                 .expectError(401, "auth.invalid_credentials");
 
         assertThat(unknown.body()).isEqualTo(wrongPassword.body());
+        assertThat(notEvenAnId.body()).isEqualTo(wrongPassword.body());
     }
 
     @Test
-    void aSignInCodeSignsIn() {
+    void codesCannotSignIn() {
         Account account = TestAccounts.signUpWithPhone(client(), messages);
-        ApiClient client = client();
-        client.post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "LOGIN")).expectStatus(202);
 
-        client.post("/api/v1/auth/login", Map.of("login", account.phone(), "code", codeFor(account.e164())))
-                .expectStatus(200);
-
-        client.get("/api/v1/me").expectStatus(200);
+        client().post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "LOGIN"))
+                .expectError(400, "validation.failed");
+        client().post("/api/v1/auth/login", Map.of("userId", account.userId(), "code", "123456"))
+                .expectError(400, "validation.failed");
     }
 
     @Test
-    void signInCodesAreNotSentToUnknownOrUnverifiedContacts() {
-        String unknown = TestAccounts.newPhone();
+    void signingInNeedsAUserIdAndAPassword() {
         Account account = TestAccounts.signUp(client(), messages);
 
-        client().post("/api/v1/auth/otp", Map.of("to", unknown, "purpose", "LOGIN")).expectStatus(202);
-        client().post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "LOGIN")).expectStatus(202);
-
-        assertThat(messages.to("+88" + unknown)).isEmpty();
-        assertThat(messages.to(account.e164())).isEmpty();
-    }
-
-    @Test
-    void signInNeedsExactlyOneOfPasswordAndCode() {
-        Account account = TestAccounts.signUp(client(), messages);
-
-        client().post("/api/v1/auth/login", Map.of("login", account.phone()))
+        client().post("/api/v1/auth/login", Map.of("userId", account.userId()))
                 .expectError(400, "validation.failed");
-        client().post("/api/v1/auth/login", Map.of("login", account.phone(), "password", "x", "code", "123456"))
-                .expectError(400, "validation.failed");
-        client().post("/api/v1/auth/login", Map.of("login", "not a phone", "password", "x"))
+        client().post("/api/v1/auth/login", Map.of("password", "x"))
                 .expectError(400, "validation.failed");
     }
 
@@ -299,7 +393,7 @@ class AuthTests {
         JdbcClient.create(dataSource).sql("update users set status = 'DISABLED' where email = ?")
                 .param(account.email()).update();
 
-        client().post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+        client().post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                 .expectError(403, "auth.account_disabled");
     }
 
@@ -310,7 +404,7 @@ class AuthTests {
         Account account = TestAccounts.signUp(client(), messages);
 
         ApiResponse login = client().post("/api/v1/auth/login",
-                Map.of("login", account.email(), "password", account.password())).expectStatus(200);
+                Map.of("userId", account.userId(), "password", account.password())).expectStatus(200);
 
         assertThat(login.setCookies()).anySatisfy(cookie -> assertThat(cookie)
                 .startsWith("SESSION=").contains("HttpOnly").contains("SameSite=Lax"));
@@ -321,10 +415,10 @@ class AuthTests {
         Account account = TestAccounts.signUp(client(), messages);
         ApiClient client = client();
         client.get("/api/v1/auth/csrf").expectStatus(204);
-        client.post("/api/v1/auth/login", Map.of("login", account.email(), "password", "wrong password"));
+        client.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", "wrong password"));
         String before = client.cookie("SESSION").orElse("none");
 
-        client.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+        client.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                 .expectStatus(200);
 
         assertThat(client.cookie("SESSION")).isPresent().get().isNotEqualTo(before);
@@ -347,7 +441,7 @@ class AuthTests {
 
     @Test
     void writesNeedTheCsrfToken() {
-        client().postWithoutCsrf("/api/v1/auth/login", Map.of("login", TestAccounts.newPhone(), "password", "x"))
+        client().postWithoutCsrf("/api/v1/auth/login", Map.of("userId", TestAccounts.newUserId(), "password", "x"))
                 .expectError(403, "csrf.invalid");
     }
 
@@ -387,14 +481,14 @@ class AuthTests {
         ApiClient attacker = client().withHeader("X-Forwarded-For", "203.0.113.10");
 
         for (int i = 0; i < 10; i++) {
-            attacker.post("/api/v1/auth/login", Map.of("login", account.email(), "password", "wrong password"))
+            attacker.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", "wrong password"))
                     .expectError(401, "auth.invalid_credentials");
         }
 
-        attacker.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+        attacker.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                 .expectError(429, "rate_limited");
         client().withHeader("X-Forwarded-For", "198.51.100.20")
-                .post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+                .post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                 .expectStatus(200);
     }
 
@@ -404,10 +498,10 @@ class AuthTests {
 
         for (int round = 0; round < 2; round++) {
             for (int i = 0; i < 9; i++) {
-                client().post("/api/v1/auth/login", Map.of("login", account.email(), "password", "typo"))
+                client().post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", "typo"))
                         .expectError(401, "auth.invalid_credentials");
             }
-            client().post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+            client().post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                     .expectStatus(200);
         }
     }
@@ -418,12 +512,12 @@ class AuthTests {
 
         for (int i = 0; i < 50; i++) {
             client().withHeader("X-Forwarded-For", "192.0.2." + (i % 10))
-                    .post("/api/v1/auth/login", Map.of("login", account.email(), "password", "guess " + i))
+                    .post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", "guess " + i))
                     .expectError(401, "auth.invalid_credentials");
         }
 
         client().withHeader("X-Forwarded-For", "192.0.2.99")
-                .post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+                .post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                 .expectError(429, "rate_limited");
     }
 
@@ -431,12 +525,12 @@ class AuthTests {
     void someoneElseAskingForCodesDoesNotStopTheOwnerGettingOne() {
         Account account = TestAccounts.signUpWithPhone(client(), messages);
         client().withHeader("X-Forwarded-For", "203.0.113.30")
-                .post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "LOGIN")).expectStatus(202);
+                .post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "USER_ID_RECOVERY")).expectStatus(202);
 
         ApiClient owner = client().withHeader("X-Forwarded-For", "198.51.100.40");
-        owner.post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "LOGIN")).expectStatus(202);
+        owner.post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "USER_ID_RECOVERY")).expectStatus(202);
 
-        owner.post("/api/v1/auth/login", Map.of("login", account.phone(), "code", codeFor(account.e164())))
+        owner.post("/api/v1/auth/user-id/recover", Map.of("to", account.phone(), "code", codeFor(account.e164())))
                 .expectStatus(200);
     }
 
@@ -529,12 +623,17 @@ class AuthTests {
         }
     }
 
+    private boolean availability(String userId) {
+        return client().get("/api/v1/auth/user-id/availability?userId=" + userId).expectStatus(200).json("$.available");
+    }
+
     private String codeFor(String destination) {
         return messages.lastCode(destination).orElseThrow(() -> new AssertionError("No code sent to " + destination));
     }
 
     private static Map<String, Object> signUp(String phone, String email, String code) {
         Map<String, Object> body = new HashMap<>();
+        body.put("userId", TestAccounts.newUserId());
         body.put("name", "Test Seller");
         body.put("phone", phone);
         body.put("email", email);

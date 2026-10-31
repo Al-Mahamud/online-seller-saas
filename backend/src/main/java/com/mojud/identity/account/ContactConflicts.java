@@ -7,7 +7,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 
 /**
  * Saving a user can break the unique indexes on verified phones and emails (V5), when another
- * account proved the same one first. The index that refused the write says which.
+ * account proved the same one first, or on User IDs (V33), when two people choose one at the same
+ * moment. The index that refused the write says which.
  */
 public final class ContactConflicts {
 
@@ -15,10 +16,13 @@ public final class ContactConflicts {
     }
 
     /**
-     * @return {@code account.phone_taken} or {@code account.email_taken}, or {@code e} itself when
-     *         another constraint failed
+     * @return {@code account.phone_taken}, {@code account.email_taken} or
+     *         {@code account.user_id_taken}, or {@code e} itself when another constraint failed
      */
     public static RuntimeException translate(DataIntegrityViolationException e) {
+        if (Constraints.violated(e, "uq_users_user_id")) {
+            return new ApiException(ErrorCode.USER_ID_TAKEN);
+        }
         if (Constraints.violated(e, "uq_users_verified_phone")) {
             return new ApiException(ErrorCode.PHONE_TAKEN);
         }

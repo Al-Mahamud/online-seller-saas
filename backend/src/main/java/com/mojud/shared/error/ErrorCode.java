@@ -45,6 +45,7 @@ public enum ErrorCode {
     OTP_CHANNEL_UNAVAILABLE("otp.channel_unavailable", HttpStatus.BAD_REQUEST),
     PHONE_TAKEN("account.phone_taken", HttpStatus.CONFLICT),
     EMAIL_TAKEN("account.email_taken", HttpStatus.CONFLICT),
+    USER_ID_TAKEN("account.user_id_taken", HttpStatus.CONFLICT),
     /** A signed-in user re-entered their password wrongly. */
     WRONG_PASSWORD("account.wrong_password", HttpStatus.BAD_REQUEST),
 

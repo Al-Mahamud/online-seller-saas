@@ -85,6 +85,7 @@ class AdminTests {
 
         assertThat(ids(admin.get("/api/v1/admin/businesses?q=" + name.substring(16).replace(" ", "%20")))).contains(business.toString());
         assertThat(ids(admin.get("/api/v1/admin/businesses?q=" + ownerAccount.email()))).containsExactly(business.toString());
+        assertThat(ids(admin.get("/api/v1/admin/businesses?q=" + ownerAccount.userId().toUpperCase()))).containsExactly(business.toString());
         assertThat(ids(admin.get("/api/v1/admin/businesses?q=nothing-like-this"))).isEmpty();
 
         ApiResponse row = admin.get("/api/v1/admin/businesses?q=" + ownerAccount.email());

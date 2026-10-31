@@ -61,7 +61,7 @@ class AccountTests {
         ApiClient phone = client().withHeader("Accept-Language", "en");
         Account account = TestAccounts.signUp(phone, messages);
         ApiClient laptop = client().withHeader("Accept-Language", "en");
-        laptop.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+        laptop.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                 .expectStatus(200);
 
         phone.patch("/api/v1/me", Map.of("locale", "bn")).expectStatus(200);
@@ -79,7 +79,7 @@ class AccountTests {
         client.patch("/api/v1/me", Map.of("locale", "bn")).expectStatus(200);
 
         ApiClient fresh = client().withHeader("Accept-Language", "en");
-        fresh.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+        fresh.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                 .expectStatus(200);
 
         assertThat(fresh.patch("/api/v1/me", Map.of("locale", "fr")).expectError(400, "validation.failed")
@@ -112,16 +112,16 @@ class AccountTests {
     void changingThePasswordSignsOutEveryOtherDevice() {
         ApiClient phone = client();
         Account account = TestAccounts.signUp(phone, messages);
-        ApiClient laptop = signIn(account.email(), account.password());
+        ApiClient laptop = signIn(account.userId(), account.password());
 
         phone.post("/api/v1/me/password", Map.of("currentPassword", account.password(), "newPassword", NEW_PASSWORD))
                 .expectStatus(204);
 
         phone.get("/api/v1/me").expectStatus(200);
         laptop.get("/api/v1/me").expectError(401, "auth.required");
-        client().post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+        client().post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                 .expectError(401, "auth.invalid_credentials");
-        signIn(account.email(), NEW_PASSWORD);
+        signIn(account.userId(), NEW_PASSWORD);
     }
 
     @Test
@@ -132,7 +132,7 @@ class AccountTests {
         client.post("/api/v1/me/password", Map.of("currentPassword", "wrong password", "newPassword", NEW_PASSWORD))
                 .expectError(400, "account.wrong_password");
 
-        signIn(account.email(), account.password());
+        signIn(account.userId(), account.password());
     }
 
     @Test
@@ -156,27 +156,57 @@ class AccountTests {
         ApiClient existing = client();
         Account account = TestAccounts.signUp(existing, messages);
         ApiClient forgetful = client().withHeader("X-Forwarded-For", "203.0.113.60");
-        forgetful.post("/api/v1/auth/otp", Map.of("to", account.email(), "purpose", "PASSWORD_RESET"))
-                .expectStatus(202);
+        forgetful.post("/api/v1/auth/password/code", Map.of("userId", account.userId())).expectStatus(202);
 
         forgetful.post("/api/v1/auth/password/reset",
-                Map.of("login", account.email(), "code", codeFor(account.email()), "newPassword", NEW_PASSWORD))
+                Map.of("userId", account.userId(), "code", codeFor(account.email()), "newPassword", NEW_PASSWORD))
                 .expectStatus(204);
 
         existing.get("/api/v1/me").expectError(401, "auth.required");
-        signIn(account.email(), NEW_PASSWORD);
+        signIn(account.userId(), NEW_PASSWORD);
     }
 
     @Test
     void resetCodesGoOnlyToVerifiedContacts() {
         Account account = TestAccounts.signUp(client(), messages);
-        String unknown = TestAccounts.newEmail();
 
-        client().post("/api/v1/auth/otp", Map.of("to", account.phone(), "purpose", "PASSWORD_RESET")).expectStatus(202);
-        client().post("/api/v1/auth/otp", Map.of("to", unknown, "purpose", "PASSWORD_RESET")).expectStatus(202);
+        client().post("/api/v1/auth/password/code", Map.of("userId", account.userId())).expectStatus(202);
 
+        assertThat(messages.to(account.email())).hasSizeGreaterThan(1);
         assertThat(messages.to(account.e164())).isEmpty();
-        assertThat(messages.to(unknown)).isEmpty();
+    }
+
+    @Test
+    void resetCodesPreferAVerifiedPhone() {
+        Account account = TestAccounts.signUpWithPhone(client(), messages);
+        int before = messages.to(account.e164()).size();
+
+        client().post("/api/v1/auth/password/code", Map.of("userId", account.userId())).expectStatus(202);
+
+        assertThat(messages.to(account.e164())).hasSize(before + 1);
+    }
+
+    @Test
+    void anUnknownIdGetsTheSameAnswersAsARealOne() {
+        Account account = TestAccounts.signUp(client(), messages);
+
+        client().post("/api/v1/auth/password/code", Map.of("userId", TestAccounts.newUserId())).expectStatus(202);
+        ApiResponse known = client().post("/api/v1/auth/password/reset",
+                Map.of("userId", account.userId(), "code", "000000", "newPassword", NEW_PASSWORD))
+                .expectError(400, "otp.invalid");
+        ApiResponse unknown = client().post("/api/v1/auth/password/reset",
+                Map.of("userId", TestAccounts.newUserId(), "code", "000000", "newPassword", NEW_PASSWORD))
+                .expectError(400, "otp.invalid");
+
+        assertThat(unknown.body()).isEqualTo(known.body());
+    }
+
+    @Test
+    void resetCodesOnlyComeThroughTheUserId() {
+        Account account = TestAccounts.signUp(client(), messages);
+
+        client().post("/api/v1/auth/otp", Map.of("to", account.email(), "purpose", "PASSWORD_RESET"))
+                .expectError(400, "validation.failed");
     }
 
     @Test
@@ -184,10 +214,10 @@ class AccountTests {
         Account account = TestAccounts.signUp(client(), messages);
 
         client().post("/api/v1/auth/password/reset",
-                Map.of("login", account.email(), "code", "000000", "newPassword", NEW_PASSWORD))
+                Map.of("userId", account.userId(), "code", "000000", "newPassword", NEW_PASSWORD))
                 .expectError(400, "otp.invalid");
 
-        signIn(account.email(), account.password());
+        signIn(account.userId(), account.password());
     }
 
     @Test
@@ -209,7 +239,7 @@ class AccountTests {
                 .expectStatus(200);
 
         assertThat(me.<Boolean>json("$.phoneVerified")).isTrue();
-        signIn(account.phone(), account.password());
+        signIn(account.userId(), account.password());
     }
 
     @Test
@@ -220,13 +250,10 @@ class AccountTests {
         String second = TestAccounts.newEmail();
 
         confirm(client, account, first);
-        signIn(first, account.password());
         ApiResponse me = confirm(client, account, second);
 
         assertThat(me.<String>json("$.email")).isEqualTo(second);
-        signIn(second, account.password());
-        client().post("/api/v1/auth/login", Map.of("login", first, "password", account.password()))
-                .expectError(401, "auth.invalid_credentials");
+        signIn(account.userId(), account.password());
     }
 
     @Test
@@ -238,9 +265,7 @@ class AccountTests {
         ApiResponse me = confirm(client, account, newPhone);
 
         assertThat(me.<String>json("$.phone")).isEqualTo("+88" + newPhone);
-        signIn(newPhone, account.password());
-        client().post("/api/v1/auth/login", Map.of("login", account.phone(), "password", account.password()))
-                .expectError(401, "auth.invalid_credentials");
+        signIn(account.userId(), account.password());
     }
 
     @Test
@@ -315,19 +340,19 @@ class AccountTests {
         Account account = TestAccounts.signUp(client(), messages);
         for (int i = 0; i < 50; i++) {
             client().withHeader("X-Forwarded-For", "192.0.2." + (i % 10))
-                    .post("/api/v1/auth/login", Map.of("login", account.email(), "password", "guess " + i))
+                    .post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", "guess " + i))
                     .expectError(401, "auth.invalid_credentials");
         }
         ApiClient owner = client().withHeader("X-Forwarded-For", "198.51.100.90");
-        owner.post("/api/v1/auth/login", Map.of("login", account.email(), "password", account.password()))
+        owner.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", account.password()))
                 .expectError(429, "rate_limited");
 
-        owner.post("/api/v1/auth/otp", Map.of("to", account.email(), "purpose", "PASSWORD_RESET")).expectStatus(202);
+        owner.post("/api/v1/auth/password/code", Map.of("userId", account.userId())).expectStatus(202);
         owner.post("/api/v1/auth/password/reset",
-                Map.of("login", account.email(), "code", codeFor(account.email()), "newPassword", NEW_PASSWORD))
+                Map.of("userId", account.userId(), "code", codeFor(account.email()), "newPassword", NEW_PASSWORD))
                 .expectStatus(204);
 
-        owner.post("/api/v1/auth/login", Map.of("login", account.email(), "password", NEW_PASSWORD))
+        owner.post("/api/v1/auth/login", Map.of("userId", account.userId(), "password", NEW_PASSWORD))
                 .expectStatus(200);
     }
 
@@ -335,16 +360,16 @@ class AccountTests {
     void aDisabledAccountGetsNoResetCodeAndCannotBeReset() {
         Account account = TestAccounts.signUp(client(), messages);
         ApiClient client = client().withHeader("X-Forwarded-For", "203.0.113.90");
-        client.post("/api/v1/auth/otp", Map.of("to", account.email(), "purpose", "PASSWORD_RESET")).expectStatus(202);
+        client.post("/api/v1/auth/password/code", Map.of("userId", account.userId())).expectStatus(202);
         String codeFromBefore = codeFor(account.email());
         JdbcClient.create(dataSource).sql("update users set status = 'DISABLED' where email = ?")
                 .param(account.email()).update();
         int before = messages.to(account.email()).size();
 
         client().withHeader("X-Forwarded-For", "203.0.113.91")
-                .post("/api/v1/auth/otp", Map.of("to", account.email(), "purpose", "PASSWORD_RESET")).expectStatus(202);
+                .post("/api/v1/auth/password/code", Map.of("userId", account.userId())).expectStatus(202);
         client.post("/api/v1/auth/password/reset",
-                Map.of("login", account.email(), "code", codeFromBefore, "newPassword", NEW_PASSWORD))
+                Map.of("userId", account.userId(), "code", codeFromBefore, "newPassword", NEW_PASSWORD))
                 .expectError(403, "auth.account_disabled");
 
         assertThat(messages.to(account.email())).hasSize(before);
@@ -365,7 +390,7 @@ class AccountTests {
         ApiClient client = client();
         String email = TestAccounts.newEmail();
         client.post("/api/v1/auth/otp", Map.of("to", email, "purpose", "SIGNUP")).expectStatus(202);
-        Map<String, Object> body = new java.util.HashMap<>(Map.of("name", "\u2003", "phone", TestAccounts.newPhone(),
+        Map<String, Object> body = new java.util.HashMap<>(Map.of("userId", TestAccounts.newUserId(), "name", "\u2003", "phone", TestAccounts.newPhone(),
                 "email", email, "password", TestAccounts.PASSWORD, "codeSentTo", "EMAIL", "code", codeFor(email)));
 
         client.post("/api/v1/auth/signup", body).expectError(400, "validation.failed");
@@ -404,9 +429,9 @@ class AccountTests {
                 .expectStatus(200);
     }
 
-    private ApiClient signIn(String login, String password) {
+    private ApiClient signIn(String userId, String password) {
         ApiClient client = client();
-        client.post("/api/v1/auth/login", Map.of("login", login, "password", password)).expectStatus(200);
+        client.post("/api/v1/auth/login", Map.of("userId", userId, "password", password)).expectStatus(200);
         client.get("/api/v1/me").expectStatus(200);
         return client;
     }

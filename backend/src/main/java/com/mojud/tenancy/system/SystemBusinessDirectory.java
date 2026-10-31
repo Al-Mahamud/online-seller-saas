@@ -50,6 +50,9 @@ class SystemBusinessDirectory implements BusinessDirectory {
                     ? EmailAddress.tryParse(query).map(EmailAddress::value).orElse(null)
                     : PhoneNumber.tryParse(query).map(PhoneNumber::e164).orElse(null);
             owner = contact == null ? Optional.empty() : users.findByVerifiedContact(contact);
+            if (owner.isEmpty()) {
+                owner = users.findByUserId(query);
+            }
         }
         List<Row> rows;
         if (owner.isPresent()) {

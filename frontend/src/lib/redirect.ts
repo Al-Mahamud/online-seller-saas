@@ -6,7 +6,23 @@ export function safeRedirect(target: unknown): string | undefined {
   return typeof target === "string" && /^\/(?![/\\])/.test(target) ? target : undefined;
 }
 
-/** The search of the sign-in and sign-up pages. */
+export interface SignInSearch {
+  redirect?: string;
+  /** Filled in for someone who just recovered it or changed their password. */
+  userId?: string;
+  notice?: "password-changed";
+}
+
+/** The search of the sign-in page. */
+export function validateSignInSearch(search: Record<string, unknown>): SignInSearch {
+  return {
+    ...validateRedirectSearch(search),
+    ...(typeof search.userId === "string" ? { userId: search.userId } : {}),
+    ...(search.notice === "password-changed" ? { notice: "password-changed" as const } : {}),
+  };
+}
+
+/** The search of the sign-up page. */
 export function validateRedirectSearch(search: Record<string, unknown>): { redirect?: string } {
   const redirect = safeRedirect(search.redirect);
   return redirect ? { redirect } : {};

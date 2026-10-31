@@ -1,4 +1,4 @@
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
 import { type ComponentProps, useId, useState } from "react";
 import type { FieldValues, Path, UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -24,33 +24,68 @@ interface FieldProps<T extends FieldValues> extends InputProps {
   form: FormOf<T>;
   name: Path<T>;
   label: string;
-  hint?: string;
+  hint?: React.ReactNode;
+  /** A link on the label's line, such as "forgot your password?". */
+  labelAction?: React.ReactNode;
+  /** Inside the input, at its end. */
+  inside?: React.ReactNode;
+  /** Next to the input, such as a button that acts on it. */
+  beside?: React.ReactNode;
+  /** A cross with the error, so it doesn't rest on colour alone. */
+  errorIcon?: boolean;
 }
 
 /** A labelled input with its hint and its error, tied to the form for screen readers. */
-export function TextField<T extends FieldValues>({ form, name, label, hint, ...input }: FieldProps<T>) {
+export function TextField<T extends FieldValues>({
+  form,
+  name,
+  label,
+  hint,
+  labelAction,
+  inside,
+  beside,
+  errorIcon = false,
+  ...input
+}: FieldProps<T>) {
   const id = useId();
   const error = fieldMessage(form.getFieldState(name, form.formState).error?.message);
   const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
+  const labelled = (
+    <Label htmlFor={id} className="text-[15px] leading-normal font-semibold">
+      {label}
+    </Label>
+  );
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id} className="text-[15px] leading-normal font-semibold">
-        {label}
-      </Label>
-      <Input
-        id={id}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        {...input}
-        {...form.register(name)}
-      />
+    <div className="flex min-w-0 flex-col gap-1.5">
+      {labelAction ? (
+        <div className="flex min-h-6 flex-wrap items-center justify-between gap-x-3">
+          {labelled}
+          {labelAction}
+        </div>
+      ) : (
+        labelled
+      )}
+      <div className="flex gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Input
+            id={id}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
+            {...input}
+            {...form.register(name)}
+          />
+          {inside && <div className="absolute inset-y-0 right-0.5 flex items-center">{inside}</div>}
+        </div>
+        {beside}
+      </div>
       {hint && (
-        <p id={`${id}-hint`} className="text-sm text-muted-foreground">
+        <div id={`${id}-hint`} className="text-sm text-muted-foreground">
           {hint}
-        </p>
+        </div>
       )}
       {error && (
-        <p id={`${id}-error`} className="text-sm text-destructive">
+        <p id={`${id}-error`} className="flex items-start gap-1.5 text-sm text-destructive">
+          {errorIcon && <X aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2.5} />}
           {error}
         </p>
       )}
@@ -132,20 +167,23 @@ export function PasswordField<T extends FieldValues>(props: FieldProps<T>) {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   return (
-    <div className="relative">
-      <TextField {...props} type={visible ? "text" : "password"} className="pr-12" />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="absolute top-[calc(1.5rem+6px)] right-0.5 md:top-[calc(1.5rem+4px)]"
-        aria-label={visible ? t("field.hidePassword") : t("field.showPassword")}
-        aria-pressed={visible}
-        onClick={() => setVisible(!visible)}
-      >
-        {visible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-      </Button>
-    </div>
+    <TextField
+      {...props}
+      type={visible ? "text" : "password"}
+      className="pr-12"
+      inside={
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={visible ? t("field.hidePassword") : t("field.showPassword")}
+          aria-pressed={visible}
+          onClick={() => setVisible(!visible)}
+        >
+          {visible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+        </Button>
+      }
+    />
   );
 }
 
@@ -154,12 +192,20 @@ export function CodeField<T extends FieldValues>(props: FieldProps<T>) {
   return <TextField inputMode="numeric" autoComplete="one-time-code" maxLength={6} {...props} />;
 }
 
-/** A problem with the form as a whole, such as a wrong password. */
-export function FormError<T extends FieldValues>({ form }: { form: FormOf<T> }) {
+/** A problem with the form as a whole, such as a wrong password; `strong` for the sign-in pages. */
+export function FormError<T extends FieldValues>({ form, strong = false }: { form: FormOf<T>; strong?: boolean }) {
   const message = fieldMessage(form.formState.errors.root?.message);
-  return message ? (
+  if (!message) {
+    return null;
+  }
+  return strong ? (
+    <Alert variant="destructive" className="rounded-[10px] border-0 bg-danger-soft px-3.5 py-3 text-danger-ink">
+      <X aria-hidden="true" strokeWidth={2.5} />
+      <AlertDescription className="text-[15px] font-semibold text-danger-ink">{message}</AlertDescription>
+    </Alert>
+  ) : (
     <Alert variant="destructive">
       <AlertDescription>{message}</AlertDescription>
     </Alert>
-  ) : null;
+  );
 }

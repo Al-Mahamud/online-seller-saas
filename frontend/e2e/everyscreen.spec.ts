@@ -86,7 +86,7 @@ for (const language of ["bn", "en"] as const) {
     });
     await signedOut.addInitScript((chosen) => localStorage.setItem("mojud.language", chosen), language);
     const visitor = await signedOut.newPage();
-    for (const route of ["/sign-in", "/sign-up", "/forgot-password"]) {
+    for (const route of ["/sign-in", "/sign-up", "/forgot-password", "/forgot-user-id"]) {
       await check(visitor, seen, route);
     }
     await check(visitor, seen, "/invites", "/invites#not-a-real-token");
@@ -106,7 +106,7 @@ for (const language of ["bn", "en"] as const) {
     const ids = await seed(page.request);
     expect((await page.request.post(`/dev/platform-admin?phone=${account.phone}`)).status()).toBe(204);
     await post(page.request, "/api/v1/auth/logout");
-    await post(page.request, "/api/v1/auth/login", { login: account.phone, password: PASSWORD });
+    await post(page.request, "/api/v1/auth/login", { userId: account.userId, password: PASSWORD });
     const { secret } = (await post(page.request, "/api/v1/me/two-factor/setup", { password: PASSWORD })) as unknown as {
       secret: string;
     };

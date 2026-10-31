@@ -308,6 +308,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["requestPasswordCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/password/reset": {
         parameters: {
             query?: never;
@@ -334,6 +350,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["signUp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/user-id/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["userIdAvailability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/user-id/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["recoverUserId"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2062,21 +2110,26 @@ export interface components {
         };
         AuthCodeRequest: {
             /** @enum {string} */
-            purpose: "SIGNUP" | "LOGIN" | "PASSWORD_RESET" | "VERIFY_CONTACT";
+            purpose: "SIGNUP" | "USER_ID_RECOVERY" | "PASSWORD_RESET" | "VERIFY_CONTACT";
             to: string;
         };
         AuthLoginRequest: {
-            code?: string;
-            login: string;
-            password?: string;
+            password: string;
+            userId: string;
         };
         AuthOptions: {
             otpChannels: ("PHONE" | "EMAIL")[];
         };
+        AuthPasswordCodeRequest: {
+            userId: string;
+        };
         AuthPasswordResetRequest: {
             code: string;
-            login: string;
             newPassword: string;
+            userId: string;
+        };
+        AuthRecoveredUserId: {
+            userId: string;
         };
         AuthSecondStep: {
             twoFactorRequired: boolean;
@@ -2092,6 +2145,14 @@ export interface components {
             name: string;
             password: string;
             phone: string;
+            userId: string;
+        };
+        AuthUserIdAvailability: {
+            available: boolean;
+        };
+        AuthUserIdRecoveryRequest: {
+            code: string;
+            to: string;
         };
         Billing: {
             /** Format: date-time */
@@ -2731,6 +2792,7 @@ export interface components {
             phoneVerified: boolean;
             platformAdmin: boolean;
             twoFactorEnabled: boolean;
+            userId: string;
         };
         NotificationItem: {
             /** Format: date-time */
@@ -3852,6 +3914,28 @@ export interface operations {
             };
         };
     };
+    requestPasswordCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthPasswordCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     resetPassword: {
         parameters: {
             query?: never;
@@ -3894,6 +3978,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    userIdAvailability: {
+        parameters: {
+            query: {
+                userId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthUserIdAvailability"];
+                };
+            };
+        };
+    };
+    recoverUserId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthUserIdRecoveryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthRecoveredUserId"];
                 };
             };
         };

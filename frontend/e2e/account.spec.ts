@@ -12,8 +12,8 @@ async function signOut(page: Page) {
   await expect(page.getByRole("heading", { level: 1, name: "আবার স্বাগতম" })).toBeVisible();
 }
 
-async function signIn(page: Page, login: string, password: string) {
-  await label(page, "ফোন নম্বর বা ইমেইল").fill(login);
+async function signIn(page: Page, userId: string, password: string) {
+  await label(page, "ইউজার আইডি").fill(userId);
   await label(page, "পাসওয়ার্ড").fill(password);
   await page.getByRole("button", { name: "লগ ইন", exact: true }).click();
 }
@@ -94,7 +94,7 @@ test("changes the password, refusing a wrong current one", async ({ page }) => {
   await expect(page.getByText("পাসওয়ার্ড বদলানো হয়েছে।")).toBeVisible();
 
   await signOut(page);
-  await signIn(page, account.phone, "a-new-password-2");
+  await signIn(page, account.userId, "a-new-password-2");
   await expect(today(page)).toBeVisible();
 });
 
@@ -134,7 +134,7 @@ test("turns on two-step sign-in, signs in with it, and turns it off", async ({ p
 
   // Signing in now asks for the second step: a wrong code, then the app's.
   await signOut(page);
-  await signIn(page, account.phone, PASSWORD);
+  await signIn(page, account.userId, PASSWORD);
   await expect(page.getByRole("heading", { level: 1, name: "দুই ধাপের লগ ইন" })).toBeVisible();
   await expectAccessible(page);
   const second = label(page, "অ্যাপের কোড বা রিকভারি কোড");
@@ -147,7 +147,7 @@ test("turns on two-step sign-in, signs in with it, and turns it off", async ({ p
 
   // A recovery code works too, once.
   await signOut(page);
-  await signIn(page, account.phone, PASSWORD);
+  await signIn(page, account.userId, PASSWORD);
   await second.fill(recoveryCode);
   await page.getByRole("button", { name: "নিশ্চিত করুন" }).click();
   await expect(today(page)).toBeVisible();
@@ -163,7 +163,7 @@ test("turns on two-step sign-in, signs in with it, and turns it off", async ({ p
   await expect(page.getByText("দুই ধাপের লগ ইন বন্ধ করা হয়েছে।")).toBeVisible();
 
   await signOut(page);
-  await signIn(page, account.phone, PASSWORD);
+  await signIn(page, account.userId, PASSWORD);
   await expect(today(page)).toBeVisible();
 });
 
