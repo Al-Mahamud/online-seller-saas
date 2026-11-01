@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useFormat } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { unreadQuery } from "./api";
 
 const MOST_SHOWN = 99;
@@ -13,9 +14,14 @@ function useCount() {
   return { unread, shown: unread > MOST_SHOWN ? `${format.number(MOST_SHOWN)}+` : format.number(unread) };
 }
 
-function Count({ shown }: { shown: string }) {
+function Count({ shown, className }: { shown: string; className?: string }) {
   return (
-    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground">
+    <span
+      className={cn(
+        "flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground",
+        className,
+      )}
+    >
       {shown}
     </span>
   );
@@ -42,19 +48,17 @@ export function NotificationBell() {
 }
 
 /** In the sidebar: the same, with its name beside it. */
-export function NotificationLink() {
+export function NotificationLink({ className }: { className: string }) {
   const { t } = useTranslation();
   const { unread, shown } = useCount();
   return (
-    <Link
-      to="/notifications"
-      className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-[#2B342F] no-underline hover:bg-muted data-[status=active]:bg-accent data-[status=active]:font-semibold data-[status=active]:text-accent-foreground"
-    >
-      <Bell aria-hidden="true" className="size-4.5" />
+    <Link to="/notifications" className={className}>
+      <Bell aria-hidden="true" />
       <span className="flex-1">{t("notifications.title")}</span>{" "}
       {unread > 0 && (
         <>
-          <Count shown={shown} /> <span className="sr-only">{t("notifications.unread")}</span>
+          <Count shown={shown} className="bg-marigold-text text-ledger" />{" "}
+          <span className="sr-only">{t("notifications.unread")}</span>
         </>
       )}
     </Link>

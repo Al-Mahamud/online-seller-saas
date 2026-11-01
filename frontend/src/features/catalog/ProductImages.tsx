@@ -4,24 +4,25 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, call } from "@/api/client";
 import { uploadImage } from "@/api/uploads";
-import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useFormat } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { type Product, productChanged } from "./api";
 
 const MAX_IMAGES = 8;
 
 type Image = Product["images"][number];
 
-/** The first image is the main one, shown in lists. */
+/** A large photo with the others under it. The first is the main one, shown in lists. */
 export function ProductImages({ product, canEdit }: { product: Product; canEdit: boolean }) {
   const { t } = useTranslation();
   const format = useFormat();
   const queryClient = useQueryClient();
   const input = useRef<HTMLInputElement>(null);
   const [openId, setOpenId] = useState<string>();
+  const [shownId, setShownId] = useState<string>();
   const add = useMutation({
     mutationFn: async (files: File[]) => {
       let latest: Product | undefined;
@@ -49,77 +50,108 @@ export function ProductImages({ product, canEdit }: { product: Product; canEdit:
   if (!canEdit && product.images.length === 0) {
     return null;
   }
+  // The one looked at, or the main one when that one has gone.
+  const shown = product.images.find((image) => image.id === shownId) ?? product.images[0];
+  const shownNumber = format.number(shown ? product.images.indexOf(shown) + 1 : 1);
+  const canAdd = canEdit && product.images.length < MAX_IMAGES;
+  const chooseFiles = () => input.current?.click();
   return (
-    <Section title={t("products.images.title")}>
-      <p className="text-sm text-muted-foreground">
-        {t("products.images.count", { count: format.number(product.images.length), max: format.number(MAX_IMAGES) })}
-      </p>
-      <div className="grid grid-cols-4 gap-2.5 md:grid-cols-8">
-        {product.images.map((image, index) => {
-          const alt = t("products.images.alt", { number: format.number(index + 1), name: product.name });
-          return canEdit ? (
+    <section
+      aria-labelledby="photos"
+      className="flex min-w-0 flex-[4_1_300px] flex-col gap-3 rounded-[14px] border bg-card p-4 md:px-5 md:py-4.5"
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="photos" className="text-[19px] font-bold">
+          {t("products.images.title")}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {t("products.images.count", { count: format.number(product.images.length), max: format.number(MAX_IMAGES) })}
+        </p>
+      </div>
+      {canAdd && (
+        <input
+          ref={input}
+          type="file"
+          multiple
+          accept="image/jpeg,image/png,image/webp"
+          aria-label={t("products.images.add")}
+          className="sr-only"
+          tabIndex={-1}
+          onChange={(event) => {
+            const files = [...(event.target.files ?? [])].slice(0, MAX_IMAGES - product.images.length);
+            if (files.length > 0) {
+              add.mutate(files);
+            }
+            event.target.value = "";
+          }}
+        />
+      )}
+      {!shown && canAdd && (
+        <button
+          type="button"
+          disabled={add.isPending}
+          onClick={chooseFiles}
+          className="flex h-55 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-primary bg-card font-semibold text-primary hover:bg-accent md:h-60"
+        >
+          <Plus aria-hidden="true" className="size-6" strokeWidth={2.5} />
+          {t("products.images.add")}
+        </button>
+      )}
+      {shown &&
+        (canEdit ? (
+          <button
+            type="button"
+            className="cursor-pointer overflow-hidden rounded-xl border"
+            onClick={() => setOpenId(shown.id)}
+          >
+            <span className="sr-only">{t("products.images.open", { number: shownNumber })}</span>
+            <img src={shown.large} alt="" className="h-55 w-full object-cover md:h-60" />
+          </button>
+        ) : (
+          <img
+            src={shown.large}
+            alt={t("products.images.alt", { number: shownNumber, name: product.name })}
+            className="h-55 w-full rounded-xl border object-cover md:h-60"
+          />
+        ))}
+      {shown && (
+        <div className="grid grid-cols-5 gap-2">
+          {product.images.map((image, index) => (
             <button
               key={image.id}
               type="button"
-              className="relative cursor-pointer overflow-hidden rounded-lg border"
-              onClick={() => setOpenId(image.id)}
+              aria-pressed={image.id === shown.id}
+              className={cn(
+                "relative cursor-pointer overflow-hidden rounded-[10px] border-2",
+                image.id === shown.id ? "border-primary" : "border-border",
+              )}
+              onClick={() => setShownId(image.id)}
             >
-              <span className="sr-only">{t("products.images.open", { number: format.number(index + 1) })}</span>
-              <ImageTile image={image} alt="" isMain={index === 0} />
+              <span className="sr-only">{t("products.images.show", { number: format.number(index + 1) })}</span>
+              <img src={image.small} alt="" loading="lazy" className="aspect-square w-full object-cover" />
+              {index === 0 && (
+                <span className="absolute inset-x-0 bottom-0 bg-foreground/75 text-center text-xs text-background">
+                  {t("products.images.main")}
+                </span>
+              )}
             </button>
-          ) : (
-            <div key={image.id} className="relative overflow-hidden rounded-lg border">
-              <ImageTile image={image} alt={alt} isMain={index === 0} />
-            </div>
-          );
-        })}
-        {canEdit && product.images.length < MAX_IMAGES && (
-          <>
-            <input
-              ref={input}
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/webp"
-              aria-label={t("products.images.add")}
-              className="sr-only"
-              tabIndex={-1}
-              onChange={(event) => {
-                const files = [...(event.target.files ?? [])].slice(0, MAX_IMAGES - product.images.length);
-                if (files.length > 0) {
-                  add.mutate(files);
-                }
-                event.target.value = "";
-              }}
-            />
+          ))}
+          {canAdd && (
             <button
               type="button"
               disabled={add.isPending}
-              className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-input bg-card text-xs"
-              onClick={() => input.current?.click()}
+              onClick={chooseFiles}
+              className="flex aspect-square cursor-pointer items-center justify-center rounded-[10px] border-[1.5px] border-dashed border-primary bg-card text-primary hover:bg-accent"
             >
-              <Plus aria-hidden="true" className="size-5" />
-              {t("products.images.add")}
+              <Plus aria-hidden="true" className="size-5" strokeWidth={2.5} />
+              <span className="sr-only">{t("products.images.add")}</span>
             </button>
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
       {canEdit && <p className="text-sm text-muted-foreground">{t("products.images.hint")}</p>}
       {open && <ImageDialog product={product} image={open} onClose={() => setOpenId(undefined)} />}
-    </Section>
-  );
-}
-
-function ImageTile({ image, alt, isMain }: { image: Image; alt: string; isMain: boolean }) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <img src={image.small} alt={alt} loading="lazy" className="aspect-square w-full object-cover" />
-      {isMain && (
-        <span className="absolute inset-x-0 bottom-0 bg-foreground/75 text-center text-xs text-background">
-          {t("products.images.main")}
-        </span>
-      )}
-    </>
+    </section>
   );
 }
 

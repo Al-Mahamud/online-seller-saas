@@ -1,7 +1,7 @@
 package com.mojud.notifications;
 
-import com.mojud.shared.paging.Cursor;
-import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.RequiresRole;
@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import javax.sql.DataSource;
-import org.jspecify.annotations.Nullable;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
@@ -38,14 +37,12 @@ class NotificationController {
     record Item(UUID id, String type, String title, JsonNode payload, Instant at, boolean read) {
     }
 
-    record Page(List<Item> items, @Nullable String nextCursor, long unread) {
+    /** A page of the list, as every list answers, with how many are unread. */
+    record Page(List<Item> items, int page, int size, long totalItems, int totalPages, long unread) {
     }
 
     private record Row(UUID id, String type, String payload, Instant at, boolean read) {
     }
-
-    private static final Instant END_OF_TIME = Instant.parse("9999-12-31T00:00:00Z");
-    private static final UUID LAST_ID = new UUID(-1L, -1L);
 
     private final JdbcClient jdbc;
     private final JsonMapper json;
@@ -62,29 +59,28 @@ class NotificationController {
     /** Newest first, with how many are unread. Plain SQL: the business is passed by hand (RLS also applies). */
     @GetMapping("/api/v1/notifications")
     @Transactional(readOnly = true)
-    Page list(@RequestParam(required = false) String cursor, @RequestParam(required = false) Integer limit) {
+    Page list(@ParameterObject PageQuery paging) {
         CurrentBusiness me = CurrentBusiness.require();
         List<String> audiences = visibleAudiences(me.role());
-        int pageSize = CursorPage.limit(limit);
-        Cursor after = Cursor.decode(cursor);
         List<Row> rows = jdbc.sql("""
                         select n.id, n.type, n.payload::text, n.created_at, r.user_id is not null
                         from notifications n
                         left join notification_reads r on r.notification_id = n.id and r.user_id = :user
                         where n.business_id = :business and n.audience in (:audiences)
-                          and (n.created_at, n.id) < (:afterAt, :afterId)
                         order by n.created_at desc, n.id desc
-                        limit :fetch
+                        limit :limit offset :offset
                         """)
                 .param("user", me.userId())
                 .param("business", me.businessId())
                 .param("audiences", audiences)
-                .param("afterAt", Timestamp.from(after == null ? END_OF_TIME : after.sortKeyAsInstant()))
-                .param("afterId", after == null ? LAST_ID : after.id())
-                .param("fetch", pageSize + 1)
+                .param("limit", paging.limit())
+                .param("offset", paging.offset())
                 .query((rs, n) -> new Row(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
                         rs.getTimestamp(4).toInstant(), rs.getBoolean(5)))
                 .list();
+        long total = jdbc.sql("select count(*) from notifications n where n.business_id = :business and n.audience in (:audiences)")
+                .param("business", me.businessId()).param("audiences", audiences)
+                .query(Long.class).single();
         long unread = jdbc.sql("""
                         select count(*) from notifications n
                         where n.business_id = :business and n.audience in (:audiences)
@@ -92,12 +88,12 @@ class NotificationController {
                         """)
                 .param("business", me.businessId()).param("audiences", audiences).param("user", me.userId())
                 .query(Long.class).single();
-        CursorPage<Row> page = CursorPage.of(rows, pageSize, row -> new Cursor(row.at().toString(), row.id()));
         Locale locale = LocaleContextHolder.getLocale();
-        return new Page(page.items().stream().map(row -> {
+        PagedResult<Item> page = PagedResult.of(rows, paging, total).map(row -> {
             JsonNode payload = json.readTree(row.payload());
             return new Item(row.id(), row.type(), title(row.type(), payload, locale), payload, row.at(), row.read());
-        }).toList(), page.nextCursor(), unread);
+        });
+        return new Page(page.items(), page.page(), page.size(), page.totalItems(), page.totalPages(), unread);
     }
 
     /** Either {@code ids} or {@code all: true}. Ids the member cannot see are ignored. */

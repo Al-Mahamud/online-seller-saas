@@ -14,20 +14,18 @@ export function EditOrderPage() {
   const format = useFormat();
   const { orderId } = route.useParams();
   const { data: order } = useQuery({ ...orderQuery(orderId), refetchOnWindowFocus: false });
-  return (
-    <div className="flex max-w-2xl flex-col gap-4">
-      <div>
-        <Link
-          to="/orders/$orderId"
-          params={{ orderId }}
-          className="-ml-1 flex min-h-11 w-fit items-center gap-1 text-primary no-underline"
-        >
-          <ChevronLeft aria-hidden="true" className="size-5" />
-          {order ? format.orderNumber(order.numberLabel) : t("nav.orders")}
-        </Link>
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{t("orders.edit")}</h1>
-      </div>
-      {order && <OrderForm key={order.id} order={order} />}
-    </div>
+  const heading = (
+    <>
+      <Link
+        to="/orders/$orderId"
+        params={{ orderId }}
+        className="-ml-1 flex min-h-11 w-fit items-center gap-1 text-primary no-underline"
+      >
+        <ChevronLeft aria-hidden="true" className="size-5" />
+        {order ? format.orderNumber(order.numberLabel) : t("nav.orders")}
+      </Link>
+      <h1 className="text-[28px] leading-tight font-bold md:text-[32px]">{t("orders.edit")}</h1>
+    </>
   );
+  return order ? <OrderForm key={order.id} order={order} heading={heading} /> : heading;
 }

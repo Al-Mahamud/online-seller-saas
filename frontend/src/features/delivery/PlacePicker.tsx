@@ -91,12 +91,15 @@ export function PlacePicker({
   onChange,
   districtLabel,
   districtError,
+  sideBySide,
 }: {
   value: PlaceValue;
   onChange: (value: PlaceValue) => void;
   /** Where the district is needed, as on an order, the label stops saying it's optional. */
   districtLabel?: string;
   districtError?: string;
+  /** From a laptop up, where the two fit next to each other. */
+  sideBySide?: boolean;
 }) {
   const { t } = useTranslation();
   const placeName = usePlaceName();
@@ -109,7 +112,7 @@ export function PlacePicker({
   const district = districts.find((place) => place.id === value.districtId);
   const area = areas?.find((place) => place.id === value.areaId);
   return (
-    <div className="flex flex-col gap-4">
+    <div className={sideBySide ? "grid gap-3 md:grid-cols-2 md:gap-3.5" : "flex flex-col gap-4"}>
       <PickField
         label={districtLabel ?? t("place.district")}
         shown={district ? placeName(district) : null}

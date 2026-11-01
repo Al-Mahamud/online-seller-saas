@@ -7,8 +7,7 @@ import { z } from "zod/mini";
 import { api, call } from "@/api/client";
 import { FormError, TextAreaField, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { LedgerDialog } from "@/components/layout/LedgerDialog";
 import { PlacePicker, type PlaceValue } from "@/features/delivery/PlacePicker";
 import { latinDigits } from "@/lib/digits";
 import { type Customer, customerQuery } from "./api";
@@ -85,24 +84,23 @@ export default function CustomerDialog({
     },
   });
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-dvh overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{customer ? t("customers.edit") : t("customers.new")}</DialogTitle>
-        </DialogHeader>
-        <form noValidate className="flex flex-col gap-4" onSubmit={form.handleSubmit((values) => save.mutate(values))}>
-          <FormError form={form} />
-          <TextField form={form} name="name" label={t("customers.name")} autoComplete="off" />
-          <TextField form={form} name="phone" label={t("customers.phone")} type="tel" autoComplete="off" />
-          <TextField form={form} name="altPhone" label={t("customers.altPhone")} type="tel" autoComplete="off" />
-          <TextAreaField form={form} name="address" label={t("customers.address")} />
-          <PlacePicker value={place} onChange={setPlace} />
-          <TextAreaField form={form} name="note" label={t("customers.note")} hint={t("customers.noteHint")} />
-          <Button type="submit" disabled={save.isPending}>
-            {t("customers.save")}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <LedgerDialog
+      title={customer ? t("customers.edit") : t("customers.new")}
+      description={customer ? customer.name : t("customers.formHint")}
+      action={t("customers.save")}
+      pending={save.isPending}
+      onSubmit={() => void form.handleSubmit((values) => save.mutate(values))()}
+      onClose={onClose}
+    >
+      <FormError form={form} />
+      <div className="grid gap-4 md:grid-cols-2 md:gap-3">
+        <TextField form={form} name="name" label={t("customers.name")} autoComplete="off" />
+        <TextField form={form} name="phone" label={t("customers.phone")} type="tel" autoComplete="off" />
+      </div>
+      <TextField form={form} name="altPhone" label={t("customers.altPhone")} type="tel" autoComplete="off" />
+      <TextAreaField form={form} name="address" label={t("customers.address")} />
+      <PlacePicker value={place} onChange={setPlace} />
+      <TextAreaField form={form} name="note" label={t("customers.note")} hint={t("customers.noteHint")} />
+    </LedgerDialog>
   );
 }

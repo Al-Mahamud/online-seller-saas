@@ -7,6 +7,8 @@ import com.mojud.shared.time.DhakaTime;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +32,17 @@ class Dashboard {
 
     record Today(LocalDate date, Confirmed confirmed, int cancelled, Map<String, Integer> byStatus, int shipped,
             int delivered, Cod cod, int lowStock, List<OrderReports.TopProduct> topProducts, OrderReports.@Nullable Profit profit) {
+    }
+
+    /** A parcel this long on the way, or COD this long with a courier, needs chasing. */
+    static final int LATE_AFTER_DAYS = 5;
+    static final int STUCK_AFTER_DAYS = 7;
+    static final int DELIVERY_WINDOW_DAYS = 30;
+
+    /** What needs attention and how deliveries stand now, whichever day is on screen. */
+    record Overview(int lateParcels, int lateAfterDays, List<OrderReports.CourierCash> stuckCod, int stuckAfterDays,
+            int windowDays, List<OrderReports.CourierParcels> couriers, Map<String, Integer> returnReasons,
+            boolean hasProducts, boolean hasOrders) {
     }
 
     private final OrderReports orders;
@@ -59,5 +72,16 @@ class Dashboard {
                 figures.byStatus(), figures.shipped(), figures.delivered(),
                 new Cod(figures.codInTransit(), figures.codWithCourier(), figures.codInTransit() + figures.codWithCourier()),
                 catalog.lowStockCount(), figures.topProducts(), seesProfit ? figures.profit() : null);
+    }
+
+    @Transactional(readOnly = true)
+    Overview overview() {
+        Instant now = clock.instant();
+        Instant shippedSince = DhakaTime.startOf(DhakaTime.today(clock).minusDays(DELIVERY_WINDOW_DAYS - 1));
+        OrderReports.Deliveries deliveries = orders.deliveries(now.minus(Duration.ofDays(LATE_AFTER_DAYS)),
+                now.minus(Duration.ofDays(STUCK_AFTER_DAYS)), shippedSince);
+        return new Overview(deliveries.lateParcels(), LATE_AFTER_DAYS, deliveries.stuckCod(), STUCK_AFTER_DAYS,
+                DELIVERY_WINDOW_DAYS, deliveries.couriers(), deliveries.returnReasons(), catalog.hasProducts(),
+                deliveries.hasOrders());
     }
 }

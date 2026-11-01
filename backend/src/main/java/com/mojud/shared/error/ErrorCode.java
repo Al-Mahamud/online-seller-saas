@@ -86,6 +86,7 @@ public enum ErrorCode {
     SKU_TAKEN("product.sku_taken", HttpStatus.CONFLICT),
     /** The variant's option values are no longer in the product's options. */
     VARIANT_NOT_IN_OPTIONS("variant.not_in_options", HttpStatus.CONFLICT),
+    VARIANT_DUPLICATE("variant.duplicate", HttpStatus.CONFLICT),
     /** A product keeps at least one active variant; archive the product instead. */
     VARIANT_LAST_ACTIVE("variant.last_active", HttpStatus.CONFLICT),
 
@@ -151,6 +152,8 @@ public enum ErrorCode {
     ORDER_NOT_PAYABLE("order.not_payable", HttpStatus.CONFLICT),
     /** Only delivered shipments with COD still with the courier are settled; {@code shipmentIds} lists the others. */
     COD_NOT_SETTLEABLE("cod.not_settleable", HttpStatus.CONFLICT),
+    COD_LIST_CHANGED("cod.list_changed", HttpStatus.CONFLICT),
+    COD_TOO_MANY("cod.too_many", HttpStatus.CONFLICT),
 
     // Imports.
     /** Not an .xlsx or a UTF-8 .csv (an old .xls, a CSV in another encoding, a damaged file). */

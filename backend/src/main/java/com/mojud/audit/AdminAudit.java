@@ -1,5 +1,7 @@
 package com.mojud.audit;
 
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +26,9 @@ public interface AdminAudit {
             @Nullable UUID businessId, Map<String, Object> details, Instant at) {
     }
 
-    /** Newest first; {@code businessId} null for every entry. */
+    /** The latest few, newest first; {@code businessId} null for every entry. */
     List<Entry> recent(UUID businessId, int limit);
+
+    /** A page of them, newest first; {@code businessId} null for every entry. */
+    PagedResult<Entry> page(UUID businessId, PageQuery paging);
 }

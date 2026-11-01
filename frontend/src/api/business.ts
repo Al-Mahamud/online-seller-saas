@@ -15,10 +15,10 @@ export function hasRole(business: { role: Role }, needed: Role): boolean {
   return RANK[business.role] >= RANK[needed];
 }
 
-/** On a page the role doesn't reach, such as from an old link: back to the list of pages. */
+/** On a page the role doesn't reach, such as from an old link: back to the start. */
 export function requireRole(business: { role: Role }, needed: Role) {
   if (!hasRole(business, needed)) {
-    throw redirect({ to: "/more" });
+    throw redirect({ to: "/" });
   }
 }
 

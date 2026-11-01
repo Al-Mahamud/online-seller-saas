@@ -24,4 +24,10 @@ class DashboardController {
     Dashboard.Today today(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return dashboard.today(date);
     }
+
+    /** What needs attention and how deliveries stand now, whichever day is on screen. */
+    @GetMapping("/api/v1/dashboard/overview")
+    Dashboard.Overview overview() {
+        return dashboard.overview();
+    }
 }

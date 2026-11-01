@@ -9,24 +9,33 @@ import { BusinessSwitcher } from "@/features/business/BusinessSwitcher";
 import { DeletionBanner } from "@/features/business/DeletionBanner";
 import { NotificationBell, NotificationLink } from "@/features/notifications/NotificationBell";
 import { LanguageToggle } from "./LanguageToggle";
+import { MANAGE_LINKS, type NavLabel, type NavLink, TAB_LINKS, WORK_LINKS } from "./navLinks";
 import { PlanLimitHost } from "./PlanLimitHost";
 
-type Tab = { to: LinkProps["to"]; label: "nav.today" | "nav.orders" | "nav.products" | "nav.more"; exact?: boolean };
-
-const TABS: Tab[] = [
-  { to: "/", label: "nav.today", exact: true },
-  { to: "/orders", label: "nav.orders" },
-  { to: "/products", label: "nav.products" },
+const TABS: { to: LinkProps["to"]; label: NavLabel | "nav.more"; exact?: boolean }[] = [
+  ...TAB_LINKS,
   { to: "/more", label: "nav.more" },
 ];
+
+const SIDE_LINK =
+  "flex min-h-10.5 flex-none items-center gap-2.75 rounded-[10px] px-2.5 text-[15.5px] text-white/90 no-underline hover:bg-white/8 hover:text-white focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-marigold-text data-[status=active]:bg-white/14 data-[status=active]:font-bold data-[status=active]:text-white [&_svg]:size-4.75 [&_svg]:flex-none [&_svg]:text-ledger-text data-[status=active]:[&_svg]:text-marigold-text";
 
 const FLOATING_BUTTON =
   "fixed right-4.5 bottom-[calc(84px+env(safe-area-inset-bottom))] z-20 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(23,32,27,0.18)] md:hidden";
 
+function SideLink({ link }: { link: NavLink }) {
+  const { t } = useTranslation();
+  return (
+    <Link to={link.to} activeOptions={{ exact: link.exact }} className={SIDE_LINK}>
+      <link.icon aria-hidden="true" />
+      {t(link.label)}
+    </Link>
+  );
+}
+
 /**
- * The frame around every signed-in screen, as in the mockup. On phones: a header with the business
- * and the language, four tabs at the bottom and a "+" for a new order. From 768 px: the same tabs as
- * a sidebar.
+ * The frame around every signed-in screen. On phones: a header with the business and the language,
+ * four tabs at the bottom and a "+" for a new order. From 768 px: a sidebar with every page.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
@@ -38,28 +47,30 @@ export function AppShell({ children }: { children: ReactNode }) {
   const showsNewOrder =
     canWrite && !/^\/(more|settings|billing|orders\/|cod|reports|notifications|products)/.test(pathname);
   const showsNewProduct = canWrite && onProducts && hasRole(business, "MANAGER");
+  const manage = MANAGE_LINKS.filter((link) => !link.role || hasRole(business, link.role));
   return (
     <div className="min-h-dvh md:flex">
       <nav
         aria-label={t("nav.main")}
-        className="sticky top-0 hidden h-dvh w-58 shrink-0 flex-col gap-1 border-r bg-card px-3.5 py-5 md:flex"
+        className="sticky top-0 hidden h-dvh w-62 shrink-0 flex-col gap-3.5 bg-ledger px-3 py-4 text-white md:flex"
       >
-        <div className="mb-3.5">
-          <BusinessSwitcher wide />
+        <BusinessSwitcher wide />
+        <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
+          {[...TAB_LINKS, ...WORK_LINKS].map((link) => (
+            <SideLink key={link.label} link={link} />
+          ))}
+          {manage.length > 0 && (
+            <>
+              <p className="mt-3.5 mb-1 px-2.5 text-[13px] font-semibold text-ledger-text">{t("nav.manage")}</p>
+              {manage.map((link) => (
+                <SideLink key={link.label} link={link} />
+              ))}
+            </>
+          )}
         </div>
-        {TABS.map((tab) => (
-          <Link
-            key={tab.label}
-            to={tab.to}
-            activeOptions={{ exact: tab.exact }}
-            className="flex min-h-11 items-center rounded-lg px-3 text-[#2B342F] no-underline hover:bg-muted data-[status=active]:bg-accent data-[status=active]:font-semibold data-[status=active]:text-accent-foreground"
-          >
-            {t(tab.label)}
-          </Link>
-        ))}
-        <div className="mt-auto flex flex-col gap-1">
-          <NotificationLink />
-          <LanguageToggle className="self-start" />
+        <div className="flex flex-none flex-col gap-0.5 border-t border-ledger-outline pt-2.5">
+          <NotificationLink className={SIDE_LINK} />
+          <LanguageToggle className="self-start text-marigold-text hover:bg-white/8 hover:text-marigold-text" />
         </div>
       </nav>
 

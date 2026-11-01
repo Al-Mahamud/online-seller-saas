@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";
 import i18n from "@/i18n";
+import { type Paging, pagedQuery } from "@/lib/paging";
 
 export type Billing = components["schemas"]["Billing"];
 export type Plan = components["schemas"]["BillingPlanView"];
@@ -19,10 +20,8 @@ export const plansQuery = queryOptions({
   queryFn: () => call(api.GET("/api/v1/plans")),
 });
 
-export const invoicesQuery = queryOptions({
-  queryKey: ["invoices"],
-  queryFn: () => call(api.GET("/api/v1/billing/invoices")),
-});
+export const invoicesQuery = (paging: Paging) =>
+  pagedQuery(["invoices", paging], () => call(api.GET("/api/v1/billing/invoices", { params: { query: paging } })));
 
 export const invoiceQuery = (id: string) =>
   queryOptions({

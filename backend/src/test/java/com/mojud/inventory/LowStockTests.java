@@ -141,9 +141,9 @@ class LowStockTests {
 
         ApiResponse low = owner.get("/api/v1/stock/low").expectStatus(200);
 
-        assertThat(low.<List<String>>json("$[*].label")).containsExactly("Black");
-        assertThat(low.<Integer>json("$[0].available")).isEqualTo(2);
-        assertThat(low.<Integer>json("$[0].threshold")).isEqualTo(3);
+        assertThat(low.<List<String>>json("$.items[*].label")).containsExactly("Black");
+        assertThat(low.<Integer>json("$.items[0].available")).isEqualTo(2);
+        assertThat(low.<Integer>json("$.items[0].threshold")).isEqualTo(3);
     }
 
     // Nightly jobs.

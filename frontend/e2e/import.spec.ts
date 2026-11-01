@@ -61,6 +61,7 @@ test("imports 20 products: one bad price is shown, and after fixing, all 20 are 
   await page.getByRole("link", { name: "পণ্য দেখুন" }).click();
   await expect(page.getByRole("link", { name: /আমদানি পণ্য/ }).filter({ visible: true })).toHaveCount(20);
   await page.getByRole("searchbox", { name: "পণ্য খুঁজুন" }).fill("IMPORT-7");
+  await page.getByRole("searchbox", { name: "পণ্য খুঁজুন" }).press("Enter");
   await expect(page.getByRole("link", { name: /আমদানি পণ্য 7/ }).filter({ visible: true })).toBeVisible();
 });
 

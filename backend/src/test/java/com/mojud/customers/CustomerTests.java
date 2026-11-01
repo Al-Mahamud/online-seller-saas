@@ -81,11 +81,18 @@ class CustomerTests {
         String second = create("B", "01711111112");
         String third = create("C", "01711111113");
 
-        ApiResponse page = owner.get("/api/v1/customers?limit=2").expectStatus(200);
+        ApiResponse page = owner.get("/api/v1/customers?size=2").expectStatus(200);
         assertThat(page.<List<String>>json("$.items[*].id")).containsExactly(third, second);
-        ApiResponse next = owner.get("/api/v1/customers?limit=2&cursor=" + page.json("$.nextCursor"));
+        assertThat(page.<Integer>json("$.page")).isEqualTo(1);
+        assertThat(page.<Integer>json("$.size")).isEqualTo(2);
+        assertThat(page.<Integer>json("$.totalItems")).isEqualTo(3);
+        assertThat(page.<Integer>json("$.totalPages")).isEqualTo(2);
+        ApiResponse next = owner.get("/api/v1/customers?size=2&page=2");
         assertThat(next.<List<String>>json("$.items[*].id")).containsExactly(first);
-        assertThat(next.<Object>json("$.nextCursor")).isNull();
+        // Past the end: nothing to show, and the totals to come back with.
+        ApiResponse past = owner.get("/api/v1/customers?size=2&page=9").expectStatus(200);
+        assertThat(past.<List<String>>json("$.items[*].id")).isEmpty();
+        assertThat(past.<Integer>json("$.totalPages")).isEqualTo(2);
     }
 
     @Test

@@ -8,6 +8,8 @@ import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.id.Ids;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.tenant.TenantScope;
 import com.mojud.shared.time.DhakaTime;
 import com.mojud.tenancy.BusinessProfile;
@@ -390,8 +392,11 @@ class Invoices implements PaymentConfirmations {
     }
 
     /** Newest first. */
-    List<InvoiceView> list() {
-        return views("where business_id = ? order by created_at desc, id desc limit 200", CurrentBusiness.require().businessId());
+    PagedResult<InvoiceView> list(PageQuery paging) {
+        UUID business = CurrentBusiness.require().businessId();
+        long total = jdbc.sql("select count(*) from invoices where business_id = ?").param(business).query(Long.class).single();
+        return PagedResult.of(views("where business_id = ? order by created_at desc, id desc limit ? offset ?", business,
+                paging.limit(), paging.offset()), paging, total);
     }
 
     private List<InvoiceView> views(String where, Object... params) {

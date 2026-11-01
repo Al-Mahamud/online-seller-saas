@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { api, call } from "@/api/client";
 import { errorMessages } from "@/api/query";
 import { Field } from "@/components/form/Field";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { dhakaToday } from "@/lib/dates";
@@ -14,12 +15,14 @@ import { AdminDialog } from "./AdminDialog";
 import { type AdminInvoice, downloadLedger, openInvoicesQuery } from "./api";
 import { useAdminTexts } from "./texts";
 
+const route = getRouteApi("/admin/invoices");
+
 /** Bank transfers still to be seen arriving, and the month's ledger for the accountant. */
 export function InvoicesPage() {
   const text = useAdminTexts();
   const format = useFormat();
-  const { data, isSuccess } = useQuery(openInvoicesQuery);
-  const waiting = data?.filter((invoice) => invoice.payBy === "BANK_TRANSFER") ?? [];
+  const { data, isSuccess } = useQuery(openInvoicesQuery(route.useSearch()));
+  const waiting = data?.items ?? [];
   const [marking, setMarking] = useState<AdminInvoice>();
   const [month, setMonth] = useState(dhakaToday().slice(0, 7));
   const download = useMutation({ mutationFn: () => downloadLedger(month) });
@@ -61,6 +64,7 @@ export function InvoicesPage() {
           ))}
         </ul>
       )}
+      <AddressPagination result={data} />
       <Section title={text.invoices.ledger}>
         <div className="flex flex-wrap items-end gap-3">
           <Field

@@ -105,7 +105,7 @@ class PaymentTests {
         ApiResponse delivered = owner.post("/api/v1/orders/" + id + "/deliver", Map.of("codCollected", 90000)).expectStatus(200);
 
         assertThat(money(delivered)).isEqualTo(List.of(107000, 0, 107000, 90000, 17000, "PARTIAL"));
-        assertThat(owner.get("/api/v1/orders?limit=1").<String>json("$.items[0].paymentStatus")).isEqualTo("PARTIAL");
+        assertThat(owner.get("/api/v1/orders?size=1").<String>json("$.items[0].paymentStatus")).isEqualTo("PARTIAL");
         owner.post("/api/v1/orders/" + id + "/payments", Map.of("method", "CASH", "amount", 17001))
                 .expectError(400, "validation.failed");
 
@@ -186,6 +186,73 @@ class PaymentTests {
     }
 
     @Test
+    void couriersShowTheirWholeTotalsAndWhatASearchFinds() {
+        delivered("Pathao");
+        delivered("pathao");
+        delivered("RedX");
+        ship(order(Map.of()), "RedX");
+        ship(order(Map.of()), "Steadfast");
+
+        ApiResponse all = owner.get("/api/v1/shipments/cod/summary").expectStatus(200);
+        assertThat(all.<Integer>json("$.owedParcels")).isEqualTo(3);
+        assertThat(all.<Integer>json("$.owedAmount")).isEqualTo(321000);
+        assertThat(all.<Integer>json("$.inTransitAmount")).isEqualTo(214000);
+        assertThat(all.<List<String>>json("$.couriers[*].name")).extracting(String::toLowerCase)
+                .containsExactly("pathao", "redx", "steadfast");
+        assertThat(all.<Integer>json("$.couriers[0].owedParcels")).isEqualTo(2);
+        assertThat(all.<Integer>json("$.couriers[1].inTransitAmount")).isEqualTo(107000);
+        assertThat(all.<Integer>json("$.couriers[2].owedParcels")).isZero();
+
+        ApiResponse parcels = owner.get("/api/v1/shipments/cod/parcels?courier=PATHAO&size=1").expectStatus(200);
+        assertThat(parcels.<Integer>json("$.totalItems")).isEqualTo(2);
+        assertThat(parcels.<Integer>json("$.totalPages")).isEqualTo(2);
+        assertThat(parcels.<List<Object>>json("$.items")).hasSize(1);
+        String label = parcels.json("$.items[0].orderNumberLabel");
+        assertThat(parcels.<String>json("$.items[0].customerName")).isNotBlank();
+
+        // A search narrows what's found, and leaves the totals whole. Bangla digits find the same order.
+        String banglaNumber = label.replaceAll("\\D", "").chars().mapToObj(digit -> String.valueOf((char) ('০' + digit - '0')))
+                .reduce("", String::concat);
+        ApiResponse found = owner.get("/api/v1/shipments/cod/summary?q=" + banglaNumber).expectStatus(200);
+        assertThat(found.<Integer>json("$.owedParcels")).isEqualTo(3);
+        assertThat(found.<Integer>json("$.couriers[0].matchedParcels")).isEqualTo(1);
+        assertThat(found.<Integer>json("$.couriers[0].matchedAmount")).isEqualTo(107000);
+        assertThat(owner.get("/api/v1/shipments/cod/parcels?courier=pathao&q=" + banglaNumber).<Integer>json("$.totalItems")).isEqualTo(1);
+        // A % in a search is that character, not "anything".
+        assertThat(owner.get("/api/v1/shipments/cod/parcels?courier=pathao&q=%25").<Integer>json("$.totalItems")).isZero();
+        // Days of delivery, and no match is an empty list.
+        String today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Dhaka")).toString();
+        assertThat(owner.get("/api/v1/shipments/cod/parcels?courier=pathao&from=" + today + "&to=" + today).<Integer>json("$.totalItems")).isEqualTo(2);
+        assertThat(owner.get("/api/v1/shipments/cod/parcels?courier=pathao&to=2001-01-01").<Integer>json("$.totalItems")).isZero();
+    }
+
+    @Test
+    void aPayoutCoversEveryPageLessWhatWasLeftOutAndOnlyWhatWasShown() {
+        String kept = delivered("Pathao");
+        String settled = delivered("pathao");
+        String other = delivered("Pathao");
+        String redx = delivered("RedX");
+
+        // Parcels changed since it was shown: nothing happens, and it says what's still left out.
+        ApiResponse changed = owner.post("/api/v1/shipments/settle-cod/matching", Map.of("courier", "PATHAO",
+                "exceptIds", List.of(kept), "expectedParcels", 3, "expectedAmount", 321000)).expectError(409, "cod.list_changed");
+        assertThat(changed.<List<String>>json("$.exceptIds")).containsExactly(kept);
+        assertThat(owner.get("/api/v1/shipments/cod/summary").<Integer>json("$.couriers[0].owedParcels")).isEqualTo(3);
+
+        ApiResponse done = owner.post("/api/v1/shipments/settle-cod/matching", Map.of("courier", "PATHAO",
+                "exceptIds", List.of(kept, redx), "expectedParcels", 2, "expectedAmount", 214000)).expectStatus(200);
+        assertThat(done.<Integer>json("$.shipments")).isEqualTo(2);
+        assertThat(done.<Integer>json("$.amount")).isEqualTo(214000);
+        assertThat(owner.get("/api/v1/shipments?codStatus=SETTLED").<List<String>>json("$[*].id"))
+                .containsExactlyInAnyOrder(settled, other);
+        assertThat(owner.get("/api/v1/shipments/cod/summary").<Integer>json("$.owedParcels")).isEqualTo(2);
+
+        // A search that finds nothing settles nothing.
+        owner.post("/api/v1/shipments/settle-cod/matching", Map.of("courier", "Pathao", "q", "no such thing",
+                "expectedParcels", 0, "expectedAmount", 0)).expectError(409, "cod.list_changed");
+    }
+
+    @Test
     void nothingCollectedLeavesNothingToSettleAndStaffDoNotSettle() {
         String id = order(Map.of());
         ship(id, "Pathao");
@@ -201,6 +268,9 @@ class PaymentTests {
                 .expectStatus(200);
         staff.get("/api/v1/shipments").expectStatus(200);
         staff.post("/api/v1/shipments/settle-cod", Map.of("shipmentIds", List.of(delivered("RedX")))).expectStatus(403);
+        staff.get("/api/v1/shipments/cod/summary").expectStatus(200);
+        staff.post("/api/v1/shipments/settle-cod/matching", Map.of("courier", "RedX", "expectedParcels", 1,
+                "expectedAmount", 107000)).expectStatus(403);
         staff.post("/api/v1/orders/" + order(Map.of()) + "/payments", Map.of("method", "CASH", "amount", 500)).expectStatus(201);
     }
 

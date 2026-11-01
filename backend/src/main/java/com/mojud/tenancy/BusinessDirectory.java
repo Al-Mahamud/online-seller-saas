@@ -1,5 +1,7 @@
 package com.mojud.tenancy;
 
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -21,7 +23,7 @@ public interface BusinessDirectory {
      * Newest first, up to {@code limit}. {@code q}: part of the name, or an owner's phone or email
      * (written any way); blank lists them all.
      */
-    List<BusinessSummary> search(String q, int limit);
+    PagedResult<BusinessSummary> search(String q, PageQuery paging);
 
     Optional<BusinessSummary> find(UUID businessId);
 

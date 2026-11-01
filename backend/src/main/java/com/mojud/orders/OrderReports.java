@@ -1,5 +1,6 @@
 package com.mojud.orders;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,25 @@ public interface OrderReports {
     }
 
     Day day(LocalDate date);
+
+    /** A courier's parcels: on the way now, and of those shipped in the window, how they ended. */
+    record CourierParcels(String courier, int onTheWay, int delivered, int returned) {
+    }
+
+    /** COD a courier collected and hasn't paid out, delivered too long ago. */
+    record CourierCash(String courier, long amount) {
+    }
+
+    /**
+     * How deliveries stand now, not tied to a day. {@code lateParcels}: on the way, shipped before
+     * {@code lateBefore}. {@code couriers} and {@code returnReasons} (by return kind) count parcels
+     * shipped since {@code shippedSince}, so the reasons belong to the same parcels.
+     */
+    record Deliveries(int lateParcels, List<CourierCash> stuckCod, List<CourierParcels> couriers,
+            Map<String, Integer> returnReasons, boolean hasOrders) {
+    }
+
+    Deliveries deliveries(Instant lateBefore, Instant stuckBefore, Instant shippedSince);
 
     /**
      * Sales of one Dhaka day: orders confirmed that day and not cancelled. {@code quantity}: items

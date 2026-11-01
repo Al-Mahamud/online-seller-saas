@@ -7,7 +7,7 @@ import { clearOfStepEnd, totp } from "./support/totp";
 const label = (scope: Page | ReturnType<Page["getByRole"]>, name: string) => scope.getByLabel(name, { exact: true });
 
 async function signOut(page: Page) {
-  await page.goto("/more");
+  await page.goto("/settings/account");
   await page.getByRole("button", { name: "লগ আউট" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "আবার স্বাগতম" })).toBeVisible();
 }
@@ -20,19 +20,28 @@ async function signIn(page: Page, userId: string, password: string) {
 
 const today = (page: Page) => page.getByRole("heading", { level: 1, name: "আজ" });
 
-test("reaches the account pages from More", async ({ page }) => {
+test("reaches the profile from the business's name, and signs out there too", async ({ page }) => {
   await signUpWithBusiness(page.request, { name: "Rahima Khatun" });
-  await page.goto("/more");
+  await page.goto("/");
 
-  await expect(page.getByText("Rahima Khatun")).toBeVisible();
-  await page.getByRole("link", { name: "অ্যাকাউন্ট" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "অ্যাকাউন্ট" })).toBeVisible();
+  await page.getByRole("button", { name: /^ব্যবসা বদলান/ }).click();
+  await expect(page.getByRole("menu").getByText("Rahima Khatun")).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("menuitem", { name: "প্রোফাইল" }).click();
+  await expect(page).toHaveURL(/\/settings\/account$/);
+  await expect(page.getByRole("heading", { level: 1, name: "প্রোফাইল" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "আপনার পরিচয়" }).getByText("Rahima Khatun")).toBeVisible();
   await expectAccessible(page);
 
-  await page.getByRole("link", { name: "আরও" }).first().click();
-  await page.getByRole("link", { name: "নিরাপত্তা" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "নিরাপত্তা" })).toBeVisible();
+  const parts = page.getByRole("navigation", { name: "প্রোফাইলের অংশ" });
+  await parts.getByRole("link", { name: "নিরাপত্তা" }).click();
+  await expect(page).toHaveURL(/\/settings\/security$/);
+  await expect(parts.getByRole("link", { name: "নিরাপত্তা" })).toHaveAttribute("aria-current", "page");
   await expectAccessible(page);
+
+  await page.getByRole("button", { name: /^ব্যবসা বদলান/ }).click();
+  await page.getByRole("menuitem", { name: "লগ আউট" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "আবার স্বাগতম" })).toBeVisible();
 });
 
 test("changes the name and the language", async ({ page }) => {
@@ -48,10 +57,10 @@ test("changes the name and the language", async ({ page }) => {
   );
   await page.getByRole("group", { name: "ভাষা" }).getByRole("button", { name: "English" }).click();
   await saved;
-  await expect(page.getByRole("heading", { level: 1, name: "Account" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Profile" })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("heading", { level: 1, name: "Account" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Profile" })).toBeVisible();
   await expect(label(page, "Name")).toHaveValue("Rahima Khatun");
 });
 

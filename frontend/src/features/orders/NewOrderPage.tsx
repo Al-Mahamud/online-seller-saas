@@ -10,12 +10,14 @@ export function NewOrderPage() {
   const { t } = useTranslation();
   const { phone } = route.useSearch();
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
-      <div>
-        <BackToOrders />
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{t("orders.new")}</h1>
-      </div>
-      <OrderForm initialPhone={phone} />
-    </div>
+    <OrderForm
+      initialPhone={phone}
+      heading={
+        <>
+          <BackToOrders />
+          <h1 className="text-[28px] leading-tight font-bold md:text-[32px]">{t("orders.new")}</h1>
+        </>
+      }
+    />
   );
 }

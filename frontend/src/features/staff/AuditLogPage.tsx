@@ -1,22 +1,23 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { getRouteApi } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { api, call } from "@/api/client";
 import { BackToMore, PageHeader } from "@/components/layout/PageHeader";
-import { Button } from "@/components/ui/button";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { useFormat } from "@/lib/format";
+import { pagedQuery } from "@/lib/paging";
+
+const route = getRouteApi("/_app/settings/audit-log");
 
 /** Who did what in the business, newest first (owners). */
 export function AuditLogPage() {
   const { t } = useTranslation();
   const format = useFormat();
-  const log = useInfiniteQuery({
-    queryKey: ["audit-log"],
-    queryFn: ({ pageParam }) =>
-      call(api.GET("/api/v1/business/audit-log", { params: { query: { cursor: pageParam } } })),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-  });
-  const entries = log.data?.pages.flatMap((page) => page.items) ?? [];
+  const paging = route.useSearch();
+  const log = useQuery(
+    pagedQuery(["audit-log", paging], () => call(api.GET("/api/v1/business/audit-log", { params: { query: paging } }))),
+  );
+  const entries = log.data?.items ?? [];
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <div>
@@ -34,16 +35,7 @@ export function AuditLogPage() {
           </li>
         ))}
       </ul>
-      {log.hasNextPage && (
-        <Button
-          variant="outline"
-          className="self-start"
-          disabled={log.isFetchingNextPage}
-          onClick={() => void log.fetchNextPage()}
-        >
-          {t("audit.more")}
-        </Button>
-      )}
+      <AddressPagination result={log.data} />
     </div>
   );
 }

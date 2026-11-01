@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";
+import { type Paging, pagedQuery } from "@/lib/paging";
 
 export type AdminBusiness = components["schemas"]["AdminBusinessDetail"];
 export type AdminPlan = components["schemas"]["BillingAdministrationPlanInfo"];
@@ -15,11 +16,10 @@ export const metricsQuery = queryOptions({
   meta: { showsOwnErrors: true },
 });
 
-export const businessesQuery = (q: string | undefined) =>
-  queryOptions({
-    queryKey: ["admin", "businesses", q],
-    queryFn: () => call(api.GET("/api/v1/admin/businesses", { params: { query: { q } } })),
-  });
+export const businessesQuery = (q: string | undefined, paging: Paging) =>
+  pagedQuery(["admin", "businesses", q, paging], () =>
+    call(api.GET("/api/v1/admin/businesses", { params: { query: { q, ...paging } } })),
+  );
 
 export const businessQuery = (id: string) =>
   queryOptions({
@@ -32,15 +32,18 @@ export const plansQuery = queryOptions({
   queryFn: () => call(api.GET("/api/v1/admin/plans")),
 });
 
-export const openInvoicesQuery = queryOptions({
-  queryKey: ["admin", "invoices"],
-  queryFn: () => call(api.GET("/api/v1/admin/billing/invoices", { params: { query: { status: "OPEN" } } })),
-});
+/** Bank transfers still to be seen arriving. */
+export const openInvoicesQuery = (paging: Paging) =>
+  pagedQuery(["admin", "invoices", paging], () =>
+    call(
+      api.GET("/api/v1/admin/billing/invoices", {
+        params: { query: { status: "OPEN", payBy: "BANK_TRANSFER", ...paging } },
+      }),
+    ),
+  );
 
-export const auditQuery = queryOptions({
-  queryKey: ["admin", "audit"],
-  queryFn: () => call(api.GET("/api/v1/admin/audit")),
-});
+export const auditQuery = (paging: Paging) =>
+  pagedQuery(["admin", "audit", paging], () => call(api.GET("/api/v1/admin/audit", { params: { query: paging } })));
 
 /** Saved through the API client, so a refusal is an error like any other. */
 export async function downloadLedger(month: string) {

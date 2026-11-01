@@ -1,8 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { useFormat } from "@/lib/format";
 import { type AuditEntry, auditQuery } from "./api";
 import { useAdminTexts } from "./texts";
+
+const route = getRouteApi("/admin/audit");
 
 export function AuditList({ entries, withLinks }: { entries: AuditEntry[]; withLinks?: boolean }) {
   const text = useAdminTexts();
@@ -38,16 +41,17 @@ export function AuditList({ entries, withLinks }: { entries: AuditEntry[]; withL
 
 export function AuditPage() {
   const text = useAdminTexts();
-  const { data, isSuccess } = useQuery(auditQuery);
+  const { data } = useQuery(auditQuery(route.useSearch()));
   return (
     <div className="flex max-w-3xl flex-col gap-3">
       <h1 className="text-2xl font-bold tracking-tight">{text.nav.audit}</h1>
-      {isSuccess && data.length === 0 && <p className="py-4 text-muted-foreground">{text.audit.none}</p>}
-      {data && data.length > 0 && (
+      {data?.items.length === 0 && <p className="py-4 text-muted-foreground">{text.audit.none}</p>}
+      {!!data?.items.length && (
         <div className="rounded-xl border bg-card px-4">
-          <AuditList entries={data} withLinks />
+          <AuditList entries={data.items} withLinks />
         </div>
       )}
+      <AddressPagination result={data} />
     </div>
   );
 }

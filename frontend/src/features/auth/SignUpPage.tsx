@@ -28,6 +28,7 @@ const detailsSchema = z
     userId: newUserId,
     email: z.string().check(z.trim()),
     password: newPassword,
+    confirmPassword: z.string().check(z.minLength(1, "field.required")),
     codeSentTo: z.enum(["PHONE", "EMAIL"]),
   })
   .check(
@@ -35,8 +36,13 @@ const detailsSchema = z
       path: ["email"],
       message: "field.required",
     }),
+    z.refine((values) => values.password === values.confirmPassword, {
+      path: ["confirmPassword"],
+      message: "field.passwordMismatch",
+    }),
   );
-type Details = z.output<typeof detailsSchema>;
+// The second password only guards against a typing slip here: the server never sees it.
+type Details = Omit<z.output<typeof detailsSchema>, "confirmPassword">;
 
 const codeSchema = z.object({ code });
 
@@ -63,6 +69,7 @@ export function SignUpPage() {
       userId: "",
       email: "",
       password: "",
+      confirmPassword: "",
       codeSentTo: "PHONE" as "PHONE" | "EMAIL",
     },
   });
@@ -196,7 +203,7 @@ export function SignUpPage() {
         <form
           noValidate
           className="grid items-start gap-4 min-[880px]:grid-cols-2"
-          onSubmit={detailsForm.handleSubmit(async (values) => {
+          onSubmit={detailsForm.handleSubmit(async ({ confirmPassword: _, ...values }) => {
             if (await userIdIsFree(values.userId)) {
               send.mutate(values);
             }
@@ -251,20 +258,32 @@ export function SignUpPage() {
               {userIdFree ? t("auth.userId.available") : ""}
             </p>
           </div>
-          <TextField
-            form={detailsForm}
-            name="email"
-            label={chosen === "EMAIL" ? t("auth.email") : t("auth.signUp.emailOptional")}
-            type="email"
-            autoComplete="email"
-          />
-          <PasswordField
-            form={detailsForm}
-            name="password"
-            label={t("auth.password")}
-            hint={t("auth.signUp.passwordHint")}
-            autoComplete="new-password"
-          />
+          <div className="min-w-0 min-[880px]:col-span-2">
+            <TextField
+              form={detailsForm}
+              name="email"
+              label={chosen === "EMAIL" ? t("auth.email") : t("auth.signUp.emailOptional")}
+              type="email"
+              autoComplete="email"
+            />
+          </div>
+          <div className="min-w-0 min-[880px]:col-span-2">
+            <PasswordField
+              form={detailsForm}
+              name="password"
+              label={t("auth.password")}
+              hint={t("auth.signUp.passwordHint")}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="min-w-0 min-[880px]:col-span-2">
+            <PasswordField
+              form={detailsForm}
+              name="confirmPassword"
+              label={t("auth.signUp.confirmPassword")}
+              autoComplete="new-password"
+            />
+          </div>
           {channels.length > 1 && (
             <fieldset className="flex flex-col gap-1.5 min-[880px]:col-span-2">
               <legend className="mb-1.5 text-[15px] font-semibold">{t("auth.signUp.codeTo")}</legend>

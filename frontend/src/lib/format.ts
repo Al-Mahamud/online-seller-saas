@@ -80,6 +80,8 @@ export function useFormat() {
   return {
     number: (value: number) => formatNumber(value, language),
     taka: (poisha: number) => formatTaka(poisha, language),
+    /** "৮৯.৯%": a share, to one decimal place. */
+    percent: (value: number) => `${numberFormat(language, 1).format(value)}%`,
     date: (at: string | Date) => formatDate(at, language),
     dateTime: (at: string | Date) => formatDateTime(at, language),
     /** "শনি": a day's name, short, for a chart's axis. */

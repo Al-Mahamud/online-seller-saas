@@ -25,7 +25,7 @@ async function pick(page: Page, field: RegExp, search: string, name: string) {
   await list.getByRole("button", { name, exact: true }).click();
 }
 
-test("adds a customer with a place, finds them by any phone format, and edits them", async ({ page }) => {
+test("adds a customer with a place, finds them by any phone format, and edits them", async ({ page }, info) => {
   await signUpWithBusiness(page.request);
   const phone = newPhone();
   await page.goto("/more");
@@ -34,7 +34,7 @@ test("adds a customer with a place, finds them by any phone format, and edits th
   await expect(page.getByText("এখনো কোনো গ্রাহক নেই।")).toBeVisible();
   await expectAccessible(page);
 
-  await page.getByRole("button", { name: "নতুন গ্রাহক" }).click();
+  await page.getByRole("button", { name: "নতুন গ্রাহক" }).first().click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
   await expect(label(dialog, "গ্রাহকের নাম")).toHaveAttribute("aria-invalid", "true");
@@ -66,19 +66,33 @@ test("adds a customer with a place, finds them by any phone format, and edits th
     phone.replace(/\d/g, (digit) => "০১২৩৪৫৬৭৮৯"[Number(digit)] as string),
   ]) {
     await page.goto(`/customers?q=${encodeURIComponent(written)}`);
-    await expect(page.getByRole("link", { name: /রহিমা খাতুন/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /রহিমা খাতুন/ }).first()).toBeVisible();
   }
   await page.goto("/customers");
-  await page.getByRole("searchbox", { name: "গ্রাহক খুঁজুন" }).fill("রহিমা");
-  await expect(page.getByRole("link", { name: /রহিমা খাতুন/ })).toBeVisible();
-  await page.getByRole("searchbox", { name: "গ্রাহক খুঁজুন" }).fill("কেউ নেই");
+  // The list follows the search button, with a chip and a reset to go back.
+  const search = page.getByRole("search", { name: "গ্রাহক খুঁজুন" });
+  await search.getByRole("searchbox").fill("রহিমা");
+  await search.getByRole("button", { name: "খুঁজুন" }).click();
+  await expect(page.getByRole("link", { name: /রহিমা খাতুন/ }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /"রহিমা" মুছুন/ })).toBeVisible();
+  await search.getByRole("searchbox").fill("কেউ নেই");
+  await search.getByRole("button", { name: "খুঁজুন" }).click();
   await expect(page.getByText("এই খোঁজে কোনো গ্রাহক পাওয়া যায়নি।")).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("button", { name: "সব গ্রাহক দেখুন" }).click();
+  await expect(page.getByRole("link", { name: /রহিমা খাতুন/ }).first()).toBeVisible();
+  await expect(page.getByText("মোট ১ জন গ্রাহক")).toBeVisible();
+  // On a phone, a customer can be rung from the list.
+  if (info.project.name === "phone") {
+    await expect(page.getByRole("link", { name: "রহিমা খাতুন-কে ফোন করুন" })).toHaveAttribute("href", /^tel:/);
+  }
+  await expectAccessible(page);
 
   // Editing, and a number someone else has is refused under its box.
   const other = newPhone();
   await post(page.request, "/api/v1/customers", { name: "অন্য গ্রাহক", phone: other });
   await page.goto("/customers");
-  await page.getByRole("link", { name: /রহিমা খাতুন/ }).click();
+  await page.getByRole("link", { name: /রহিমা খাতুন/ }).first().click();
   await page.getByRole("button", { name: "তথ্য বদলান" }).click();
   await label(dialog, "ফোন নম্বর").fill(other);
   await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
@@ -107,15 +121,21 @@ test("shows a customer's orders, and refuses deleting one with an order in progr
   await expect(page.getByText("৳৩,০৬০")).toBeVisible();
   await expect(page.getByText("খসড়া")).toBeVisible();
 
+  await expectAccessible(page);
   await page.getByRole("button", { name: "গ্রাহক মুছুন" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "গ্রাহক মুছুন" }).click();
-  await expect(page.getByText("এই গ্রাহকের অর্ডার চলমান আছে।", { exact: false })).toBeVisible();
+  const confirm = page.getByRole("dialog");
+  await confirm.getByRole("button", { name: "গ্রাহক মুছুন" }).click();
+  // Refused: it says why in the dialog, which stays.
+  await expect(confirm.getByRole("alert")).toContainText("এই গ্রাহকের অর্ডার চলমান আছে।");
+  await expect(heading(page, "করিম")).toBeHidden();
+  await confirm.getByRole("button", { name: "বাতিল" }).click();
   await expect(heading(page, "করিম")).toBeVisible();
 
   // Once it's cancelled, they can go; the order stays.
   await post(page.request, `/api/v1/orders/${order.id}/cancel`, { reason: "গ্রাহক চান না" });
   await page.getByRole("button", { name: "গ্রাহক মুছুন" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "গ্রাহক মুছুন" }).click();
+  await expect(confirm.getByRole("alert")).toHaveCount(0);
+  await confirm.getByRole("button", { name: "গ্রাহক মুছুন" }).click();
   await expect(heading(page, "গ্রাহক")).toBeVisible();
   await expect(page.getByRole("link", { name: /করিম/ })).toBeHidden();
 });

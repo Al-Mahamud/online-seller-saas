@@ -14,8 +14,8 @@ import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.files.FileLinks;
 import com.mojud.shared.money.Money;
-import com.mojud.shared.paging.Cursor;
-import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.text.Text;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.BusinessDefaults;
@@ -37,7 +37,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -59,10 +58,10 @@ class ProductService {
     static final int MAX_NAME = CatalogLimits.PRODUCT_NAME;
     static final int MAX_OPTION_TEXT = CatalogLimits.OPTION_TEXT;
     static final int MAX_TAGS = 20;
-    static final int SEARCH_RESULTS = 50;
+    /** The options behind a variant's name and size, under the names the rows store them. */
+    static final String VARIANT_OPTION = "Variant";
+    static final String SIZE_OPTION = "Size";
 
-    private static final Instant END_OF_TIME = Instant.parse("9999-12-31T00:00:00Z");
-    private static final UUID LAST_ID = new UUID(-1L, -1L);
 
     private static final Map<String, ErrorCode> CONSTRAINT_ERRORS = Map.of(
             // Another business's (or a deleted) category or tag looks like one that does not exist.
@@ -86,8 +85,15 @@ class ProductService {
             Long version) {
     }
 
-    /** Null fields stay as they are; {@code sku} blank means "generate one". */
-    record VariantCommand(String sku, Long price, Long costPrice, boolean clearCostPrice, Integer lowStockThreshold,
+    /** A variant as the seller describes it; {@code name} and {@code size} may be blank. */
+    record VariantRow(String name, String size, long price, Long costPrice, int quantity) {
+    }
+
+    record RowsCommand(String name, String description, UUID categoryId, List<UUID> tagIds, List<VariantRow> rows) {
+    }
+
+    /** Null fields stay as they are; {@code sku} blank means "generate one"; a blank name or size removes it. */
+    record VariantCommand(String name, String size, String sku, Long price, Long costPrice, boolean clearCostPrice, Integer lowStockThreshold,
             boolean useDefaultThreshold, Long version) {
     }
 
@@ -129,27 +135,19 @@ class ProductService {
     // Reading.
 
     /**
-     * Newest first, page by page; or, with {@code q}, the best {@value #SEARCH_RESULTS} matches by
-     * name or SKU (no further pages).
+     * Newest first; or, with {@code q}, the best matches first, by name or SKU.
      */
     @Transactional(readOnly = true)
-    CursorPage<ProductViews.Summary> list(ProductStatus status, UUID categoryId, UUID tagId, String q, String cursor,
-            Integer limit) {
+    PagedResult<ProductViews.Summary> list(ProductStatus status, UUID categoryId, UUID tagId, String q, PageQuery paging) {
         if (q != null && !q.isBlank()) {
             String query = Text.cleanName(q, "q", 100);
             // A LIKE pattern for "contains", with LIKE's own characters (backslash, %, _) escaped.
             String pattern = "%" + query.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-            return new CursorPage<>(summaries(products.search(CurrentBusiness.require().businessId(), status.name(),
-                    categoryId, tagId, query, pattern, SEARCH_RESULTS)), null);
+            return PagedResult.of(products.search(CurrentBusiness.require().businessId(), status.name(),
+                    categoryId, tagId, query, pattern, paging.pageable()), paging).mapItems(this::summaries);
         }
-        int pageSize = CursorPage.limit(limit);
-        Cursor after = Cursor.decode(cursor);
-        // The first page starts after everything: no null parameter, whose type PostgreSQL cannot tell.
-        List<Product> page = products.findPage(status, categoryId, tagId,
-                after == null ? END_OF_TIME : after.sortKeyAsInstant(), after == null ? LAST_ID : after.id(),
-                Limit.of(pageSize + 1));
-        CursorPage<Product> paged = CursorPage.of(page, pageSize, p -> new Cursor(p.getCreatedAt().toString(), p.getId()));
-        return new CursorPage<>(summaries(paged.items()), paged.nextCursor());
+        return PagedResult.of(products.findPage(status, categoryId, tagId, paging.pageable()), paging)
+                .mapItems(this::summaries);
     }
 
     private List<ProductViews.Summary> summaries(List<Product> page) {
@@ -215,6 +213,175 @@ class ProductService {
             stock.opening(opening, StockService.Reference.none());
             return detail(product);
         });
+    }
+
+    /** One variant per row, each with its own prices and stock; not every combination has to exist. */
+    ProductViews.Detail createWithRows(RowsCommand command) {
+        String name = Text.cleanName(command.name(), "name", MAX_NAME);
+        String description = description(command.description());
+        Set<UUID> tagIds = cleanTags(command.tagIds());
+        List<VariantRow> rows = command.rows();
+        if (rows.isEmpty()) {
+            throw ApiException.invalidField("variants", "jakarta.validation.constraints.NotEmpty.message");
+        }
+        if (rows.size() > VariantGrid.MAX_VARIANTS) {
+            throw ApiException.invalidField("variants", "field.too_many_variants");
+        }
+        List<Map<String, String>> combinations = new ArrayList<>();
+        Map<String, List<String>> values = new LinkedHashMap<>();
+        for (VariantRow row : rows) {
+            Map<String, String> attributes = rowAttributes(row.name(), row.size(), rows.size() == 1, values);
+            if (combinations.stream().anyMatch(attributes::equals)) {
+                throw new ApiException(ErrorCode.VARIANT_DUPLICATE);
+            }
+            combinations.add(attributes);
+        }
+        List<VariantGrid.Option> grid = rowOptionNames(values).stream()
+                .map(option -> new VariantGrid.Option(option, values.get(option))).toList();
+        return growing(() -> {
+            Instant now = clock.instant();
+            Product product = products.save(new Product(name, description, command.categoryId(), now));
+            for (int i = 0; i < grid.size(); i++) {
+                options.save(new ProductOption(product.getId(), grid.get(i).name(), grid.get(i).values(), i));
+            }
+            List<String> skus = newSkus(product.getName(), grid, combinations);
+            List<StockService.Line> opening = new ArrayList<>();
+            for (int i = 0; i < rows.size(); i++) {
+                VariantRow row = rows.get(i);
+                ProductVariant variant = variants.save(new ProductVariant(product.getId(), skus.get(i),
+                        combinations.get(i), row.price(), row.costPrice(), i, now));
+                if (row.quantity() > 0) {
+                    opening.add(new StockService.Line(variant.getId(), row.quantity()));
+                }
+            }
+            tagIds.forEach(tagId -> productTags.save(new ProductTag(product.getId(), tagId)));
+            products.flush();
+            stock.opening(opening, StockService.Reference.none());
+            return detail(product);
+        });
+    }
+
+    /** One more variant, with its own prices and stock; the others stay as they are. */
+    ProductViews.Detail addVariant(UUID productId, VariantRow row, Long version) {
+        return growing(() -> {
+            Product product = find(productId);
+            requireVersion(product.getVersion(), version);
+            List<ProductVariant> existing = variants.findByProductIdOrderByPosition(productId);
+            if (existing.size() >= VariantGrid.MAX_VARIANTS) {
+                throw ApiException.invalidField("variants", "field.too_many_variants");
+            }
+            List<ProductOption> current = options.findByProductIdOrderByPosition(productId);
+            Map<String, List<String>> values = new LinkedHashMap<>();
+            current.forEach(option -> values.put(option.getName(), new ArrayList<>(option.getValues())));
+            Map<String, String> attributes = rowAttributes(row.name(), row.size(), false, values);
+            if (existing.stream().anyMatch(variant -> attributes.equals(variant.getAttributes()))) {
+                throw new ApiException(ErrorCode.VARIANT_DUPLICATE);
+            }
+            saveOptionValues(productId, current, values);
+            Instant now = clock.instant();
+            List<VariantGrid.Option> grid = values.entrySet().stream()
+                    .map(option -> new VariantGrid.Option(option.getKey(), option.getValue())).toList();
+            int position = existing.stream().mapToInt(ProductVariant::getPosition).max().orElse(-1) + 1;
+            ProductVariant variant = variants.save(new ProductVariant(productId,
+                    newSkus(product.getName(), grid, List.of(attributes)).get(0), attributes, row.price(), row.costPrice(),
+                    position, now));
+            product.touch(now);
+            products.saveAndFlush(product);
+            if (row.quantity() > 0) {
+                stock.opening(List.of(new StockService.Line(variant.getId(), row.quantity())),
+                        StockService.Reference.none());
+            }
+            return detail(product);
+        });
+    }
+
+    /**
+     * A row's attributes. Each value joins {@code values} (option name to its values), spelt as that
+     * option first had it, so "red" and "Red" are one colour. Both may be blank only for a product's
+     * one plain variant ({@code plainAllowed}).
+     */
+    private static Map<String, String> rowAttributes(String name, String size, boolean plainAllowed,
+            Map<String, List<String>> values) {
+        Map<String, String> attributes = new LinkedHashMap<>();
+        addAttribute(attributes, VARIANT_OPTION, name, values);
+        addAttribute(attributes, SIZE_OPTION, size, values);
+        if (attributes.isEmpty() && !plainAllowed) {
+            throw ApiException.invalidField("variants", "field.variant_needs_name");
+        }
+        return attributes;
+    }
+
+    private static void addAttribute(Map<String, String> attributes, String option, String text,
+            Map<String, List<String>> values) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        String clean = Text.cleanName(text, "variants", MAX_OPTION_TEXT);
+        List<String> known = values.computeIfAbsent(option, key -> new ArrayList<>());
+        String spelt = known.stream().filter(clean::equalsIgnoreCase).findFirst().orElse(null);
+        if (spelt == null) {
+            if (known.size() >= VariantGrid.MAX_VALUES) {
+                throw ApiException.invalidField("variants", "field.too_many_values");
+            }
+            known.add(clean);
+            spelt = clean;
+        }
+        attributes.put(option, spelt);
+    }
+
+    /** The options in their order: a variant's name reads before its size, "Red / M", whichever came first. */
+    private static List<String> rowOptionNames(Map<String, List<String>> values) {
+        List<String> names = new ArrayList<>(values.keySet());
+        int size = names.indexOf(SIZE_OPTION);
+        if (size >= 0 && names.indexOf(VARIANT_OPTION) > size) {
+            names.remove(VARIANT_OPTION);
+            names.add(size, VARIANT_OPTION);
+        }
+        return names;
+    }
+
+    /** Stores what {@link #rowAttributes} added: new values on options, any new options, and their order. */
+    private void saveOptionValues(UUID productId, List<ProductOption> current, Map<String, List<String>> values) {
+        List<String> names = rowOptionNames(values);
+        // An older product may already have other options.
+        if (names.size() > VariantGrid.MAX_OPTIONS) {
+            throw ApiException.invalidField("variants", "field.too_many_options");
+        }
+        for (int position = 0; position < names.size(); position++) {
+            String name = names.get(position);
+            Optional<ProductOption> saved = current.stream().filter(option -> option.getName().equals(name)).findFirst();
+            if (saved.isPresent()) {
+                saved.get().change(name, values.get(name), position);
+            } else {
+                options.save(new ProductOption(productId, name, values.get(name), position));
+            }
+        }
+        options.flush();
+    }
+
+    /** A new name or size for a variant; null leaves that one as it is, blank removes it. */
+    private void renameVariant(ProductVariant variant, String name, String size, Instant now) {
+        UUID productId = variant.getProductId();
+        List<ProductVariant> all = variants.findByProductIdOrderByPosition(productId);
+        List<ProductOption> current = options.findByProductIdOrderByPosition(productId);
+        Map<String, List<String>> values = new LinkedHashMap<>();
+        current.forEach(option -> values.put(option.getName(), new ArrayList<>(option.getValues())));
+        Map<String, String> attributes = new LinkedHashMap<>(variant.getAttributes());
+        attributes.remove(VARIANT_OPTION);
+        attributes.remove(SIZE_OPTION);
+        Map<String, String> named = rowAttributes(
+                name != null ? name : variant.getAttributes().get(VARIANT_OPTION),
+                size != null ? size : variant.getAttributes().get(SIZE_OPTION),
+                all.size() == 1 || !attributes.isEmpty(), values);
+        attributes.putAll(named);
+        if (attributes.equals(variant.getAttributes())) {
+            return;
+        }
+        if (all.stream().anyMatch(other -> other != variant && attributes.equals(other.getAttributes()))) {
+            throw new ApiException(ErrorCode.VARIANT_DUPLICATE);
+        }
+        saveOptionValues(productId, current, values);
+        variant.regrid(attributes, variant.getStatus(), variant.getPosition(), now);
     }
 
     ProductViews.Detail update(UUID productId, UpdateCommand command) {
@@ -456,6 +623,9 @@ class ProductService {
             ProductVariant variant = findVariant(variantId);
             requireVersion(variant.getVersion(), command.version());
             Instant now = clock.instant();
+            if (command.name() != null || command.size() != null) {
+                renameVariant(variant, command.name(), command.size(), now);
+            }
             if (requestedSku != null) {
                 variant.changeSku(requestedSku, now);
             } else if (generateSku) {
@@ -491,7 +661,7 @@ class ProductService {
             }
             variants.saveAndFlush(variant);
             return ProductViews.Variant.of(variant, showCost(), optionOrder(variant.getProductId()),
-                    stockLevels.levels(List.of(variant.getId())).get(variant.getId()));
+                    stockLevels.levels(List.of(variant.getId())).get(variant.getId()), defaults.lowStockDefault());
         });
     }
 
@@ -514,23 +684,22 @@ class ProductService {
             variant.changeStatus(status, clock.instant());
             variants.saveAndFlush(variant);
             return ProductViews.Variant.of(variant, showCost(), optionOrder(variant.getProductId()),
-                    stockLevels.levels(List.of(variant.getId())).get(variant.getId()));
+                    stockLevels.levels(List.of(variant.getId())).get(variant.getId()), defaults.lowStockDefault());
         });
     }
 
     /** A variant's stock history, newest first, with who made each change. */
     @Transactional(readOnly = true)
-    CursorPage<ProductViews.Movement> history(UUID variantId, String cursor, Integer limit) {
+    PagedResult<ProductViews.Movement> history(UUID variantId, PageQuery paging) {
         findVariant(variantId);
-        CursorPage<StockHistory> page = stockLevels.history(variantId, cursor, limit);
+        PagedResult<StockHistory> page = stockLevels.history(variantId, paging);
         Map<UUID, UserDirectory.UserSummary> people = users.summaries(
                 page.items().stream().map(StockHistory::userId).filter(Objects::nonNull).distinct().toList());
-        return new CursorPage<>(page.items().stream().map(entry -> new ProductViews.Movement(entry.id(), entry.at(),
+        return page.map(entry -> new ProductViews.Movement(entry.id(), entry.at(),
                 entry.type(), entry.onHandChange(), entry.reservedChange(), entry.onHandAfter(), entry.reservedAfter(),
                 entry.availableAfter(), entry.referenceType(), entry.referenceId(), entry.note(),
                 entry.userId() == null ? null : new ProductViews.Actor(entry.userId(),
-                        people.containsKey(entry.userId()) ? people.get(entry.userId()).name() : null))).toList(),
-                page.nextCursor());
+                        people.containsKey(entry.userId()) ? people.get(entry.userId()).name() : null)));
     }
 
     // Helpers.
@@ -563,8 +732,10 @@ class ProductService {
         List<String> optionOrder = optionViews.stream().map(ProductViews.Option::name).toList();
         List<ProductVariant> productVariants = variants.findByProductIdOrderByPosition(product.getId());
         Map<UUID, StockLevel> levels = stockLevels.levels(productVariants.stream().map(ProductVariant::getId).toList());
+        int lowStockDefault = defaults.lowStockDefault();
         List<ProductViews.Variant> variantViews = productVariants.stream()
-                .map(variant -> ProductViews.Variant.of(variant, showCost, optionOrder, levels.get(variant.getId()))).toList();
+                .map(variant -> ProductViews.Variant.of(variant, showCost, optionOrder, levels.get(variant.getId()),
+                        lowStockDefault)).toList();
         List<ProductViews.Image> imageViews = images.findByProductIdOrderByPosition(product.getId()).stream()
                 .map(ProductViews.Image::of).toList();
         return new ProductViews.Detail(product.getId(), product.getName(), product.getDescription(),
@@ -672,9 +843,10 @@ class ProductService {
     /** The variant's attributes are exactly one value of each current option. */
     private boolean fitsOptions(ProductVariant variant) {
         List<ProductOption> current = options.findByProductIdOrderByPosition(variant.getProductId());
-        Map<String, String> attributes = variant.getAttributes();
-        return attributes.size() == current.size() && current.stream()
-                .allMatch(option -> option.getValues().contains(attributes.get(option.getName())));
+        // A variant made from a row may have only a name or only a size.
+        return variant.getAttributes().entrySet().stream().allMatch(attribute -> current.stream()
+                .anyMatch(option -> option.getName().equals(attribute.getKey())
+                        && option.getValues().contains(attribute.getValue())));
     }
 
     private List<String> optionOrder(UUID productId) {

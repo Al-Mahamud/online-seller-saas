@@ -1,7 +1,8 @@
 package com.mojud.catalog.product;
 
 import com.mojud.catalog.CatalogLimits;
-import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
 import jakarta.validation.Valid;
@@ -9,6 +10,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.util.UUID;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,9 +34,12 @@ class VariantController {
 
     /**
      * Fields left out stay as they are. An empty {@code sku} generates one; {@code clearCostPrice}
-     * and {@code useDefaultThreshold} clear those. {@code version} refuses a stale change.
+     * and {@code useDefaultThreshold} clear those; an empty {@code name} or {@code size} removes
+     * it. {@code version} refuses a stale change.
      */
     record VariantRequest(
+            @Size(max = 200) String name,
+            @Size(max = 200) String size,
             @Size(max = 200) String sku,
             @PositiveOrZero @Max(ProductController.MAX_POISHA) Long price,
             @PositiveOrZero @Max(ProductController.MAX_POISHA) Long costPrice,
@@ -46,7 +51,7 @@ class VariantController {
 
     @PatchMapping("/{id}")
     ProductViews.Variant update(@PathVariable UUID id, @Valid @RequestBody VariantRequest body) {
-        return products.updateVariant(id, new ProductService.VariantCommand(body.sku(), body.price(), body.costPrice(),
+        return products.updateVariant(id, new ProductService.VariantCommand(body.name(), body.size(), body.sku(), body.price(), body.costPrice(),
                 Boolean.TRUE.equals(body.clearCostPrice()), body.lowStockThreshold(),
                 Boolean.TRUE.equals(body.useDefaultThreshold()), body.version()));
     }
@@ -54,9 +59,8 @@ class VariantController {
     /** The variant's stock history, newest first; every member may read it. */
     @GetMapping("/{id}/movements")
     @RequiresRole(BusinessRole.STAFF)
-    CursorPage<ProductViews.Movement> history(@PathVariable UUID id, @RequestParam(required = false) String cursor,
-            @RequestParam(required = false) Integer limit) {
-        return products.history(id, cursor, limit);
+    PagedResult<ProductViews.Movement> history(@PathVariable UUID id, @ParameterObject PageQuery paging) {
+        return products.history(id, paging);
     }
 
     /** For a combination the seller does not make; kept, not deleted. */

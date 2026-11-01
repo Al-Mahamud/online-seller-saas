@@ -74,24 +74,23 @@ test("the day's figures on screen are the API's", async ({ page }) => {
 
   await page.goto("/");
   await expect(heading(page, "আজ")).toBeVisible();
-  await expect(tile(page, "বিক্রি")).toContainText(taka(api.confirmed.value));
-  await expect(tile(page, "বিক্রি")).toContainText(`${number(api.confirmed.orders)}টি অর্ডার`);
+  await expect(tile(page, "আজকের বিক্রি")).toContainText(taka(api.confirmed.value));
+  await expect(tile(page, "আজকের বিক্রি")).toContainText(`${number(api.confirmed.orders)}টি অর্ডার`);
   await expect(tile(page, "পণ্যে মুনাফা")).toContainText(taka(api.profit.grossProfit));
-  await expect(tile(page, "প্যাক করতে হবে")).toContainText(number(api.byStatus.CONFIRMED as number));
-  await expect(tile(page, "কুরিয়ারে আছে")).toContainText(number(api.byStatus.SHIPPED as number));
-  await expect(tile(page, "কুরিয়ারে আছে")).toContainText(`গেছে ${number(api.shipped)}, পৌঁছেছে ${number(api.delivered)}`);
   await expect(tile(page, "COD বাকি")).toContainText(taka(api.cod.outstanding));
   await expect(tile(page, "COD বাকি")).toContainText(`পাওনা ${taka(api.cod.withCourier)}`);
-  await expect(tile(page, "স্টক কম")).toContainText(number(api.lowStock));
-  for (const [status, label] of [
-    ["DRAFT", "খসড়া"],
-    ["CONFIRMED", "নিশ্চিত"],
-    ["DELIVERED", "ডেলিভারি হয়েছে"],
-    ["CANCELLED", "বাতিল"],
+  await expect(
+    page.getByRole("link", { name: new RegExp(`${number(api.lowStock)}টি পণ্যের স্টক কমে এসেছে`) }),
+  ).toBeVisible();
+  for (const [status, label, next] of [
+    ["DRAFT", "খসড়া", " নিশ্চিত করুন"],
+    ["CONFIRMED", "নিশ্চিত", " প্যাক করুন"],
+    ["SHIPPED", "কুরিয়ারে", ` আজ গেছে ${number(api.shipped)}`],
+    ["DELIVERED", "ডেলিভারি", ""],
+    ["CANCELLED", "বাতিল", ""],
   ] as const) {
-    await expect(
-      page.getByRole("link", { name: `${label} ${number(api.byStatus[status] as number)}`, exact: true }),
-    ).toBeVisible();
+    const count = number(api.byStatus[status] as number);
+    await expect(page.getByRole("link", { name: `${label} ${count}${next}`, exact: true })).toBeVisible();
   }
   const best = api.topProducts[0] as { productName: string; value: number };
   await expect(page.locator("section").filter({ hasText: "সবচেয়ে বেশি বিক্রি" })).toContainText(best.productName);
@@ -105,8 +104,8 @@ test("the day's figures on screen are the API's", async ({ page }) => {
   await expect(columns.nth(6)).toHaveAccessibleName(new RegExp(`${taka(api.confirmed.value)}, ২টি অর্ডার`));
   await expectAccessible(page);
 
-  // A tile leads to the work it counts.
-  await tile(page, "প্যাক করতে হবে").click();
+  // A step of the journey leads to the work it counts.
+  await page.getByRole("link", { name: /^নিশ্চিত / }).click();
   await expect(page).toHaveURL(/\/orders\?status=CONFIRMED/);
 });
 
@@ -114,7 +113,7 @@ test("any day can be looked at, from the chart or by date", async ({ page }) => 
   await signUpWithBusiness(page.request);
   await seedDay(page.request);
   await page.goto("/");
-  await expect(tile(page, "বিক্রি")).toContainText("৳৪,৬২০");
+  await expect(tile(page, "আজকের বিক্রি")).toContainText("৳৪,৬২০");
 
   await page.locator("section").filter({ hasText: "গত ৭ দিনের বিক্রি" }).getByRole("button").nth(5).click();
   await expect(tile(page, "বিক্রি")).toContainText("৳০");
@@ -124,11 +123,69 @@ test("any day can be looked at, from the chart or by date", async ({ page }) => 
 
   await page.getByRole("link", { name: "আজকে ফিরে যান" }).click();
   await expect(heading(page, "আজ")).toBeVisible();
-  await expect(tile(page, "বিক্রি")).toContainText("৳৪,৬২০");
+  await expect(tile(page, "আজকের বিক্রি")).toContainText("৳৪,৬২০");
 
   await page.getByLabel("অন্য দিন দেখুন", { exact: true }).fill("2024-03-15");
   await expect(page).toHaveURL(/date=2024-03-15/);
   await expect(tile(page, "বিক্রি")).toContainText("৳০");
+});
+
+test("a shop with no orders is shown the first steps, then the whole page", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { level: 2, name: "শুরু করুন" })).toBeVisible();
+  await expect(page.locator("section").filter({ hasText: "ডেলিভারি ও ফেরত" })).toHaveCount(0);
+  await expectAccessible(page);
+  await page.getByRole("link", { name: /প্রথম পণ্য যোগ করুন/ }).click();
+  await expect(page).toHaveURL(/\/products\/new/);
+
+  await seedDay(page.request);
+  await page.goto("/");
+  await expect(tile(page, "আজকের বিক্রি")).toContainText("৳৪,৬২০");
+  await expect(page.getByRole("heading", { level: 2, name: "শুরু করুন" })).toHaveCount(0);
+});
+
+test("deliveries and returns come from the overview, per courier", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  const product = await post(page.request, "/api/v1/products", { name: "কুর্তি", price: 150000, openingStock: 50 });
+  const variantId = (product.variants as unknown as { id: string }[])[0]?.id as string;
+  const ship = async (courier: string) => {
+    const id = await order(page.request, variantId, 1);
+    await post(page.request, `/api/v1/orders/${id}/confirm`);
+    await post(page.request, `/api/v1/orders/${id}/ship`, { courier });
+    return id;
+  };
+  for (const _ of [1, 2, 3]) {
+    await post(page.request, `/api/v1/orders/${await ship("Pathao")}/deliver`);
+  }
+  await post(page.request, `/api/v1/orders/${await ship("Steadfast")}/deliver`);
+  const failed = await ship("Steadfast");
+  const lines = ((await (await page.request.get(`/api/v1/orders/${failed}`)).json()) as { items: { id: string }[] })
+    .items;
+  await post(page.request, `/api/v1/orders/${failed}/returns`, {
+    kind: "FAILED_DELIVERY",
+    reason: "বাসায় ছিলেন না",
+    items: lines.map((line) => ({ orderItemId: line.id, quantity: 1, disposition: "RESTOCK" })),
+  });
+  await ship("Steadfast");
+
+  await page.goto("/");
+  const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "ডেলিভারি ও ফেরত" }) });
+  await expect(section).toContainText("গত ৩০ দিন, ৫টি পার্সেল");
+  await expect(section).toContainText("৮০.০%");
+  await expect(section).toContainText("২০.০%");
+  await expect(section.getByRole("row", { name: "Pathao ০ ৩ ০ ০.০%" })).toBeVisible();
+  await expect(section.getByRole("row", { name: "Steadfast ১ ১ ১ ৫০.০%" })).toBeVisible();
+  await expect(section).toContainText("পার্সেল ফেরত এসেছে");
+  // Nothing late and nothing low: the card says so in a line, and in English too.
+  await expect(page.getByText("সব ঠিক আছে। এখন নজর দেওয়ার মতো কিছু নেই।")).toBeVisible();
+  await expectAccessible(page);
+
+  await page.getByRole("button", { name: "English" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Delivery and returns" })).toBeVisible();
+  await expect(page.locator("section").filter({ hasText: "Last 30 days, 5 parcels" })).toContainText("80.0%");
+  await expect(page.getByText("All clear. Nothing needs your attention right now.")).toBeVisible();
 });
 
 test("staff see sales and no profit, and can't reach it", async ({ page, browser }) => {
@@ -142,7 +199,7 @@ test("staff see sales and no profit, and can't reach it", async ({ page, browser
   expect((await staff.request.get("/api/v1/exports/orders.csv")).status()).toBe(403);
 
   await staff.goto("/");
-  await expect(tile(staff, "বিক্রি")).toContainText("৳৪,৬২০");
+  await expect(tile(staff, "আজকের বিক্রি")).toContainText("৳৪,৬২০");
   await expect(staff.getByText("পণ্যে মুনাফা", { exact: true })).toHaveCount(0);
 
   await staff.goto("/reports");
@@ -156,7 +213,7 @@ test("reports: sales by day, product and category, profit, and over chosen days"
   await signUpWithBusiness(page.request);
   await seedDay(page.request);
   await page.goto("/more");
-  await page.getByRole("link", { name: "রিপোর্ট" }).click();
+  await page.getByRole("link", { name: "রিপোর্ট", exact: true }).click();
   await expect(heading(page, "রিপোর্ট")).toBeVisible();
 
   const sales = page.locator("section").filter({ has: page.getByRole("heading", { name: "বিক্রি" }) });

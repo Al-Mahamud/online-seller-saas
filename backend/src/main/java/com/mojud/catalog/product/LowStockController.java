@@ -1,8 +1,10 @@
 package com.mojud.catalog.product;
 
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
-import java.util.List;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,7 +20,7 @@ class LowStockController {
 
     @GetMapping("/api/v1/stock/low")
     @RequiresRole(BusinessRole.STAFF)
-    List<LowStock.Item> list() {
-        return lowStock.list();
+    PagedResult<LowStock.Item> list(@ParameterObject PageQuery paging) {
+        return PagedResult.ofAll(lowStock.list(), paging);
     }
 }

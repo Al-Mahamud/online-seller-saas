@@ -166,6 +166,9 @@ class CrossTenantTests {
                 b.owner().post("/api/v1/products/" + a.productId() + "/restore", null)));
         CASES.put("PUT /api/v1/products/{id}/options", (a, b) -> expectNotFound(
                 b.owner().put("/api/v1/products/" + a.productId() + "/options", Map.of("options", List.of()))));
+        CASES.put("POST /api/v1/products/{id}/variants", (a, b) -> expectNotFound(
+                b.owner().post("/api/v1/products/" + a.productId() + "/variants",
+                        Map.of("variant", Map.of("name", "New", "price", 1)))));
         CASES.put("PATCH /api/v1/variants/{id}", (a, b) -> expectNotFound(
                 b.owner().patch("/api/v1/variants/" + a.variantId(), Map.of("price", 1))));
         CASES.put("POST /api/v1/variants/{id}/archive", (a, b) -> expectNotFound(
@@ -338,6 +341,7 @@ class CrossTenantTests {
         });
         // Reports: B's dashboard holds only B's figures (A's products never appear among top products).
         CASES.put("GET /api/v1/dashboard/today", (a, b) -> expectNoLeak(b.owner().get("/api/v1/dashboard/today"), a));
+        CASES.put("GET /api/v1/dashboard/overview", (a, b) -> expectNoLeak(b.owner().get("/api/v1/dashboard/overview"), a));
         CASES.put("GET /api/v1/reports/sales", (a, b) -> {
             expectNoLeak(b.owner().get("/api/v1/reports/sales?groupBy=product"), a);
             expectNoLeak(b.owner().get("/api/v1/reports/sales?groupBy=category"), a);
@@ -431,6 +435,15 @@ class CrossTenantTests {
         });
         CASES.put("POST /api/v1/shipments/settle-cod", (a, b) -> {
             expectNotFound(b.owner().post("/api/v1/shipments/settle-cod", Map.of("shipmentIds", List.of(a.shipmentId().toString()))));
+            assertThat(a.owner().get("/api/v1/orders/" + a.shippedOrderId()).<String>json("$.shipments[0].codStatus"))
+                    .isEqualTo("WITH_COURIER");
+        });
+        CASES.put("GET /api/v1/shipments/cod/summary", (a, b) -> expectNoLeak(b.owner().get("/api/v1/shipments/cod/summary"), a));
+        CASES.put("GET /api/v1/shipments/cod/parcels", (a, b) ->
+                expectNoLeak(b.owner().get("/api/v1/shipments/cod/parcels?courier=" + a.courier().replace(" ", "%20")), a));
+        CASES.put("POST /api/v1/shipments/settle-cod/matching", (a, b) -> {
+            b.owner().post("/api/v1/shipments/settle-cod/matching", Map.of("courier", a.courier(), "expectedParcels", 1,
+                    "expectedAmount", 1)).expectError(409, "cod.list_changed");
             assertThat(a.owner().get("/api/v1/orders/" + a.shippedOrderId()).<String>json("$.shipments[0].codStatus"))
                     .isEqualTo("WITH_COURIER");
         });

@@ -50,7 +50,7 @@ Keeps green `#0B6B4F`, ink `#17201B` and Hind Siliguri in its three weights, so 
 
 **Sign in.** User ID with "forgot user ID" beside its label, password with "forgot password" beside its label and the show/hide eye, one "লগ ইন" button, then the line about the free trial and a link to sign up.
 
-**Sign up, step 1.** Step bar, name, phone, User ID with the check button, email, password, the choice of where the code goes, "এগিয়ে যান", and a link to sign in. As now, the SMS/email choice appears only when the server offers both.
+**Sign up, step 1.** Step bar, name, phone, User ID with the check button, email, password, confirm password (each of the last three on its own row), the choice of where the code goes, "এগিয়ে যান", and a link to sign in. As now, the SMS/email choice appears only when the server offers both.
 
 **Sign up, step 2.** Step bar, six boxes for the code, "অ্যাকাউন্ট খুলুন", the resend timer and "তথ্য বদলান".
 
@@ -95,6 +95,8 @@ Everything else on these screens is already in `frontend/src/i18n/bn.json`. The 
 | New password, title | নতুন পাসওয়ার্ড | New password |
 | New password, description | এই ইউজার আইডি থাকলে অ্যাকাউন্টের ফোন বা ইমেইলে একটি কোড পাঠানো হয়েছে। কোডটি ৫ মিনিট কাজ করবে। | If this user ID exists, we've sent a code to the account's phone or email. It works for 5 minutes. |
 | Wrong details | ইউজার আইডি বা পাসওয়ার্ড সঠিক নয়। | The user ID or password is wrong. |
+| Confirm password | পাসওয়ার্ড আবার দিন | Confirm password |
+| Passwords differ | পাসওয়ার্ড দুটি মেলেনি। | The two passwords don't match. |
 
 ## As built
 
@@ -150,3 +152,4 @@ Each has a default that the build will use unless changed.
 - **Oct 31, 2026:** sign-in allowed the User ID alongside phone and email, then changed to User ID and password only. Code sign-in removed; "forgot user ID" link added.
 - **Oct 31, 2026:** drew forgot user ID, forgot password, two-step sign-in and the wrong-details notice, and English sign-in and sign-up on laptop and phone. The English panel headline was shortened to fit.
 - **Oct 31, 2026:** built in the backend and the web app.
+- **Nov 1, 2026:** confirm password added to sign-up, at Al Mahamud's request, on its own row below the password. Email and password also get a row each on laptops, so nothing sits half-width beside them. The check happens in the browser; the server still receives one password. Forgot password and the account page's change password stay with one field.

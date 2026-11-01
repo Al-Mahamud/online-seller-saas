@@ -1,22 +1,24 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { hasRole, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
-import { LoadMore } from "@/components/layout/LoadMore";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { Button } from "@/components/ui/button";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type Notification, notificationLink, notificationsQuery } from "./api";
 
+const route = getRouteApi("/_app/notifications/");
+
 export function NotificationsPage() {
   const { t } = useTranslation();
   const business = useBusiness();
   const queryClient = useQueryClient();
-  const list = useInfiniteQuery(notificationsQuery);
-  const items = list.data?.pages.flatMap((page) => page.items) ?? [];
-  const unread = list.data?.pages[0]?.unread ?? 0;
+  const list = useQuery(notificationsQuery(route.useSearch()));
+  const items = list.data?.items ?? [];
+  const unread = list.data?.unread ?? 0;
   const markRead = useMutation({
     mutationFn: (body: { ids: string[] } | { all: true }) => call(api.POST("/api/v1/notifications/read", { body })),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
@@ -48,7 +50,7 @@ export function NotificationsPage() {
           ))}
         </ul>
       )}
-      <LoadMore query={list} />
+      <AddressPagination result={list.data} />
       {hasRole(business, "MANAGER") && (
         <Link to="/settings/notifications" className="flex min-h-11 w-fit items-center text-primary">
           {t("notifications.emailChoices")}

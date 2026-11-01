@@ -7,23 +7,20 @@ import { z } from "zod/mini";
 import { api, call } from "@/api/client";
 import { FormError, PasswordField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
-import { BackToMore, PageHeader } from "@/components/layout/PageHeader";
 import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { currentPassword, newPassword } from "@/features/auth/schemas";
+import { ProfileFrame } from "./ProfileFrame";
 import { TwoFactorSection } from "./TwoFactorSection";
 
 export function SecurityPage() {
-  const { t } = useTranslation();
   return (
-    <div className="flex max-w-lg flex-col gap-5">
-      <div>
-        <BackToMore />
-        <PageHeader title={t("account.security")} />
+    <ProfileFrame>
+      <div className="grid gap-3.5 lg:grid-cols-2 lg:items-start lg:gap-4">
+        <PasswordSection />
+        <TwoFactorSection />
       </div>
-      <PasswordSection />
-      <TwoFactorSection />
-    </div>
+    </ProfileFrame>
   );
 }
 

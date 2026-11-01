@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { ProductFilters } from "@/features/catalog/api";
 import { ProductListPage } from "@/features/catalog/ProductListPage";
+import { pagingSearch } from "@/lib/paging";
 import { searchText } from "@/lib/search";
 
 /** Filters stay in the address, so a refresh or a shared link keeps them. */
@@ -11,6 +12,7 @@ function validateSearch(search: Record<string, unknown>): ProductFilters {
     categoryId: text(search.categoryId),
     tagId: text(search.tagId),
     status: search.status === "ARCHIVED" ? "ARCHIVED" : undefined,
+    ...pagingSearch(search),
   };
 }
 

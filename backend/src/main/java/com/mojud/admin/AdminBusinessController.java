@@ -4,6 +4,8 @@ import com.mojud.audit.AdminAudit;
 import com.mojud.billing.BillingAdministration;
 import com.mojud.identity.AuthenticatedUser;
 import com.mojud.shared.error.ApiException;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessDirectory;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -15,6 +17,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,13 +52,14 @@ class AdminBusinessController {
         this.audit = audit;
     }
 
-    /** {@code q}: part of the name, or the owner's phone, email or User ID; newest first, up to {@code limit} (100). */
+    /** {@code q}: part of the name, or the owner's phone, email or User ID; newest first. */
     @GetMapping("/api/v1/admin/businesses")
-    List<Row> search(@RequestParam(required = false) String q, @RequestParam(defaultValue = "50") int limit) {
-        List<BusinessDirectory.BusinessSummary> found = businesses.search(q, Math.max(1, Math.min(limit, 100)));
-        Map<UUID, BillingAdministration.SubscriptionSummary> subscriptions = billing.subscriptions(
-                found.stream().map(BusinessDirectory.BusinessSummary::id).toList());
-        return found.stream().map(business -> new Row(business, subscriptions.get(business.id()))).toList();
+    PagedResult<Row> search(@RequestParam(required = false) String q, @ParameterObject PageQuery paging) {
+        return businesses.search(q, paging).mapItems(found -> {
+            Map<UUID, BillingAdministration.SubscriptionSummary> subscriptions = billing.subscriptions(
+                    found.stream().map(BusinessDirectory.BusinessSummary::id).toList());
+            return found.stream().map(business -> new Row(business, subscriptions.get(business.id()))).toList();
+        });
     }
 
     @GetMapping("/api/v1/admin/businesses/{id}")
@@ -132,9 +136,9 @@ class AdminBusinessController {
 
     /** Recent admin actions, newest first; {@code businessId} narrows them to one business. */
     @GetMapping("/api/v1/admin/audit")
-    List<AdminAudit.Entry> auditLog(@RequestParam(required = false) UUID businessId,
-            @RequestParam(defaultValue = "100") int limit) {
-        return audit.recent(businessId, Math.max(1, Math.min(limit, 500)));
+    PagedResult<AdminAudit.Entry> auditLog(@RequestParam(required = false) UUID businessId,
+            @ParameterObject PageQuery paging) {
+        return audit.page(businessId, paging);
     }
 
     private void exists(UUID id) {

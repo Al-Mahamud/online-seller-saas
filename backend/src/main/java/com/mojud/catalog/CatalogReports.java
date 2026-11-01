@@ -10,6 +10,8 @@ public interface CatalogReports {
     /** Variants on sale at or below their alert level (the "running low" list's length). */
     int lowStockCount();
 
+    boolean hasProducts();
+
     /**
      * Each variant's category as "Parent > Name" or "Name"; variants of uncategorised products (or
      * unknown ones) are left out.

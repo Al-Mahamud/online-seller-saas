@@ -89,8 +89,8 @@ class AdminTests {
         assertThat(ids(admin.get("/api/v1/admin/businesses?q=nothing-like-this"))).isEmpty();
 
         ApiResponse row = admin.get("/api/v1/admin/businesses?q=" + ownerAccount.email());
-        assertThat(row.<String>json("$[0].business.owner.email")).isEqualTo(ownerAccount.email());
-        assertThat(row.<String>json("$[0].subscription.status")).isEqualTo("TRIALING");
+        assertThat(row.<String>json("$.items[0].business.owner.email")).isEqualTo(ownerAccount.email());
+        assertThat(row.<String>json("$.items[0].subscription.status")).isEqualTo("TRIALING");
 
         ApiResponse detail = admin.get("/api/v1/admin/businesses/" + business).expectStatus(200);
         assertThat(detail.<Integer>json("$.business.members")).isEqualTo(1);
@@ -112,7 +112,7 @@ class AdminTests {
         assertThat(back.<String>json("$.billing.status")).isEqualTo("TRIALING");
         owner.get("/api/v1/products").expectStatus(200);
         assertThat(actions()).containsSequence("business.unsuspended", "business.suspended");
-        assertThat(admin.get("/api/v1/admin/audit?businessId=" + business).<String>json("$[1].details.reason"))
+        assertThat(admin.get("/api/v1/admin/audit?businessId=" + business).<String>json("$.items[1].details.reason"))
                 .isEqualTo("Chargeback investigation");
     }
 
@@ -153,8 +153,8 @@ class AdminTests {
             ApiResponse offered = owner.get("/api/v1/plans");
             assertThat(offered.<List<String>>json("$[?(@.code == 'STARTER')].nameEn")).containsExactly("Starter Plus");
             assertThat(offered.<List<Integer>>json("$[?(@.code == 'STARTER')].priceMonthly")).containsExactly(120000);
-            assertThat(admin.get("/api/v1/admin/audit").<String>json("$[0].action")).isEqualTo("plan.edited");
-            assertThat(admin.get("/api/v1/admin/audit").<String>json("$[0].adminName")).isNotBlank();
+            assertThat(admin.get("/api/v1/admin/audit").<String>json("$.items[0].action")).isEqualTo("plan.edited");
+            assertThat(admin.get("/api/v1/admin/audit").<String>json("$.items[0].adminName")).isNotBlank();
             admin.put("/api/v1/admin/plans/TRIAL", Map.of("priceMonthly", 0, "isPublic", true, "exports", true)).expectStatus(200);
             assertThat(owner.get("/api/v1/plans").<List<String>>json("$[*].code")).doesNotContain("TRIAL");
             admin.put("/api/v1/admin/plans/NOPE", Map.of("priceMonthly", 1, "isPublic", true, "exports", true))
@@ -177,11 +177,11 @@ class AdminTests {
     }
 
     private List<String> actions() {
-        return admin.get("/api/v1/admin/audit?businessId=" + business).json("$[*].action");
+        return admin.get("/api/v1/admin/audit?businessId=" + business).json("$.items[*].action");
     }
 
     private static List<String> ids(ApiResponse response) {
-        return response.expectStatus(200).json("$[*].business.id");
+        return response.expectStatus(200).json("$.items[*].business.id");
     }
 
     private static ApiResponse call(ApiClient client, String method, String path) {

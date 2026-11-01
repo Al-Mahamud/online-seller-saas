@@ -1,15 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { hasRole, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import { ConfirmDialog } from "@/components/form/ConfirmDialog";
 import { BackToMore, PageHeader } from "@/components/layout/PageHeader";
+import { Pagination } from "@/components/layout/Pagination";
 import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { useFormat } from "@/lib/format";
+import type { Paging } from "@/lib/paging";
 import { cn } from "@/lib/utils";
 import {
   type Billing,
@@ -218,32 +220,37 @@ function PlanLimits({ plan }: { plan: Plan }) {
 function Invoices() {
   const { t } = useTranslation();
   const format = useFormat();
-  const { data: invoices } = useQuery(invoicesQuery);
+  const [paging, setPaging] = useState<Paging>({});
+  const top = useRef<HTMLDivElement>(null);
+  const { data: invoices } = useQuery(invoicesQuery(paging));
   return (
-    <Section title={t("billing.invoices")}>
-      {invoices?.length === 0 && <p className="text-muted-foreground">{t("billing.noInvoices")}</p>}
-      <ul className="flex flex-col">
-        {invoices?.map((invoice: Invoice) => (
-          <li key={invoice.id} className="border-t first:border-t-0">
-            <Link
-              to="/billing/invoices/$invoiceId"
-              params={{ invoiceId: invoice.id }}
-              className="flex items-center justify-between gap-3 py-2 text-foreground no-underline"
-            >
-              <span className="min-w-0">
-                <span className="block font-medium">{invoice.number}</span>
-                <span className="block text-sm text-muted-foreground">{format.date(invoice.createdAt)}</span>
-              </span>
-              <span className="flex-none text-right">
-                <span className="block font-semibold">{format.taka(invoice.amount)}</span>
-                <span className="block text-sm text-muted-foreground">
-                  {t(`billing.invoiceStatus.${invoice.status}` as "billing.invoiceStatus.PAID")}
+    <div ref={top} className="scroll-mt-16 md:scroll-mt-4">
+      <Section title={t("billing.invoices")}>
+        {invoices?.items.length === 0 && <p className="text-muted-foreground">{t("billing.noInvoices")}</p>}
+        <ul className="flex flex-col">
+          {invoices?.items.map((invoice: Invoice) => (
+            <li key={invoice.id} className="border-t first:border-t-0">
+              <Link
+                to="/billing/invoices/$invoiceId"
+                params={{ invoiceId: invoice.id }}
+                className="flex items-center justify-between gap-3 py-2 text-foreground no-underline"
+              >
+                <span className="min-w-0">
+                  <span className="block font-medium">{invoice.number}</span>
+                  <span className="block text-sm text-muted-foreground">{format.date(invoice.createdAt)}</span>
                 </span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </Section>
+                <span className="flex-none text-right">
+                  <span className="block font-semibold">{format.taka(invoice.amount)}</span>
+                  <span className="block text-sm text-muted-foreground">
+                    {t(`billing.invoiceStatus.${invoice.status}` as "billing.invoiceStatus.PAID")}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <Pagination result={invoices} onChange={setPaging} scrollTo={top} />
+      </Section>
+    </div>
   );
 }

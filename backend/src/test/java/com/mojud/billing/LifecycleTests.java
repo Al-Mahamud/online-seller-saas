@@ -192,6 +192,6 @@ class LifecycleTests {
 
     /** Billing notifications, newest first. */
     private List<String> billingNotices() {
-        return owner.get("/api/v1/notifications?limit=50").json("$.items[?(@.type =~ /billing\\..*/)].title");
+        return owner.get("/api/v1/notifications?size=50").json("$.items[?(@.type =~ /billing\\..*/)].title");
     }
 }

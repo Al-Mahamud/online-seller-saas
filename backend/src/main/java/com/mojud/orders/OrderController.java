@@ -1,7 +1,8 @@
 package com.mojud.orders;
 
 import com.mojud.shared.idempotency.Idempotency;
-import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
 import jakarta.validation.Valid;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,12 +84,12 @@ class OrderController {
     }
 
     @GetMapping("/api/v1/orders")
-    CursorPage<OrderViews.Summary> list(@RequestParam(required = false) List<OrderStatus> status,
+    PagedResult<OrderViews.Summary> list(@RequestParam(required = false) List<OrderStatus> status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) String phone, @RequestParam(required = false) String number,
-            @RequestParam(required = false) String cursor, @RequestParam(required = false) Integer limit) {
-        return orders.list(status, from, to, phone, number, cursor, limit);
+            @ParameterObject PageQuery paging) {
+        return orders.list(status, from, to, phone, number, paging);
     }
 
     /** How many orders each status has, for the same filters as the list: the tabs' numbers. */

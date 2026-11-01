@@ -6,7 +6,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -23,7 +24,7 @@ interface OrderRepository extends JpaRepository<Order, UUID> {
     Optional<Order> findLocked(UUID id);
 
     /**
-     * Newest first, after the cursor position. No null parameters (PostgreSQL cannot type them):
+     * Newest first. No null parameters (PostgreSQL cannot type them):
      * every status when none is chosen, "" for no phone, 0 for no number, far bounds for no dates.
      */
     @Query("""
@@ -32,10 +33,9 @@ interface OrderRepository extends JpaRepository<Order, UUID> {
               and o.createdAt >= :from and o.createdAt < :to
               and (:phone = '' or o.customerPhone = :phone or o.deliveryPhone = :phone)
               and (:number = 0 or o.number = :number)
-              and (o.createdAt < :afterAt or (o.createdAt = :afterAt and o.id < :afterId))
             order by o.createdAt desc, o.id desc""")
-    List<Order> findPage(Collection<OrderStatus> statuses, Instant from, Instant to, String phone, long number,
-            Instant afterAt, UUID afterId, Limit limit);
+    Page<Order> findPage(Collection<OrderStatus> statuses, Instant from, Instant to, String phone, long number,
+            Pageable pageable);
 
     /** Rows of status and count, for the same filters as {@link #findPage}. */
     @Query("""

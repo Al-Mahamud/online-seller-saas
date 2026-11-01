@@ -192,7 +192,7 @@ test("read-only: a banner, the server refuses what the screen didn't stop, and p
 
   // A write the screen doesn't stop: refused by the server, with its reason.
   await page.goto("/customers");
-  await page.getByRole("button", { name: "নতুন গ্রাহক" }).click();
+  await page.getByRole("button", { name: "নতুন গ্রাহক" }).first().click();
   const dialog = page.getByRole("dialog");
   await label(dialog, "গ্রাহকের নাম").fill("করিম");
   await label(dialog, "ফোন নম্বর").fill("01712345678");
@@ -207,7 +207,7 @@ test("read-only: a banner, the server refuses what the screen didn't stop, and p
   await expect(banner(staff)).toContainText("মালিককে প্ল্যান নিতে বলুন");
   await expect(staff.getByRole("link", { name: "প্ল্যান দেখুন" })).toHaveCount(0);
   await staff.goto("/billing");
-  await expect(staff).toHaveURL(/\/more$/);
+  await expect(staff).toHaveURL(/localhost:\d+\/$/);
   await staff.context().close();
 
   // The owner pays, and the shop is back without a reload.

@@ -1,10 +1,8 @@
 package com.mojud.inventory;
 
-import com.mojud.shared.paging.Cursor;
-import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.tenant.TenantScope;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,9 +16,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class StockQueries {
 
-    private static final Instant END_OF_TIME = Instant.parse("9999-12-31T00:00:00Z");
-    private static final UUID LAST_ID = new UUID(-1L, -1L);
-
     private final JdbcClient jdbc;
 
     StockQueries(DataSource dataSource) {
@@ -31,29 +26,27 @@ public class StockQueries {
      * A variant's stock history, newest first. The caller has checked the variant exists in this
      * business; for any other id the history is simply empty.
      */
-    public CursorPage<StockHistory> history(UUID variantId, String cursor, Integer limit) {
-        int pageSize = CursorPage.limit(limit);
-        Cursor after = Cursor.decode(cursor);
+    public PagedResult<StockHistory> history(UUID variantId, PageQuery paging) {
+        UUID business = TenantScope.current().orElseThrow();
         List<StockHistory> rows = jdbc.sql("""
                         select id, created_at, type, on_hand_delta, reserved_delta, on_hand_after, reserved_after,
                                reference_type, reference_id, note, user_id
                         from stock_movements
                         where business_id = :business and variant_id = :variant
-                          and (created_at, id) < (:afterAt, :afterId)
                         order by created_at desc, id desc
-                        limit :fetch
+                        limit :limit offset :offset
                         """)
-                .param("business", TenantScope.current().orElseThrow())
+                .param("business", business)
                 .param("variant", variantId)
-                // The first page starts after everything: no null parameter, which PostgreSQL cannot type.
-                .param("afterAt", Timestamp.from(after == null ? END_OF_TIME : after.sortKeyAsInstant()))
-                .param("afterId", after == null ? LAST_ID : after.id())
-                .param("fetch", pageSize + 1)
+                .param("limit", paging.limit())
+                .param("offset", paging.offset())
                 .query((rs, n) -> new StockHistory(rs.getObject(1, UUID.class), rs.getTimestamp(2).toInstant(),
                         MovementType.valueOf(rs.getString(3)), rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7),
                         rs.getString(8), rs.getObject(9, UUID.class), rs.getString(10), rs.getObject(11, UUID.class)))
                 .list();
-        return CursorPage.of(rows, pageSize, row -> new Cursor(row.at().toString(), row.id()));
+        long total = jdbc.sql("select count(*) from stock_movements where business_id = :business and variant_id = :variant")
+                .param("business", business).param("variant", variantId).query(Long.class).single();
+        return PagedResult.of(rows, paging, total);
     }
 
     /** The level of each variant; a variant that never had stock is 0 / 0. */

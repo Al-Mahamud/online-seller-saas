@@ -740,6 +740,22 @@ export interface paths {
         patch: operations["update_4"];
         trace?: never;
     };
+    "/api/v1/dashboard/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard/today": {
         parameters: {
             query?: never;
@@ -1604,6 +1620,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/{id}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addVariant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/gateway/sslcommerz/ipn": {
         parameters: {
             query?: never;
@@ -1700,6 +1732,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/shipments/cod/parcels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["codParcels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/cod/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["codSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/shipments/couriers": {
         parameters: {
             query?: never;
@@ -1726,6 +1790,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/settle-cod/matching": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["settleMatching"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2391,6 +2471,34 @@ export interface components {
         CategoryRenameRequest: {
             name: string;
         };
+        CodSettlementsCourierCod: {
+            /** Format: int64 */
+            inTransitAmount: number;
+            /** Format: int64 */
+            matchedAmount: number;
+            /** Format: int64 */
+            matchedParcels: number;
+            name: string;
+            /** Format: int64 */
+            owedAmount: number;
+            /** Format: int64 */
+            owedParcels: number;
+        };
+        CodSettlementsParcel: {
+            /** Format: int64 */
+            codCollected: number | null;
+            /** Format: int64 */
+            codExpected: number;
+            customerName: string;
+            /** Format: date-time */
+            deliveredAt: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            orderId: string;
+            orderNumberLabel: string;
+            trackingNo: string | null;
+        };
         CodSettlementsRow: {
             /** Format: int64 */
             codCollected: number | null;
@@ -2421,25 +2529,14 @@ export interface components {
             /** Format: int32 */
             shipments: number;
         };
-        CursorPageAuditLogEntry: {
-            items: components["schemas"]["AuditLogEntry"][];
-            nextCursor: string | null;
-        };
-        CursorPageCustomerView: {
-            items: components["schemas"]["CustomerView"][];
-            nextCursor: string | null;
-        };
-        CursorPageOrderSummary: {
-            items: components["schemas"]["OrderSummary"][];
-            nextCursor: string | null;
-        };
-        CursorPageProductMovement: {
-            items: components["schemas"]["ProductMovement"][];
-            nextCursor: string | null;
-        };
-        CursorPageProductSummary: {
-            items: components["schemas"]["ProductSummary"][];
-            nextCursor: string | null;
+        CodSettlementsSummary: {
+            couriers: components["schemas"]["CodSettlementsCourierCod"][];
+            /** Format: int64 */
+            inTransitAmount: number;
+            /** Format: int64 */
+            owedAmount: number;
+            /** Format: int64 */
+            owedParcels: number;
         };
         CustomerCreateRequest: {
             address?: string;
@@ -2506,6 +2603,23 @@ export interface components {
             orders: number;
             /** Format: int64 */
             value: number;
+        };
+        DashboardOverview: {
+            couriers: components["schemas"]["OrderReportsCourierParcels"][];
+            hasOrders: boolean;
+            hasProducts: boolean;
+            /** Format: int32 */
+            lateAfterDays: number;
+            /** Format: int32 */
+            lateParcels: number;
+            returnReasons: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            stuckAfterDays: number;
+            stuckCod: components["schemas"]["OrderReportsCourierCash"][];
+            /** Format: int32 */
+            windowDays: number;
         };
         DashboardToday: {
             byStatus: {
@@ -2808,7 +2922,14 @@ export interface components {
         };
         NotificationPage: {
             items: components["schemas"]["NotificationItem"][];
-            nextCursor: string | null;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
             /** Format: int64 */
             unread: number;
         };
@@ -3030,6 +3151,20 @@ export interface components {
             method: "BKASH" | "NAGAD" | "ROCKET" | "BANK" | "CASH" | "CARD" | "OTHER";
             reference?: string;
         };
+        OrderReportsCourierCash: {
+            /** Format: int64 */
+            amount: number;
+            courier: string;
+        };
+        OrderReportsCourierParcels: {
+            courier: string;
+            /** Format: int32 */
+            delivered: number;
+            /** Format: int32 */
+            onTheWay: number;
+            /** Format: int32 */
+            returned: number;
+        };
         OrderReportsProfit: {
             /** Format: int64 */
             cost: number;
@@ -3177,6 +3312,127 @@ export interface components {
             /** Format: int64 */
             version?: number;
         };
+        PagedResultAdminAuditEntry: {
+            items: components["schemas"]["AdminAuditEntry"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultAdminBusinessRow: {
+            items: components["schemas"]["AdminBusinessRow"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultAuditLogEntry: {
+            items: components["schemas"]["AuditLogEntry"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultBillingAdminAdminInvoice: {
+            items: components["schemas"]["BillingAdminAdminInvoice"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultCodSettlementsParcel: {
+            items: components["schemas"]["CodSettlementsParcel"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultCustomerView: {
+            items: components["schemas"]["CustomerView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultInvoicesInvoiceView: {
+            items: components["schemas"]["InvoicesInvoiceView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultLowStockItem: {
+            items: components["schemas"]["LowStockItem"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultOrderSummary: {
+            items: components["schemas"]["OrderSummary"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultProductMovement: {
+            items: components["schemas"]["ProductMovement"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultProductSummary: {
+            items: components["schemas"]["ProductSummary"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
         ProductActor: {
             /** Format: uuid */
             id: string;
@@ -3193,9 +3449,10 @@ export interface components {
             openingStock?: number;
             options?: components["schemas"]["ProductOptionRequest"][];
             /** Format: int64 */
-            price: number;
+            price?: number;
             sku?: string;
             tagIds?: string[];
+            variants?: components["schemas"]["ProductVariantRowRequest"][];
         };
         ProductDetail: {
             /** Format: uuid */
@@ -3260,6 +3517,11 @@ export interface components {
             reservedChange: number;
             /** @enum {string} */
             type: "OPENING" | "RECEIVE" | "ADJUST" | "DAMAGE" | "RESERVE" | "RELEASE" | "SHIP" | "SALE" | "UNSALE" | "RETURN" | "RETURN_DAMAGED";
+        };
+        ProductNewVariantRequest: {
+            variant: components["schemas"]["ProductVariantRowRequest"];
+            /** Format: int64 */
+            version?: number;
         };
         ProductOption: {
             /** Format: uuid */
@@ -3330,6 +3592,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             label: string;
+            lowStock: boolean;
             /** Format: int32 */
             lowStockThreshold: number | null;
             /** Format: int64 */
@@ -3345,6 +3608,16 @@ export interface components {
             status: "ACTIVE" | "ARCHIVED";
             /** Format: int64 */
             version: number;
+        };
+        ProductVariantRowRequest: {
+            /** Format: int64 */
+            costPrice?: number;
+            name?: string;
+            /** Format: int64 */
+            price: number;
+            /** Format: int32 */
+            quantity?: number;
+            size?: string;
         };
         SalesReportsProfit: {
             /** Format: date */
@@ -3385,6 +3658,19 @@ export interface components {
             orderNumberPrefix: string;
             /** @enum {string} */
             stockCommitPoint: "SHIP" | "CONFIRM";
+        };
+        ShipmentSettleMatchingRequest: {
+            courier: string;
+            exceptIds?: string[];
+            /** Format: int64 */
+            expectedAmount?: number;
+            /** Format: int64 */
+            expectedParcels?: number;
+            /** Format: date */
+            from?: string;
+            q?: string;
+            /** Format: date */
+            to?: string;
         };
         ShipmentSettleRequest: {
             shipmentIds: string[];
@@ -3463,8 +3749,10 @@ export interface components {
             costPrice?: number;
             /** Format: int32 */
             lowStockThreshold?: number;
+            name?: string;
             /** Format: int64 */
             price?: number;
+            size?: string;
             sku?: string;
             useDefaultThreshold?: boolean;
             /** Format: int64 */
@@ -3483,7 +3771,8 @@ export interface operations {
         parameters: {
             query?: {
                 businessId?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -3497,7 +3786,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminAuditEntry"][];
+                    "application/json": components["schemas"]["PagedResultAdminAuditEntry"];
                 };
             };
         };
@@ -3506,6 +3795,9 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string;
+                payBy?: string;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -3519,7 +3811,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BillingAdminAdminInvoice"][];
+                    "application/json": components["schemas"]["PagedResultBillingAdminAdminInvoice"];
                 };
             };
         };
@@ -3572,7 +3864,8 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -3586,7 +3879,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminBusinessRow"][];
+                    "application/json": components["schemas"]["PagedResultAdminBusinessRow"];
                 };
             };
         };
@@ -4074,7 +4367,10 @@ export interface operations {
     };
     invoices: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number | null;
+                size?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4087,7 +4383,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvoicesInvoiceView"][];
+                    "application/json": components["schemas"]["PagedResultInvoicesInvoiceView"];
                 };
             };
         };
@@ -4276,8 +4572,8 @@ export interface operations {
     list_9: {
         parameters: {
             query?: {
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -4291,7 +4587,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageAuditLogEntry"];
+                    "application/json": components["schemas"]["PagedResultAuditLogEntry"];
                 };
             };
         };
@@ -4631,8 +4927,8 @@ export interface operations {
             query?: {
                 q?: string;
                 phone?: string;
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -4646,7 +4942,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageCustomerView"];
+                    "application/json": components["schemas"]["PagedResultCustomerView"];
                 };
             };
         };
@@ -4739,6 +5035,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerView"];
+                };
+            };
+        };
+    };
+    overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardOverview"];
                 };
             };
         };
@@ -5416,8 +5732,8 @@ export interface operations {
     list_8: {
         parameters: {
             query?: {
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -5510,8 +5826,8 @@ export interface operations {
                 to?: string;
                 phone?: string;
                 number?: string;
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -5525,7 +5841,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageOrderSummary"];
+                    "application/json": components["schemas"]["PagedResultOrderSummary"];
                 };
             };
         };
@@ -5939,8 +6255,8 @@ export interface operations {
                 categoryId?: string;
                 tagId?: string;
                 q?: string;
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -5954,7 +6270,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageProductSummary"];
+                    "application/json": components["schemas"]["PagedResultProductSummary"];
                 };
             };
         };
@@ -6203,6 +6519,32 @@ export interface operations {
             };
         };
     };
+    addVariant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductNewVariantRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDetail"];
+                };
+            };
+        };
+    };
     ipn: {
         parameters: {
             query?: never;
@@ -6362,6 +6704,57 @@ export interface operations {
             };
         };
     };
+    codParcels: {
+        parameters: {
+            query: {
+                courier: string;
+                q?: string;
+                from?: string;
+                to?: string;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedResultCodSettlementsParcel"];
+                };
+            };
+        };
+    };
+    codSummary: {
+        parameters: {
+            query?: {
+                q?: string;
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodSettlementsSummary"];
+                };
+            };
+        };
+    };
     couriers: {
         parameters: {
             query?: never;
@@ -6392,6 +6785,30 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ShipmentSettleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodSettlementsSettlement"];
+                };
+            };
+        };
+    };
+    settleMatching: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShipmentSettleMatchingRequest"];
             };
         };
         responses: {
@@ -6604,7 +7021,10 @@ export interface operations {
     };
     list_5: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number | null;
+                size?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -6617,7 +7037,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LowStockItem"][];
+                    "application/json": components["schemas"]["PagedResultLowStockItem"];
                 };
             };
         };
@@ -6790,8 +7210,8 @@ export interface operations {
     history: {
         parameters: {
             query?: {
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path: {
@@ -6807,7 +7227,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageProductMovement"];
+                    "application/json": components["schemas"]["PagedResultProductMovement"];
                 };
             };
         };

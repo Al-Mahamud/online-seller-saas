@@ -92,16 +92,15 @@ class AuditLogTests {
             owner.patch("/api/v1/business/settings", Map.of("lowStockDefault", i)).expectStatus(200);
         }
 
-        ApiResponse first = owner.get("/api/v1/business/audit-log?limit=2").expectStatus(200);
-        ApiResponse second = owner.get("/api/v1/business/audit-log?limit=2&cursor=" + first.<String>json("$.nextCursor"))
-                .expectStatus(200);
-        ApiResponse last = owner.get("/api/v1/business/audit-log?limit=2&cursor=" + second.<String>json("$.nextCursor"))
-                .expectStatus(200);
+        ApiResponse first = owner.get("/api/v1/business/audit-log?size=2").expectStatus(200);
+        ApiResponse second = owner.get("/api/v1/business/audit-log?size=2&page=2").expectStatus(200);
+        ApiResponse last = owner.get("/api/v1/business/audit-log?size=2&page=3").expectStatus(200);
 
         assertThat(first.<List<Integer>>json("$.items[*].details.changes.lowStockDefault.to")).containsExactly(4, 3);
         assertThat(second.<List<Integer>>json("$.items[*].details.changes.lowStockDefault.to")).containsExactly(2, 1);
         assertThat(last.<List<String>>json("$.items[*].action")).containsExactly("business.created");
-        assertThat(last.<String>json("$.nextCursor")).isNull();
+        assertThat(last.<Integer>json("$.totalItems")).isEqualTo(5);
+        assertThat(last.<Integer>json("$.totalPages")).isEqualTo(3);
     }
 
     @Test

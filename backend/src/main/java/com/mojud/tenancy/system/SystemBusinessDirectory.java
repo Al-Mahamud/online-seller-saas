@@ -3,6 +3,8 @@ package com.mojud.tenancy.system;
 import com.mojud.identity.UserDirectory;
 import com.mojud.shared.db.system.SystemDatabase;
 import com.mojud.shared.email.EmailAddress;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.phone.PhoneNumber;
 import com.mojud.tenancy.BusinessDirectory;
 import java.sql.ResultSet;
@@ -42,7 +44,7 @@ class SystemBusinessDirectory implements BusinessDirectory {
     }
 
     @Override
-    public List<BusinessSummary> search(String q, int limit) {
+    public PagedResult<BusinessSummary> search(String q, PageQuery paging) {
         String query = q == null ? "" : q.strip();
         Optional<UUID> owner = Optional.empty();
         if (!query.isEmpty()) {
@@ -55,18 +57,22 @@ class SystemBusinessDirectory implements BusinessDirectory {
             }
         }
         List<Row> rows;
+        long total;
         if (owner.isPresent()) {
-            rows = database.jdbc().sql(SELECT + """
-                            where b.id in (select business_id from memberships where user_id = ? and role = 'OWNER')
-                            order by b.created_at desc limit ?
-                            """)
-                    .params(owner.get(), limit).query(this::row).list();
+            String where = "where b.id in (select business_id from memberships where user_id = ? and role = 'OWNER') ";
+            rows = database.jdbc().sql(SELECT + where + "order by b.created_at desc, b.id desc limit ? offset ?")
+                    .params(owner.get(), paging.limit(), paging.offset()).query(this::row).list();
+            total = database.jdbc().sql("select count(*) from businesses b " + where)
+                    .params(owner.get()).query(Long.class).single();
         } else {
             String pattern = "%" + query.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-            rows = database.jdbc().sql(SELECT + "where lower(b.name) like ? order by b.created_at desc limit ?")
-                    .params(pattern, limit).query(this::row).list();
+            String where = "where lower(b.name) like ? ";
+            rows = database.jdbc().sql(SELECT + where + "order by b.created_at desc, b.id desc limit ? offset ?")
+                    .params(pattern, paging.limit(), paging.offset()).query(this::row).list();
+            total = database.jdbc().sql("select count(*) from businesses b " + where)
+                    .params(pattern).query(Long.class).single();
         }
-        return summaries(rows);
+        return PagedResult.of(summaries(rows), paging, total);
     }
 
     @Override

@@ -1,12 +1,13 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { ChevronRight, Plus, Search, TriangleAlert, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { hasRole, useBusiness } from "@/api/business";
-import { LoadMore } from "@/components/layout/LoadMore";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { SearchBox } from "@/components/layout/SearchBox";
+import { SelectBox } from "@/components/form/Field";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useCanWrite } from "@/features/billing/status";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -15,162 +16,277 @@ import { Thumbnail } from "./Thumbnail";
 
 const route = getRouteApi("/_app/products/");
 
-/** A list of products, as in the mockup: cards on phones, a table from 768 px. */
+const ON_DARK_FOCUS = "focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-marigold-text";
+
+/** A list of products: a search panel, then cards on phones and a table from 768 px. */
 export function ProductListPage() {
   const { t } = useTranslation();
-  const format = useFormat();
   const business = useBusiness();
   const canWrite = useCanWrite();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  const products = useInfiniteQuery(productsQuery(filters));
-  const { data: lowStock } = useQuery(lowStockQuery);
-  const items = products.data?.pages.flatMap((page) => page.items) ?? [];
+  const products = useQuery(productsQuery(filters));
+  const items = products.data?.items ?? [];
   const filtered = !!(filters.q || filters.categoryId || filters.tagId);
+  const canManage = hasRole(business, "MANAGER") && canWrite;
+  const reset = () => void navigate({ search: { size: filters.size }, replace: true });
 
   return (
-    <div className="flex flex-col gap-3">
-      <PageHeader title={t("nav.products")}>
-        {hasRole(business, "MANAGER") && canWrite && (
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link to="/products/import">{t("imports.fromExcel")}</Link>
-            </Button>
-            <Button asChild className="hidden md:inline-flex">
-              <Link to="/products/new">
-                <Plus aria-hidden="true" />
-                {t("products.new")}
-              </Link>
-            </Button>
-          </div>
-        )}
-      </PageHeader>
-      <SearchBox
-        label={t("products.search")}
-        hint={t("products.searchHint")}
-        value={filters.q ?? ""}
-        onChange={(q) => void navigate({ search: { ...filters, q: q || undefined }, replace: true })}
-      />
-      <FilterChips />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <StatusToggle />
-        {!!lowStock?.length && (
-          <Link
-            to="/products/low-stock"
-            className="flex min-h-11 items-center font-medium text-warning-foreground underline"
-          >
-            {t("products.lowStockCount", { count: format.number(lowStock.length) })}
-          </Link>
-        )}
+    <div className="flex w-full flex-col gap-4">
+      {/* On phones the title and the panel share one dark header; from 768 px each stands alone. */}
+      <div className="max-md:relative max-md:-mx-4 max-md:-mt-4 max-md:flex max-md:flex-col max-md:gap-2.5 max-md:bg-ledger max-md:pt-2.5 max-md:pr-4.5 max-md:pb-8 max-md:pl-6.5 max-md:text-white md:contents">
+        <div aria-hidden="true" className="absolute inset-y-0 left-2.5 w-0.5 bg-marigold md:hidden" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-[30px] leading-tight font-bold md:text-[32px]">{t("nav.products")}</h1>
+          {canManage && (
+            <div className="flex gap-2.5">
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 rounded-[10px] border-[1.5px] text-[15px] font-semibold max-md:border-ledger-outline max-md:bg-transparent max-md:text-white md:text-base"
+              >
+                <Link
+                  to="/products/import"
+                  className="no-underline max-md:text-white max-md:hover:bg-white/10 max-md:hover:text-white md:text-foreground"
+                >
+                  {t("imports.fromExcel")}
+                </Link>
+              </Button>
+              <Button asChild className="hidden h-11 rounded-[10px] text-base font-semibold md:inline-flex">
+                <Link to="/products/new" className="text-primary-foreground no-underline hover:text-primary-foreground">
+                  <Plus aria-hidden="true" strokeWidth={2.5} />
+                  {t("products.new")}
+                </Link>
+              </Button>
+            </div>
+          )}
+        </div>
+        <SearchPanel />
       </div>
 
-      {products.isSuccess && items.length === 0 && (
-        <p className="py-8 text-center text-muted-foreground">
-          {filtered ? t("products.noMatch") : t("products.none")}
-        </p>
-      )}
-      <ul className="flex flex-col gap-2.5 md:hidden">
-        {items.map((product) => (
-          <li key={product.id}>
-            <ProductCard product={product} />
-          </li>
-        ))}
-      </ul>
-      {items.length > 0 && <ProductTable products={items} />}
-      <LoadMore query={products} />
+      <div className="flex flex-col gap-3 max-md:relative max-md:-mx-4 max-md:-mt-7.5 max-md:rounded-t-3xl max-md:bg-background max-md:px-3.5 max-md:pt-3.5 md:gap-4">
+        <ActiveFilters />
+        {products.isSuccess && items.length === 0 && (
+          <div className="flex flex-col items-center gap-2.5 rounded-[14px] border bg-card px-4 py-9 text-center md:py-12">
+            <p className="text-[17px] font-semibold">{filtered ? t("products.noMatch") : t("products.none")}</p>
+            {filtered && (
+              <Button
+                variant="outline"
+                className="h-11 rounded-[10px] border-[1.5px] border-primary px-4 font-semibold text-primary hover:text-primary"
+                onClick={reset}
+              >
+                {t("products.list.reset")}
+              </Button>
+            )}
+          </div>
+        )}
+        <ul className="flex flex-col gap-2.5 md:hidden">
+          {items.map((product) => (
+            <li key={product.id}>
+              <ProductCard product={product} />
+            </li>
+          ))}
+        </ul>
+        {items.length > 0 && <ProductTable products={items} />}
+        <AddressPagination result={products.data} />
+      </div>
     </div>
   );
 }
 
-function Chip({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
+/** What's typed and picked waits here; the list follows the address, which changes on "search". */
+function SearchPanel() {
+  const { t } = useTranslation();
+  const format = useFormat();
+  const filters = route.useSearch();
+  const navigate = route.useNavigate();
+  const { data: categories } = useQuery(categoriesQuery);
+  const { data: tags } = useQuery(tagsQuery);
+  const { data: lowStock } = useQuery(lowStockQuery({ size: 1 }));
+  const [q, setQ] = useState(filters.q ?? "");
+  const [categoryId, setCategoryId] = useState(filters.categoryId ?? "");
+  const [tagId, setTagId] = useState(filters.tagId ?? "");
+  // The address can change without this panel: a chip removed, the browser's back button, a shared link.
+  useEffect(() => {
+    setQ(filters.q ?? "");
+    setCategoryId(filters.categoryId ?? "");
+    setTagId(filters.tagId ?? "");
+  }, [filters.q, filters.categoryId, filters.tagId]);
+  const status = filters.status ?? "ACTIVE";
   return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      className={cn(
-        "h-9 flex-none cursor-pointer rounded-full border px-3.5 text-sm",
-        selected ? "border-foreground bg-foreground text-background" : "border-input bg-card text-foreground",
-      )}
-      onClick={onClick}
+    // biome-ignore lint/a11y/useSemanticElements: a form with this role is how a search with a button is announced.
+    <form
+      role="search"
+      aria-label={t("products.search")}
+      className="flex flex-col gap-2.5 md:relative md:gap-3 md:overflow-hidden md:rounded-2xl md:bg-ledger md:py-4.5 md:pr-6 md:pl-14 md:text-white"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void navigate({
+          search: {
+            q: q.trim() || undefined,
+            categoryId: categoryId || undefined,
+            tagId: tagId || undefined,
+            status: filters.status,
+            size: filters.size,
+          },
+          replace: true,
+        });
+      }}
     >
-      {children}
-    </button>
+      <div aria-hidden="true" className="absolute inset-y-0 left-7 hidden w-0.5 bg-marigold md:block" />
+      <div className="relative">
+        <Search
+          aria-hidden="true"
+          className="absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
+        />
+        <Input
+          type="search"
+          aria-label={t("products.search")}
+          placeholder={t("products.searchHint")}
+          className={cn(
+            "h-12.5 rounded-xl border-0 bg-card pl-11 text-base text-foreground md:h-13 md:text-[17px]",
+            ON_DARK_FOCUS,
+          )}
+          value={q}
+          onChange={(event) => setQ(event.target.value)}
+        />
+      </div>
+      <div className="flex flex-wrap items-end gap-2.5 md:gap-3">
+        <div className="grid min-w-0 flex-[2_1_100%] grid-cols-2 gap-2.5 md:flex-[2_1_340px] md:gap-3 [&_label]:text-sm [&_label]:text-ledger-text [&_select]:rounded-[10px] [&_select]:border-0 [&_select]:text-[15px] [&_select]:text-foreground">
+          <SelectBox
+            label={t("products.category")}
+            value={categoryId}
+            onChange={(event) => setCategoryId(event.target.value)}
+          >
+            <option value="">{t("products.list.allCategories")}</option>
+            {flatCategories(categories ?? []).map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </SelectBox>
+          <SelectBox label={t("products.tags")} value={tagId} onChange={(event) => setTagId(event.target.value)}>
+            <option value="">{t("products.list.allTags")}</option>
+            {tags?.map((tag) => (
+              <option key={tag.id} value={tag.id}>
+                {tag.name}
+              </option>
+            ))}
+          </SelectBox>
+        </div>
+        <fieldset className="flex-none">
+          <legend className="sr-only md:not-sr-only md:mb-1.5 md:text-sm md:font-semibold md:text-ledger-text">
+            {t("products.statusLabel")}
+          </legend>
+          <div className="flex h-11 overflow-hidden rounded-[10px] border-[1.5px] border-ledger-outline">
+            {(["ACTIVE", "ARCHIVED"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={status === value}
+                className={cn(
+                  "min-w-17 cursor-pointer px-3 text-[15px] font-semibold",
+                  ON_DARK_FOCUS,
+                  "focus-visible:-outline-offset-3",
+                  status === value ? "bg-card text-ledger" : "text-white hover:bg-white/10",
+                )}
+                onClick={() =>
+                  void navigate({
+                    search: { ...filters, status: value === "ACTIVE" ? undefined : value, page: undefined },
+                    replace: true,
+                  })
+                }
+              >
+                {t(`products.status.${value}`)}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        {!!lowStock?.totalItems && (
+          <Link
+            to="/products/low-stock"
+            className={cn(
+              "flex h-11 flex-none items-center gap-1.5 text-[15px] font-semibold text-marigold-text hover:text-marigold-text",
+              ON_DARK_FOCUS,
+            )}
+          >
+            <TriangleAlert aria-hidden="true" className="size-4.5" />
+            {t("products.lowStockCount", { count: format.number(lowStock.totalItems) })}
+          </Link>
+        )}
+        <div className="grid flex-[1_1_100%] grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 md:ml-auto md:flex md:flex-none">
+          <button
+            type="button"
+            className={cn(
+              "h-12 cursor-pointer rounded-[10px] border-[1.5px] border-ledger-text text-base font-semibold text-white hover:bg-white/10 md:h-11 md:px-4 md:text-[15px]",
+              ON_DARK_FOCUS,
+            )}
+            onClick={() => void navigate({ search: { size: filters.size }, replace: true })}
+          >
+            {t("products.list.reset")}
+          </button>
+          <button
+            type="submit"
+            className={cn(
+              "flex h-12 cursor-pointer items-center justify-center gap-1.5 rounded-[10px] bg-marigold-text text-base font-bold text-ledger hover:bg-marigold md:h-11 md:px-4.5 md:text-[15px]",
+              ON_DARK_FOCUS,
+            )}
+          >
+            <Search aria-hidden="true" className="size-4.5" strokeWidth={2.5} />
+            {t("products.list.searchButton")}
+          </button>
+        </div>
+      </div>
+    </form>
   );
 }
 
-/** One category or tag at a time. A top-level category also finds what's in its subcategories. */
-function FilterChips() {
+/** What the list is showing, each with a way to take it off. */
+function ActiveFilters() {
   const { t } = useTranslation();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   const { data: categories } = useQuery(categoriesQuery);
   const { data: tags } = useQuery(tagsQuery);
-  const choose = (choice: { categoryId?: string; tagId?: string }) =>
-    void navigate({ search: { q: filters.q, status: filters.status, ...choice }, replace: true });
-  const selectedTop = categories?.find(
-    (top) => top.id === filters.categoryId || top.children.some((child) => child.id === filters.categoryId),
-  );
+  const category = flatCategories(categories ?? []).find((option) => option.id === filters.categoryId);
+  const tag = tags?.find((option) => option.id === filters.tagId);
+  const remove = (change: { q?: undefined; categoryId?: undefined; tagId?: undefined }) =>
+    void navigate({ search: { ...filters, ...change, page: undefined }, replace: true });
+  const chips = [
+    filters.q && {
+      key: "q",
+      text: `"${filters.q}"`,
+      onRemove: () => remove({ q: undefined }),
+    },
+    category && {
+      key: "category",
+      text: category.name,
+      onRemove: () => remove({ categoryId: undefined }),
+    },
+    tag && {
+      key: "tag",
+      text: tag.name,
+      onRemove: () => remove({ tagId: undefined }),
+    },
+  ].filter((chip) => !!chip);
+  if (chips.length === 0) {
+    return null;
+  }
   return (
-    <>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
-        <Chip selected={!filters.categoryId && !filters.tagId} onClick={() => choose({})}>
-          {t("products.all")}
-        </Chip>
-        {categories?.map((top) => (
-          <Chip key={top.id} selected={selectedTop?.id === top.id} onClick={() => choose({ categoryId: top.id })}>
-            {top.name}
-          </Chip>
-        ))}
-        {tags?.map((tag) => (
-          <Chip key={tag.id} selected={filters.tagId === tag.id} onClick={() => choose({ tagId: tag.id })}>
-            #{tag.name}
-          </Chip>
-        ))}
-      </div>
-      {!!selectedTop?.children.length && (
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
-          {selectedTop.children.map((child) => (
-            <Chip
-              key={child.id}
-              selected={filters.categoryId === child.id}
-              onClick={() => choose({ categoryId: child.id })}
-            >
-              {child.name}
-            </Chip>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
-function StatusToggle() {
-  const { t } = useTranslation();
-  const filters = route.useSearch();
-  const navigate = route.useNavigate();
-  const status = filters.status ?? "ACTIVE";
-  return (
-    <fieldset
-      aria-label={t("products.statusLabel")}
-      className="flex w-fit overflow-hidden rounded-lg border border-input"
-    >
-      {(["ACTIVE", "ARCHIVED"] as const).map((value) => (
+    <div className="flex flex-wrap items-center gap-2">
+      {chips.map((chip) => (
         <button
-          key={value}
+          key={chip.key}
           type="button"
-          aria-pressed={status === value}
-          className={cn(
-            "min-h-11 cursor-pointer px-4",
-            status === value ? "bg-foreground font-semibold text-background" : "bg-card text-foreground",
-          )}
-          onClick={() =>
-            void navigate({ search: { ...filters, status: value === "ACTIVE" ? undefined : value }, replace: true })
-          }
+          aria-label={t("products.list.removeFilter", { name: chip.text })}
+          className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full bg-accent py-1 pr-2.5 pl-3 text-sm font-semibold text-accent-foreground hover:bg-[#D5E9DF]"
+          onClick={chip.onRemove}
         >
-          {t(`products.status.${value}`)}
+          {chip.text}
+          <X aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
         </button>
       ))}
-    </fieldset>
+    </div>
   );
 }
 
@@ -187,7 +303,7 @@ function usePriceText() {
 function LowStockBadge() {
   const { t } = useTranslation();
   return (
-    <span className="flex-none rounded-full bg-warning px-2 text-xs font-semibold text-warning-foreground">
+    <span className="inline-block flex-none rounded-full bg-warning px-2 text-xs font-semibold text-warning-foreground">
       {t("products.lowStock")}
     </span>
   );
@@ -201,18 +317,21 @@ function ProductCard({ product }: { product: ProductSummary }) {
     <Link
       to="/products/$productId"
       params={{ productId: product.id }}
-      className="flex items-center gap-3 rounded-xl border bg-card p-2.5 text-foreground no-underline"
+      className="flex items-center gap-3 rounded-[14px] border bg-card py-2.5 pr-2.5 pl-3 text-foreground no-underline hover:text-foreground"
     >
       <Thumbnail src={product.thumbnail} className="size-16" />
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate font-semibold">{product.name}</span>
-        <span className="text-sm text-muted-foreground">
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <span className="font-bold">{product.name}</span>
+          {product.lowStock && <LowStockBadge />}
+        </span>
+        <span className="text-[13px] text-muted-foreground">
           {t("products.variantCount", { count: format.number(product.activeVariants) })} ·{" "}
           {t("products.available", { count: format.number(product.available) })}
         </span>
-        <span className="font-bold">{priceText(product)}</span>
+        <span className="mt-0.5 text-[15px] font-bold">{priceText(product)}</span>
       </span>
-      {product.lowStock && <LowStockBadge />}
+      <ChevronRight aria-hidden="true" className="size-4.5 flex-none text-muted-foreground" />
     </Link>
   );
 }
@@ -224,68 +343,81 @@ function ProductTable({ products }: { products: ProductSummary[] }) {
   const { data: categories } = useQuery(categoriesQuery);
   const categoryNames = new Map(flatCategories(categories ?? []).map((category) => [category.id, category.name]));
   return (
-    <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
-      <table className="w-full min-w-190 border-collapse">
+    <section
+      aria-label={t("products.list.tableLabel")}
+      className="hidden overflow-x-auto rounded-[14px] border bg-card md:block"
+    >
+      <table className="w-full min-w-200 border-collapse">
         <thead>
-          <tr className="border-b text-left text-[13px] text-muted-foreground">
-            <th scope="col" className="px-4.5 py-3.5 font-semibold">
+          <tr className="border-b bg-background text-left text-[13px] text-muted-foreground">
+            <th scope="col" className="py-2.5 pr-3 pl-5 font-semibold">
               {t("products.columns.product")}
             </th>
-            <th scope="col" className="px-3 py-3.5 font-semibold">
+            <th scope="col" className="px-3 py-2.5 font-semibold">
               {t("products.columns.category")}
             </th>
-            <th scope="col" className="px-3 py-3.5 font-semibold">
+            <th scope="col" className="px-3 py-2.5 font-semibold">
               {t("products.columns.tags")}
             </th>
-            <th scope="col" className="px-3 py-3.5 font-semibold">
-              {t("products.columns.stock")}
+            <th scope="col" className="px-3 py-2.5 text-right font-semibold">
+              {t("products.detail.available")}
             </th>
-            <th scope="col" className="px-4.5 py-3.5 text-right font-semibold">
+            <th scope="col" className="px-3 py-2.5 text-right font-semibold">
               {t("products.columns.price")}
             </th>
+            <td className="w-10" />
           </tr>
         </thead>
         <tbody>
           {products.map((product) => (
-            <tr key={product.id} className="border-b last:border-b-0">
-              <td className="px-4.5 py-3">
+            <tr key={product.id} className="relative border-b last:border-b-0 hover:bg-background">
+              <td className="py-2 pr-3 pl-5">
+                {/* The link stretches over the whole row, so anywhere on it opens the product. */}
                 <Link
                   to="/products/$productId"
                   params={{ productId: product.id }}
-                  className="flex items-center gap-3.5 text-foreground no-underline"
+                  className="flex items-center gap-3 text-foreground no-underline after:absolute after:inset-0 hover:text-foreground focus-visible:outline-none focus-visible:after:outline-3 focus-visible:after:-outline-offset-3 focus-visible:after:outline-primary"
                 >
                   <Thumbnail src={product.thumbnail} className="size-13" />
-                  <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="font-semibold">{product.name}</span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="font-bold">{product.name}</span>
                     <span className="text-[13px] text-muted-foreground">
                       {t("products.variantCount", { count: format.number(product.activeVariants) })}
                     </span>
                   </span>
                 </Link>
               </td>
-              <td className="px-3 py-3 text-[#2B342F]">
+              <td className="px-3 py-2 text-[15px] text-[#2B342F]">
                 {product.categoryId && categoryNames.get(product.categoryId)}
               </td>
-              <td className="px-3 py-3">
-                <span className="flex flex-wrap gap-1.5">
+              <td className="px-3 py-2">
+                <span className="flex flex-wrap gap-1">
                   {product.tags.map((tag) => (
-                    <span key={tag.id} className="rounded-full bg-muted px-2.5 text-[13px] text-[#2B342F]">
+                    <span key={tag.id} className="rounded-full bg-muted px-2.25 text-[13px] text-[#2B342F]">
                       {tag.name}
                     </span>
                   ))}
                 </span>
               </td>
-              <td className="px-3 py-3">
-                <span className="flex items-center gap-2">
+              <td className="px-3 py-2 text-right">
+                <span
+                  className={cn(
+                    "block text-[17px] font-bold",
+                    product.lowStock ? "text-warning-foreground" : "text-primary",
+                  )}
+                >
                   {format.number(product.available)}
-                  {product.lowStock && <LowStockBadge />}
                 </span>
+                {product.lowStock && <LowStockBadge />}
               </td>
-              <td className="px-4.5 py-3 text-right font-semibold whitespace-nowrap">{priceText(product)}</td>
+              <td className="px-3 py-2 text-right font-bold whitespace-nowrap">{priceText(product)}</td>
+              <td className="pr-4 text-right">
+                <ChevronRight aria-hidden="true" className="ml-auto size-4.5 text-muted-foreground" />
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
+    </section>
   );
 }
