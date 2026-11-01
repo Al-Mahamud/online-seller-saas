@@ -3399,6 +3399,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             label: string;
+            lowStock: boolean;
             /** Format: int32 */
             lowStockThreshold: number | null;
             /** Format: int64 */

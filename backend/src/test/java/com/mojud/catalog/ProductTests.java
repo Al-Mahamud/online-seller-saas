@@ -506,6 +506,20 @@ class ProductTests {
                 Map.of("variant", row("Blue", "", 100, null, 0))).expectStatus(201);
     }
 
+    @Test
+    void aVariantSaysWhenItIsRunningLow() {
+        ApiResponse product = owner.post("/api/v1/products", Map.of("name", "Kurti", "variants",
+                List.of(row("Red", "M", 100, null, 20), row("Red", "L", 100, null, 3)))).expectStatus(201);
+        assertThat(product.<List<Boolean>>json("$.variants[*].lowStock")).containsExactly(false, true);
+
+        // Its own level counts over the business's; an archived variant is never low.
+        List<String> ids = product.json("$.variants[*].id");
+        assertThat(owner.patch("/api/v1/variants/" + ids.get(0), Map.of("lowStockThreshold", 25)).expectStatus(200)
+                .<Boolean>json("$.lowStock")).isTrue();
+        assertThat(owner.post("/api/v1/variants/" + ids.get(1) + "/archive", null).expectStatus(200)
+                .<Boolean>json("$.lowStock")).isFalse();
+    }
+
     private static Map<String, Object> row(String name, String size, long price, Long cost, int quantity) {
         Map<String, Object> row = new HashMap<>(Map.of("price", price, "quantity", quantity));
         if (name != null) {

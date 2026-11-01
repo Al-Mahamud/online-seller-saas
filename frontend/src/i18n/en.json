@@ -528,8 +528,6 @@
     "restore": "Restore",
     "variants": "Variants",
     "edit": "Edit",
-    "costShort": "Cost {{amount}}",
-    "marginShort": "Margin {{amount}}",
     "stockLine": "On hand {{onHand}} · Set aside {{reserved}} · Available {{available}}",
     "threshold": "Low-stock level (optional)",
     "thresholdHint": "Leave empty to use the business's level.",
@@ -549,7 +547,8 @@
       "makeMain": "Make main image",
       "earlier": "Move earlier",
       "later": "Move later",
-      "remove": "Remove image"
+      "remove": "Remove image",
+      "show": "View photo {{number}}"
     },
     "variantRows": {
       "subtitle": "Each colour or type has its own size, quantity and prices.",
@@ -578,6 +577,22 @@
       "addShort": "Add variant",
       "newHint": "Give at least a name or a size.",
       "cancel": "Cancel"
+    },
+    "detail": {
+      "summary": "Product totals",
+      "onHand": "On hand",
+      "reserved": "Set aside for orders",
+      "available": "Available",
+      "priceRange": "Selling price",
+      "editDetails": "Change details",
+      "description": "Description",
+      "noDescription": "No description yet.",
+      "noTags": "No tags.",
+      "nameAndSku": "Name and SKU",
+      "sellColumn": "Selling price",
+      "costColumn": "Buying price",
+      "onHandColumn": "On hand",
+      "reservedColumn": "Set aside"
     }
   },
   "stock": {

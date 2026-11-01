@@ -528,8 +528,6 @@
     "restore": "আবার চালু করুন",
     "variants": "ভ্যারিয়েন্ট",
     "edit": "বদলান",
-    "costShort": "কেনা {{amount}}",
-    "marginShort": "লাভ {{amount}}",
     "stockLine": "হাতে {{onHand}} · আলাদা করা {{reserved}} · বিক্রয়যোগ্য {{available}}",
     "threshold": "কম স্টকের সীমা (ঐচ্ছিক)",
     "thresholdHint": "খালি রাখলে ব্যবসার সাধারণ সীমা কাজ করবে।",
@@ -549,7 +547,8 @@
       "makeMain": "প্রধান ছবি করুন",
       "earlier": "আগে আনুন",
       "later": "পরে নিন",
-      "remove": "ছবি সরান"
+      "remove": "ছবি সরান",
+      "show": "ছবি {{number}} দেখুন"
     },
     "variantRows": {
       "subtitle": "প্রতিটি রং বা ধরনের নিজের সাইজ, পরিমাণ আর দাম।",
@@ -578,6 +577,22 @@
       "addShort": "ভ্যারিয়েন্ট যোগ করুন",
       "newHint": "নাম আর সাইজের একটি অন্তত দিন।",
       "cancel": "বাতিল"
+    },
+    "detail": {
+      "summary": "পণ্যের হিসাব",
+      "onHand": "হাতে আছে",
+      "reserved": "অর্ডারের জন্য আলাদা",
+      "available": "বিক্রয়যোগ্য",
+      "priceRange": "বিক্রয় দাম",
+      "editDetails": "বিবরণ বদলান",
+      "description": "বর্ণনা",
+      "noDescription": "কোনো বর্ণনা দেওয়া হয়নি।",
+      "noTags": "কোনো ট্যাগ নেই।",
+      "nameAndSku": "নাম ও SKU",
+      "sellColumn": "বিক্রয় দাম",
+      "costColumn": "কেনা দাম",
+      "onHandColumn": "হাতে",
+      "reservedColumn": "আলাদা"
     }
   },
   "stock": {

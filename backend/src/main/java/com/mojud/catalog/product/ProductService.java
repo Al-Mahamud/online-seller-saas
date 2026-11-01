@@ -673,7 +673,7 @@ class ProductService {
             }
             variants.saveAndFlush(variant);
             return ProductViews.Variant.of(variant, showCost(), optionOrder(variant.getProductId()),
-                    stockLevels.levels(List.of(variant.getId())).get(variant.getId()));
+                    stockLevels.levels(List.of(variant.getId())).get(variant.getId()), defaults.lowStockDefault());
         });
     }
 
@@ -696,7 +696,7 @@ class ProductService {
             variant.changeStatus(status, clock.instant());
             variants.saveAndFlush(variant);
             return ProductViews.Variant.of(variant, showCost(), optionOrder(variant.getProductId()),
-                    stockLevels.levels(List.of(variant.getId())).get(variant.getId()));
+                    stockLevels.levels(List.of(variant.getId())).get(variant.getId()), defaults.lowStockDefault());
         });
     }
 
@@ -745,8 +745,10 @@ class ProductService {
         List<String> optionOrder = optionViews.stream().map(ProductViews.Option::name).toList();
         List<ProductVariant> productVariants = variants.findByProductIdOrderByPosition(product.getId());
         Map<UUID, StockLevel> levels = stockLevels.levels(productVariants.stream().map(ProductVariant::getId).toList());
+        int lowStockDefault = defaults.lowStockDefault();
         List<ProductViews.Variant> variantViews = productVariants.stream()
-                .map(variant -> ProductViews.Variant.of(variant, showCost, optionOrder, levels.get(variant.getId()))).toList();
+                .map(variant -> ProductViews.Variant.of(variant, showCost, optionOrder, levels.get(variant.getId()),
+                        lowStockDefault)).toList();
         List<ProductViews.Image> imageViews = images.findByProductIdOrderByPosition(product.getId()).stream()
                 .map(ProductViews.Image::of).toList();
         return new ProductViews.Detail(product.getId(), product.getName(), product.getDescription(),

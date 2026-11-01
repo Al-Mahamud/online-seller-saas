@@ -82,7 +82,7 @@ test("creates a product whose variants each have their own size, quantity and pr
   await expect(page.getByText("নীল / M", { exact: true })).toBeVisible();
   await expect(page.getByText("নীল / L", { exact: true })).toHaveCount(0);
   await expect(page.getByText("৳১,৫০০").first()).toBeVisible();
-  await expect(page.getByText("হাতে ১২ · আলাদা করা ০ · বিক্রয়যোগ্য ১২")).toBeVisible();
+  await expect(page.getByRole("group", { name: "হাতে ১২ · আলাদা করা ০ · বিক্রয়যোগ্য ১২" })).toBeVisible();
   await expectAccessible(page);
 
   // And in the list.
@@ -106,7 +106,7 @@ test("receives stock, counts it, and shows the history", async ({ page }) => {
   await signUpWithBusiness(page.request);
   const id = await makeProduct(page.request, { name: "জামদানি শাড়ি", price: 680000 });
   await page.goto(`/products/${id}`);
-  await expect(page.getByText("হাতে ০ · আলাদা করা ০ · বিক্রয়যোগ্য ০")).toBeVisible();
+  await expect(page.getByRole("group", { name: "হাতে ০ · আলাদা করা ০ · বিক্রয়যোগ্য ০" })).toBeVisible();
 
   await page.getByRole("button", { name: "স্টক বদলান" }).click();
   const dialog = page.getByRole("dialog");
@@ -116,13 +116,13 @@ test("receives stock, counts it, and shows the history", async ({ page }) => {
   await label(dialog, "জামদানি শাড়ি").fill("১০");
   await label(dialog, "কারণ (ঐচ্ছিক)").fill("ইসলামপুর থেকে এলো");
   await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
-  await expect(page.getByText("হাতে ১০ · আলাদা করা ০ · বিক্রয়যোগ্য ১০")).toBeVisible();
+  await expect(page.getByRole("group", { name: "হাতে ১০ · আলাদা করা ০ · বিক্রয়যোগ্য ১০" })).toBeVisible();
 
   await page.getByRole("button", { name: "স্টক বদলান" }).click();
   await page.getByRole("radio", { name: "গুনে দেখেছি" }).check();
   await label(dialog, "জামদানি শাড়ি").fill("7");
   await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
-  await expect(page.getByText("হাতে ৭ · আলাদা করা ০ · বিক্রয়যোগ্য ৭")).toBeVisible();
+  await expect(page.getByRole("group", { name: "হাতে ৭ · আলাদা করা ০ · বিক্রয়যোগ্য ৭" })).toBeVisible();
 
   await page.getByRole("button", { name: /^ইতিহাস/ }).click();
   await expect(dialog.getByText("মাল এসেছে")).toBeVisible();
@@ -172,7 +172,7 @@ test("edits a variant, adds another, and archives and restores", async ({ page }
   await label(dialog, "কম স্টকের সীমা (ঐচ্ছিক)").fill("3");
   await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByText("৳২,৪৫০.৫০")).toBeVisible();
+  await expect(page.getByRole("region", { name: "ভ্যারিয়েন্ট" }).getByText("৳২,৪৫০.৫০")).toBeVisible();
 
   // Its name and size can be changed too; the same as another's can't.
   await page.getByRole("button", { name: "বদলান: L", exact: true }).click();
@@ -198,9 +198,9 @@ test("edits a variant, adds another, and archives and restores", async ({ page }
   await expect(adding).toBeHidden();
   await expect(page.getByRole("button", { name: /^ইতিহাস:/ })).toHaveCount(3);
   await expect(page.getByText("নীল / S", { exact: true })).toBeVisible();
-  await expect(page.getByText("৳১,৮০০")).toBeVisible();
-  await expect(page.getByText("হাতে ৭ · আলাদা করা ০ · বিক্রয়যোগ্য ৭")).toBeVisible();
-  await expect(page.getByText("৳২,৪৫০.৫০")).toBeVisible();
+  await expect(page.getByRole("region", { name: "ভ্যারিয়েন্ট" }).getByText("৳১,৮০০")).toBeVisible();
+  await expect(page.getByRole("group", { name: "হাতে ৭ · আলাদা করা ০ · বিক্রয়যোগ্য ৭" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "ভ্যারিয়েন্ট" }).getByText("৳২,৪৫০.৫০")).toBeVisible();
 
   await page.getByRole("button", { name: "আর্কাইভ করুন" }).click();
   await expect(page.getByRole("button", { name: "আবার চালু করুন" })).toBeVisible();
@@ -208,6 +208,49 @@ test("edits a variant, adds another, and archives and restores", async ({ page }
   await expect(page.getByText("এখনো কোনো পণ্য নেই।")).toBeVisible();
   await page.getByRole("button", { name: "আর্কাইভ" }).click();
   await expect(page.getByRole("link", { name: /পাঞ্জাবি/ })).toBeVisible();
+});
+
+test("shows the totals and details, and changes the details in a dialog", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  const id = await makeProduct(page.request, {
+    name: "পাঞ্জাবি",
+    variants: [
+      { size: "M", price: 140000, costPrice: 85000, quantity: 10 },
+      { size: "L", price: 150000, costPrice: 90000, quantity: 3 },
+    ],
+  });
+  await page.goto(`/products/${id}`);
+
+  const totals = page.getByRole("region", { name: "পণ্যের হিসাব" });
+  await expect(totals).toContainText("হাতে আছে১৩");
+  await expect(totals).toContainText("বিক্রয়যোগ্য১৩");
+  await expect(totals).toContainText("৳১,৪০০–১,৫০০");
+  await expect(page.getByText("কোনো বর্ণনা দেওয়া হয়নি।")).toBeVisible();
+  // L is at or below the business's alert level of 5.
+  await expect(page.getByRole("listitem").filter({ has: page.getByRole("button", { name: "বদলান: L" }) })).toContainText(
+    "স্টক কম",
+  );
+  await expect(
+    page.getByRole("listitem").filter({ has: page.getByRole("button", { name: "বদলান: M" }) }),
+  ).not.toContainText("স্টক কম");
+  await expectAccessible(page);
+
+  await page.getByRole("button", { name: "বিবরণ বদলান" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(label(dialog, "পণ্যের নাম")).toHaveValue("পাঞ্জাবি");
+  await expectAccessible(page);
+  await label(dialog, "পণ্যের নাম").fill("সুতি পাঞ্জাবি");
+  await label(dialog, "বর্ণনা (ঐচ্ছিক)").fill("গরমের জন্য আরামদায়ক।");
+  await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(heading(page, "সুতি পাঞ্জাবি")).toBeVisible();
+  await expect(page.getByText("গরমের জন্য আরামদায়ক।")).toBeVisible();
+
+  // Cancelling keeps what was there.
+  await page.getByRole("button", { name: "বিবরণ বদলান" }).click();
+  await label(dialog, "পণ্যের নাম").fill("অন্য নাম");
+  await dialog.getByRole("button", { name: "বাতিল" }).click();
+  await expect(heading(page, "সুতি পাঞ্জাবি")).toBeVisible();
 });
 
 test("adds, arranges and removes images", async ({ page }) => {
@@ -223,6 +266,9 @@ test("adds, arranges and removes images", async ({ page }) => {
   await expect(page.getByText("প্রধান", { exact: true })).toHaveCount(1);
   await expectAccessible(page);
 
+  // A small photo shows large; the large one opens to arrange it.
+  await page.getByRole("button", { name: "ছবি ২ দেখুন" }).click();
+  await expect(page.getByRole("button", { name: "ছবি ২ দেখুন" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "ছবি ২ খুলুন" }).click();
   await expectAccessible(page);
   await page.getByRole("button", { name: "প্রধান ছবি করুন" }).click();
@@ -382,16 +428,17 @@ test("staff see no cost anywhere, can't edit, and can change stock", async ({ pa
 
   await staff.goto(`/products/${id}`);
   await expect(heading(staff, "গোপন দামের পণ্য")).toBeVisible();
-  await expect(staff.getByText("৳২,০০০")).toBeVisible();
+  await expect(staff.getByRole("region", { name: "ভ্যারিয়েন্ট" }).getByText("৳২,০০০")).toBeVisible();
   await expect(staff.getByText(/কেনা|লাভ|১,২৩৪/)).toBeHidden();
   await expect(staff.getByRole("button", { name: /^বদলান/ })).toBeHidden();
   await expect(staff.getByRole("button", { name: "আর্কাইভ করুন" })).toBeHidden();
-  await expect(staff.getByRole("textbox", { name: "পণ্যের নাম" })).toBeHidden();
+  await expect(staff.getByRole("button", { name: "বিবরণ বদলান" })).toBeHidden();
+  await expect(staff.getByRole("button", { name: "ভ্যারিয়েন্ট যোগ করুন" })).toBeHidden();
 
   await staff.getByRole("button", { name: "স্টক বদলান" }).click();
   await label(staff.getByRole("dialog"), "গোপন দামের পণ্য").fill("3");
   await staff.getByRole("dialog").getByRole("button", { name: "সংরক্ষণ করুন" }).click();
-  await expect(staff.getByText("হাতে ৩ · আলাদা করা ০ · বিক্রয়যোগ্য ৩")).toBeVisible();
+  await expect(staff.getByRole("group", { name: "হাতে ৩ · আলাদা করা ০ · বিক্রয়যোগ্য ৩" })).toBeVisible();
 
   await staff.goto("/products/new");
   await expect(staff).toHaveURL(/\/more$/);

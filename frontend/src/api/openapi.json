@@ -3822,6 +3822,9 @@
           "label" : {
             "type" : "string"
           },
+          "lowStock" : {
+            "type" : "boolean"
+          },
           "lowStockThreshold" : {
             "format" : "int32",
             "type" : [ "integer", "null" ]
@@ -3854,7 +3857,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "attributes", "available", "id", "label", "lowStockThreshold", "onHand", "price", "reserved", "sku", "status", "version" ],
+        "required" : [ "attributes", "available", "id", "label", "lowStock", "lowStockThreshold", "onHand", "price", "reserved", "sku", "status", "version" ],
         "type" : "object"
       },
       "ProductVariantRowRequest" : {

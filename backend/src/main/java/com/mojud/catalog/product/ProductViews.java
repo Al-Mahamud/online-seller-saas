@@ -41,11 +41,17 @@ final class ProductViews {
             int onHand,
             int reserved,
             int available,
+            /** Active, and available stock is at or below its alert level. */
+            boolean lowStock,
             ProductStatus status,
             long version) {
 
-        /** {@code optionOrder}: the product's option names, which order the attributes and label. */
-        static Variant of(ProductVariant variant, boolean showCost, List<String> optionOrder, StockLevel stock) {
+        /**
+         * {@code optionOrder}: the product's option names, which order the attributes and label.
+         * {@code lowStockDefault}: the business's alert level, for a variant without its own.
+         */
+        static Variant of(ProductVariant variant, boolean showCost, List<String> optionOrder, StockLevel stock,
+                int lowStockDefault) {
             Long cost = showCost ? variant.getCostPrice() : null;
             Map<String, String> attributes = new LinkedHashMap<>();
             optionOrder.forEach(option -> {
@@ -59,6 +65,8 @@ final class ProductViews {
                     cost == null ? null : Money.ofPoisha(cost),
                     cost == null ? null : Money.ofPoisha(variant.getPrice() - cost),
                     variant.getLowStockThreshold(), stock.onHand(), stock.reserved(), stock.available(),
+                    variant.isActive() && stock.available()
+                            <= (variant.getLowStockThreshold() != null ? variant.getLowStockThreshold() : lowStockDefault),
                     variant.getStatus(), variant.getVersion());
         }
     }
