@@ -1,6 +1,7 @@
 package com.mojud.customers;
 
-import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
 import jakarta.validation.Valid;
@@ -8,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,13 +37,12 @@ class CustomerController {
      * {@code q}: search by name or part of a phone number; or neither: newest first, paged.
      */
     @GetMapping("/api/v1/customers")
-    CursorPage<CustomerService.View> list(@RequestParam(required = false) String q,
-            @RequestParam(required = false) String phone, @RequestParam(required = false) String cursor,
-            @RequestParam(required = false) Integer limit) {
+    PagedResult<CustomerService.View> list(@RequestParam(required = false) String q,
+            @RequestParam(required = false) String phone, @ParameterObject PageQuery paging) {
         if (phone != null) {
-            return new CursorPage<>(customers.byPhone(phone).map(List::of).orElse(List.of()), null);
+            return PagedResult.ofAll(customers.byPhone(phone).map(List::of).orElse(List.of()), paging);
         }
-        return customers.list(q, cursor, limit);
+        return customers.list(q, paging);
     }
 
     /** Deletes the customer (managers and owners): refused while they have orders in progress. */

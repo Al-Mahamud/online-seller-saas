@@ -3,6 +3,8 @@ package com.mojud.audit.system;
 import com.mojud.audit.AdminAudit;
 import com.mojud.shared.db.system.SystemDatabase;
 import com.mojud.shared.id.Ids;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.util.LinkedHashMap;
@@ -50,18 +52,29 @@ class SystemAdminAudit implements AdminAudit {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public List<Entry> recent(UUID businessId, int limit) {
+        return entries(businessId, limit, 0);
+    }
+
+    @Override
+    public PagedResult<Entry> page(UUID businessId, PageQuery paging) {
+        long total = database.jdbc().sql("select count(*) from admin_audit a where (cast(? as uuid) is null or a.target_business_id = ?)")
+                .params(businessId, businessId).query(Long.class).single();
+        return PagedResult.of(entries(businessId, paging.limit(), paging.offset()), paging, total);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Entry> entries(UUID businessId, int limit, long offset) {
         return database.jdbc().sql("""
                         select a.id, a.admin_id, a.action, a.target_type, a.target_id, a.target_business_id, a.details::text,
                                a.created_at, u.name
                         from admin_audit a left join users u on u.id = a.admin_id
                         where (cast(? as uuid) is null or a.target_business_id = ?)
-                        order by a.created_at desc, a.id desc limit ?
+                        order by a.created_at desc, a.id desc limit ? offset ?
                         """)
-                .params(businessId, businessId, limit)
-                .query((rs, n) -> new Entry(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(9), rs.getString(3),
-                        rs.getString(4), rs.getString(5), rs.getObject(6, UUID.class),
+                .params(businessId, businessId, limit, offset)
+                .query((rs, n) -> new Entry(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(9),
+                        rs.getString(3), rs.getString(4), rs.getString(5), rs.getObject(6, UUID.class),
                         json.readValue(rs.getString(7), Map.class), rs.getTimestamp(8).toInstant()))
                 .list();
     }

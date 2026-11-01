@@ -1,23 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { useFormat } from "@/lib/format";
 import { lowStockQuery } from "./api";
+
+const route = getRouteApi("/_app/products/low-stock");
 
 /** What's running low, emptiest first. The low-stock email links here. */
 export function LowStockPage() {
   const { t } = useTranslation();
   const format = useFormat();
-  const { data: items, isSuccess } = useQuery(lowStockQuery);
+  const paging = route.useSearch();
+  const lowStock = useQuery(lowStockQuery(paging));
+  const items = lowStock.data?.items;
   return (
     <div className="flex max-w-2xl flex-col gap-3">
       <div>
         <BackToProducts />
         <PageHeader title={t("products.lowStockTitle")} />
       </div>
-      {isSuccess && items.length === 0 && <p className="text-muted-foreground">{t("products.lowStockNone")}</p>}
+      {items?.length === 0 && <p className="text-muted-foreground">{t("products.lowStockNone")}</p>}
       {!!items?.length && (
         <ul className="flex flex-col rounded-xl border bg-card px-4">
           {items.map((item) => (
@@ -44,6 +49,7 @@ export function LowStockPage() {
           ))}
         </ul>
       )}
+      <AddressPagination result={lowStock.data} />
     </div>
   );
 }

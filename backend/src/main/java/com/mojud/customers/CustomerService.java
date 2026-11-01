@@ -5,8 +5,8 @@ import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.db.Constraints;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
-import com.mojud.shared.paging.Cursor;
-import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.phone.PhoneNumber;
 import com.mojud.shared.text.Text;
 import com.mojud.tenancy.CurrentBusiness;
@@ -22,7 +22,6 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,10 +37,7 @@ class CustomerService implements CustomerDirectory {
     static final int MAX_NAME = 100;
     static final int MAX_ADDRESS = 500;
     static final int MAX_NOTE = 1000;
-    static final int SEARCH_RESULTS = 50;
 
-    private static final Instant END_OF_TIME = Instant.parse("9999-12-31T00:00:00Z");
-    private static final UUID LAST_ID = new UUID(-1L, -1L);
     /** Search text that is a phone number, or part of one: digits and the usual separators only. */
     private static final Pattern PHONE_LIKE = Pattern.compile("[+\\d০-৯\\s\\-.()]+");
 
@@ -85,23 +81,18 @@ class CustomerService implements CustomerDirectory {
 
     /**
      * Newest first; with {@code q}, the best matches by phone (any part of the number, written any
-     * way) or name (part of it, or close to it), up to 50 and not paged.
+     * way) or name (part of it, or close to it).
      */
     @Transactional(readOnly = true)
-    CursorPage<View> list(String q, String cursor, Integer limit) {
+    PagedResult<View> list(String q, PageQuery paging) {
         if (q != null && !q.isBlank()) {
             String query = Text.cleanName(q, "q", MAX_NAME);
             String digits = PHONE_LIKE.matcher(query).matches() ? digits(query) : "";
             String pattern = "%" + query.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-            return new CursorPage<>(customers.search(CurrentBusiness.require().businessId(), query, pattern,
-                    digits.length() >= 3 ? digits : "", SEARCH_RESULTS).stream().map(this::view).toList(), null);
+            return PagedResult.of(customers.search(CurrentBusiness.require().businessId(), query, pattern,
+                    digits.length() >= 3 ? digits : "", paging.pageable()), paging).map(this::view);
         }
-        int pageSize = CursorPage.limit(limit);
-        Cursor after = Cursor.decode(cursor);
-        List<Customer> page = customers.findPage(after == null ? END_OF_TIME : after.sortKeyAsInstant(),
-                after == null ? LAST_ID : after.id(), Limit.of(pageSize + 1));
-        CursorPage<Customer> paged = CursorPage.of(page, pageSize, c -> new Cursor(c.getCreatedAt().toString(), c.getId()));
-        return new CursorPage<>(paged.items().stream().map(this::view).toList(), paged.nextCursor());
+        return PagedResult.of(customers.findPage(paging.pageable()), paging).map(this::view);
     }
 
     /** The customer with this phone number, written any way; empty when none (or not a number). */

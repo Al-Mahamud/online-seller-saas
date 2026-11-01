@@ -971,7 +971,9 @@
     "selectAll": "{{courier}}: সব বেছে নিন",
     "trackingColumn": "ট্র্যাকিং নম্বর",
     "deliveredColumn": "ডেলিভারি",
-    "collectedColumn": "আদায় করেছে"
+    "collectedColumn": "আদায় করেছে",
+    "tabs": "কুরিয়ার",
+    "onTheWay": "পথে {{amount}}"
   },
   "paymentMethod": {
     "BKASH": "বিকাশ",
@@ -1100,5 +1102,15 @@
     "alwaysSent": "পেমেন্ট ও নিরাপত্তার ইমেইল সবসময় যাবে।",
     "saved": "সংরক্ষণ হয়েছে।",
     "unread": "না পড়া"
+  },
+  "pagination": {
+    "label": "পৃষ্ঠা",
+    "range": "{{total}}টির মধ্যে {{from}}–{{to}}",
+    "total": "মোট {{total}}টি",
+    "perPage": "প্রতি পৃষ্ঠায়",
+    "previous": "আগের",
+    "next": "পরের",
+    "page": "পৃষ্ঠা {{page}}",
+    "ofPages": "পৃষ্ঠা {{page}} / {{last}}"
   }
 }

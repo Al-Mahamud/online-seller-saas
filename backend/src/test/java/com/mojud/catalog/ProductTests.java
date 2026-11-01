@@ -247,15 +247,17 @@ class ProductTests {
         owner.patch("/api/v1/variants/" + owner.get("/api/v1/products/" + gridded).json("$.variants[1].id"),
                 Map.of("price", 200000)).expectStatus(200);
 
-        ApiResponse first = owner.get("/api/v1/products?limit=2").expectStatus(200);
-        ApiResponse second = owner.get("/api/v1/products?limit=2&cursor=" + first.<String>json("$.nextCursor"));
+        ApiResponse first = owner.get("/api/v1/products?size=2").expectStatus(200);
+        ApiResponse second = owner.get("/api/v1/products?size=2&page=2");
 
         assertThat(first.<List<String>>json("$.items[*].name")).containsExactly("Gridded", "Item 3");
         assertThat(first.<Integer>json("$.items[0].minPrice")).isEqualTo(150000);
         assertThat(first.<Integer>json("$.items[0].maxPrice")).isEqualTo(200000);
         assertThat(first.<Integer>json("$.items[0].activeVariants")).isEqualTo(2);
         assertThat(second.<List<String>>json("$.items[*].name")).containsExactly("Item 2", "Item 1");
-        assertThat(second.<String>json("$.nextCursor")).isNull();
+        assertThat(second.<Integer>json("$.page")).isEqualTo(2);
+        assertThat(second.<Integer>json("$.totalItems")).isEqualTo(4);
+        assertThat(second.<Integer>json("$.totalPages")).isEqualTo(2);
     }
 
     @Test
@@ -373,12 +375,25 @@ class ProductTests {
     }
 
     @Test
-    void aTamperedCursorIsAFieldErrorNotAServerError() {
-        String tampered = java.util.Base64.getUrlEncoder().withoutPadding()
-                .encodeToString((java.util.UUID.randomUUID() + "|not-a-time").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    void aPageThatIsNotANumberIsAFieldErrorNotAServerError() {
+        owner.get("/api/v1/products?page=first").expectError(400, "validation.failed");
+        owner.get("/api/v1/business/audit-log?size=many").expectError(400, "validation.failed");
+    }
 
-        owner.get("/api/v1/products?cursor=" + tampered).expectError(400, "validation.failed");
-        owner.get("/api/v1/business/audit-log?cursor=" + tampered).expectError(400, "validation.failed");
+    @Test
+    void searchResultsArePagedWithTheirOwnTotals() {
+        for (int i = 1; i <= 3; i++) {
+            owner.post("/api/v1/products", Map.of("name", "Silk Scarf " + i, "price", 100)).expectStatus(201);
+        }
+        owner.post("/api/v1/products", Map.of("name", "Leather Wallet", "price", 100)).expectStatus(201);
+
+        ApiResponse first = owner.get("/api/v1/products?q=silk&size=2").expectStatus(200);
+        ApiResponse second = owner.get("/api/v1/products?q=silk&size=2&page=2").expectStatus(200);
+
+        assertThat(first.<List<Object>>json("$.items")).hasSize(2);
+        assertThat(first.<Integer>json("$.totalItems")).isEqualTo(3);
+        assertThat(first.<Integer>json("$.totalPages")).isEqualTo(2);
+        assertThat(second.<List<Object>>json("$.items")).hasSize(1);
     }
 
     // Helpers.

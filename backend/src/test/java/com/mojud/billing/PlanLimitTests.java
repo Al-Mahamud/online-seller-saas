@@ -94,9 +94,9 @@ class PlanLimitTests {
         assertThat(refused.<Integer>json("$.limit")).isEqualTo(500);
 
         // Everything already there is still readable.
-        assertThat(owner.get("/api/v1/products?limit=100").<List<Object>>json("$.items")).hasSize(5);
+        assertThat(owner.get("/api/v1/products?size=100").<List<Object>>json("$.items")).hasSize(5);
 
-        String archived = owner.get("/api/v1/products?limit=1").json("$.items[0].id");
+        String archived = owner.get("/api/v1/products?size=1").json("$.items[0].id");
         String variant = owner.get("/api/v1/products/" + archived).json("$.variants[0].id");
         owner.post("/api/v1/variants/" + variant + "/archive", null).expectStatus(200);
         owner.post("/api/v1/products", Map.of("name", "One more", "price", 100)).expectStatus(201);

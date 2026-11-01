@@ -14,8 +14,8 @@ import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.files.FileLinks;
 import com.mojud.shared.money.Money;
-import com.mojud.shared.paging.Cursor;
-import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.text.Text;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.BusinessDefaults;
@@ -37,7 +37,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -62,10 +61,7 @@ class ProductService {
     /** The options behind a variant's name and size, under the names the rows store them. */
     static final String VARIANT_OPTION = "Variant";
     static final String SIZE_OPTION = "Size";
-    static final int SEARCH_RESULTS = 50;
 
-    private static final Instant END_OF_TIME = Instant.parse("9999-12-31T00:00:00Z");
-    private static final UUID LAST_ID = new UUID(-1L, -1L);
 
     private static final Map<String, ErrorCode> CONSTRAINT_ERRORS = Map.of(
             // Another business's (or a deleted) category or tag looks like one that does not exist.
@@ -139,27 +135,19 @@ class ProductService {
     // Reading.
 
     /**
-     * Newest first, page by page; or, with {@code q}, the best {@value #SEARCH_RESULTS} matches by
-     * name or SKU (no further pages).
+     * Newest first; or, with {@code q}, the best matches first, by name or SKU.
      */
     @Transactional(readOnly = true)
-    CursorPage<ProductViews.Summary> list(ProductStatus status, UUID categoryId, UUID tagId, String q, String cursor,
-            Integer limit) {
+    PagedResult<ProductViews.Summary> list(ProductStatus status, UUID categoryId, UUID tagId, String q, PageQuery paging) {
         if (q != null && !q.isBlank()) {
             String query = Text.cleanName(q, "q", 100);
             // A LIKE pattern for "contains", with LIKE's own characters (backslash, %, _) escaped.
             String pattern = "%" + query.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-            return new CursorPage<>(summaries(products.search(CurrentBusiness.require().businessId(), status.name(),
-                    categoryId, tagId, query, pattern, SEARCH_RESULTS)), null);
+            return PagedResult.of(products.search(CurrentBusiness.require().businessId(), status.name(),
+                    categoryId, tagId, query, pattern, paging.pageable()), paging).mapItems(this::summaries);
         }
-        int pageSize = CursorPage.limit(limit);
-        Cursor after = Cursor.decode(cursor);
-        // The first page starts after everything: no null parameter, whose type PostgreSQL cannot tell.
-        List<Product> page = products.findPage(status, categoryId, tagId,
-                after == null ? END_OF_TIME : after.sortKeyAsInstant(), after == null ? LAST_ID : after.id(),
-                Limit.of(pageSize + 1));
-        CursorPage<Product> paged = CursorPage.of(page, pageSize, p -> new Cursor(p.getCreatedAt().toString(), p.getId()));
-        return new CursorPage<>(summaries(paged.items()), paged.nextCursor());
+        return PagedResult.of(products.findPage(status, categoryId, tagId, paging.pageable()), paging)
+                .mapItems(this::summaries);
     }
 
     private List<ProductViews.Summary> summaries(List<Product> page) {
@@ -702,17 +690,16 @@ class ProductService {
 
     /** A variant's stock history, newest first, with who made each change. */
     @Transactional(readOnly = true)
-    CursorPage<ProductViews.Movement> history(UUID variantId, String cursor, Integer limit) {
+    PagedResult<ProductViews.Movement> history(UUID variantId, PageQuery paging) {
         findVariant(variantId);
-        CursorPage<StockHistory> page = stockLevels.history(variantId, cursor, limit);
+        PagedResult<StockHistory> page = stockLevels.history(variantId, paging);
         Map<UUID, UserDirectory.UserSummary> people = users.summaries(
                 page.items().stream().map(StockHistory::userId).filter(Objects::nonNull).distinct().toList());
-        return new CursorPage<>(page.items().stream().map(entry -> new ProductViews.Movement(entry.id(), entry.at(),
+        return page.map(entry -> new ProductViews.Movement(entry.id(), entry.at(),
                 entry.type(), entry.onHandChange(), entry.reservedChange(), entry.onHandAfter(), entry.reservedAfter(),
                 entry.availableAfter(), entry.referenceType(), entry.referenceId(), entry.note(),
                 entry.userId() == null ? null : new ProductViews.Actor(entry.userId(),
-                        people.containsKey(entry.userId()) ? people.get(entry.userId()).name() : null))).toList(),
-                page.nextCursor());
+                        people.containsKey(entry.userId()) ? people.get(entry.userId()).name() : null)));
     }
 
     // Helpers.

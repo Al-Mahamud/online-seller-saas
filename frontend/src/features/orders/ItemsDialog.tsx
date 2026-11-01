@@ -6,7 +6,13 @@ import { LoadMore } from "@/components/layout/LoadMore";
 import { SearchBox } from "@/components/layout/SearchBox";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { type Product, type ProductSummary, productQuery, productsQuery, type Variant } from "@/features/catalog/api";
+import {
+  type Product,
+  type ProductSummary,
+  productPickerQuery,
+  productQuery,
+  type Variant,
+} from "@/features/catalog/api";
 import { Thumbnail } from "@/features/catalog/Thumbnail";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -49,7 +55,7 @@ export default function ItemsDialog({
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string>();
   const [picked, setPicked] = useState<PickedItem[]>([]);
-  const products = useInfiniteQuery(productsQuery({ q: search || undefined, status: "ACTIVE" }));
+  const products = useInfiniteQuery(productPickerQuery(search));
   // Read again on opening: the stock shown has to be what's there now.
   const active = useQuery({ ...productQuery(activeId ?? ""), enabled: !!activeId, staleTime: 0 });
   const product = activeId ? active.data : undefined;

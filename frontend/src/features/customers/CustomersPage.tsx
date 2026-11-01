@@ -1,9 +1,9 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LoadMore } from "@/components/layout/LoadMore";
 import { BackToMore, PageHeader } from "@/components/layout/PageHeader";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { SearchBox } from "@/components/layout/SearchBox";
 import { Button } from "@/components/ui/button";
 import { useFormat } from "@/lib/format";
@@ -18,11 +18,11 @@ const route = getRouteApi("/_app/customers/");
 export function CustomersPage() {
   const { t } = useTranslation();
   const format = useFormat();
-  const { q } = route.useSearch();
+  const { q, ...paging } = route.useSearch();
   const navigate = route.useNavigate();
   const [creating, setCreating] = useState(false);
-  const customers = useInfiniteQuery(customersQuery(q ?? ""));
-  const items = customers.data?.pages.flatMap((page) => page.items) ?? [];
+  const customers = useQuery(customersQuery(q ?? "", paging));
+  const items = customers.data?.items ?? [];
   return (
     <div className="flex max-w-2xl flex-col gap-3">
       <div>
@@ -35,7 +35,7 @@ export function CustomersPage() {
         label={t("customers.search")}
         hint={t("customers.searchHint")}
         value={q ?? ""}
-        onChange={(text) => void navigate({ search: text ? { q: text } : {}, replace: true })}
+        onChange={(text) => void navigate({ search: { q: text || undefined, size: paging.size }, replace: true })}
       />
       {customers.isSuccess && items.length === 0 && (
         <p className="py-8 text-center text-muted-foreground">{q ? t("customers.noMatch") : t("customers.none")}</p>
@@ -68,7 +68,7 @@ export function CustomersPage() {
           ))}
         </ul>
       )}
-      <LoadMore query={customers} />
+      <AddressPagination result={customers.data} />
       {creating && (
         <Suspense fallback={null}>
           <CustomerDialog

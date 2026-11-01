@@ -1,11 +1,11 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { ChevronRight, Plus, Printer, Search, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, call } from "@/api/client";
 import { Field } from "@/components/form/Field";
-import { LoadMore } from "@/components/layout/LoadMore";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,7 @@ function StatusTabs({ filters, onChange }: { filters: OrderFilters; onChange: ()
           <Link
             key={tab.status ?? "all"}
             from="/orders/"
-            search={(previous) => ({ ...previous, status: tab.status })}
+            search={(previous) => ({ ...previous, status: tab.status, page: undefined })}
             replace
             onClick={onChange}
             aria-current={active ? "page" : undefined}
@@ -96,7 +96,13 @@ function SearchPanel({ onChange }: { onChange: () => void }) {
         event.preventDefault();
         onChange();
         void navigate({
-          search: { status: filters.status, q: q.trim() || undefined, from: from || undefined, to: to || undefined },
+          search: {
+            status: filters.status,
+            q: q.trim() || undefined,
+            from: from || undefined,
+            to: to || undefined,
+            size: filters.size,
+          },
           replace: true,
         });
       }}
@@ -133,7 +139,7 @@ function SearchPanel({ onChange }: { onChange: () => void }) {
             )}
             onClick={() => {
               onChange();
-              void navigate({ search: {}, replace: true });
+              void navigate({ search: { size: filters.size }, replace: true });
             }}
           >
             {t("products.list.reset")}
@@ -162,7 +168,7 @@ function ActiveFilters({ onChange }: { onChange: () => void }) {
   const navigate = route.useNavigate();
   const remove = (change: Partial<OrderFilters>) => {
     onChange();
-    void navigate({ search: { ...filters, ...change }, replace: true });
+    void navigate({ search: { ...filters, ...change, page: undefined }, replace: true });
   };
   const chips = [
     filters.q && {
@@ -210,12 +216,21 @@ export function OrdersPage() {
   const navigate = route.useNavigate();
   const queryClient = useQueryClient();
   const canWrite = useCanWrite();
-  const orders = useInfiniteQuery(ordersQuery(filters));
-  const items = orders.data?.pages.flatMap((page) => page.items) ?? [];
+  const orders = useQuery(ordersQuery(filters));
+  const items = orders.data?.items ?? [];
   const [selected, setSelected] = useState<Map<string, OrderSummary>>(new Map());
   const [shipping, setShipping] = useState(false);
   const [results, setResults] = useState<BulkResult[]>();
   const filtered = !!(filters.q || filters.from || filters.to);
+
+  // What's chosen is what's on screen: nothing gets packed or shipped from a page out of sight.
+  const shownPage = `${filters.page}/${filters.size}`;
+  const [lastShownPage, setLastShownPage] = useState(shownPage);
+  if (shownPage !== lastShownPage) {
+    setLastShownPage(shownPage);
+    setSelected(new Map());
+    setResults(undefined);
+  }
 
   const chosen = [...selected.values()];
   const canPack = chosen.length > 0 && chosen.every((order) => order.status === "CONFIRMED");
@@ -368,7 +383,7 @@ export function OrdersPage() {
                   className="h-11 rounded-[10px] border-[1.5px] border-primary px-4 font-semibold text-primary hover:text-primary"
                   onClick={() => {
                     clearSelection();
-                    void navigate({ search: {}, replace: true });
+                    void navigate({ search: { size: filters.size }, replace: true });
                   }}
                 >
                   {t("products.list.reset")}
@@ -404,7 +419,7 @@ export function OrdersPage() {
             </>
           )}
         </section>
-        <LoadMore query={orders} />
+        <AddressPagination result={orders.data} />
       </div>
       {shipping && (
         <Suspense fallback={null}>

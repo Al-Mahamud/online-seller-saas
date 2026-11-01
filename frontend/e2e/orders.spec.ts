@@ -534,6 +534,36 @@ test("the list counts by status, filters, and packs and ships together, telling 
   await expect(slips.getByText(two.label).first()).toBeVisible();
 });
 
+test("orders go page by page; what's chosen is only what's on screen", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  const kurti = await product(page.request, "কুর্তি", 40);
+  for (let index = 0; index < 21; index++) {
+    await makeOrder(page.request, kurti.variantId);
+  }
+  await page.goto("/orders");
+  const pages = page.getByRole("navigation", { name: "পৃষ্ঠা" });
+  const count = (text: string) => expect(page.getByRole("status").filter({ hasText: text })).toBeVisible();
+  await count("২১টির মধ্যে ১–২০");
+
+  // Chosen on one page, gone on the next: nothing is packed from a page out of sight.
+  await page
+    .getByRole("checkbox", { name: /^বেছে নিন/ })
+    .first()
+    .check();
+  await expect(page.getByText("১টি বেছে নেওয়া হয়েছে")).toBeVisible();
+  await pages.getByRole("button", { name: "পরের" }).click();
+  await count("২১টির মধ্যে ২১–২১");
+  await expect(page.getByText("১টি বেছে নেওয়া হয়েছে")).toHaveCount(0);
+  await expect(page).toHaveURL(/page=2/);
+
+  // A status tab starts again from the first page; the tabs count the whole list.
+  const tabs = page.getByRole("navigation", { name: "অবস্থা অনুযায়ী অর্ডার" });
+  await expect(tabs.getByRole("link", { name: "সব ২১" })).toBeVisible();
+  await tabs.getByRole("link", { name: "নিশ্চিত ২১" }).click();
+  await expect(page).not.toHaveURL(/page=/);
+  await count("২১টির মধ্যে ১–২০");
+});
+
 test("COD to settle: what each courier owes, and marking its payout received", async ({ page }) => {
   await signUpWithBusiness(page.request);
   const kurti = await product(page.request, "কুর্তি", 20);
@@ -555,11 +585,23 @@ test("COD to settle: what each courier owes, and marking its payout received", a
   await page.goto("/more");
   await page.getByRole("link", { name: "COD হিসাব" }).click();
   await expect(heading(page, "COD হিসাব")).toBeVisible();
-  const pathao = page.locator("section").filter({ has: page.getByRole("heading", { name: /pathao/i }) });
-  const redx = page.locator("section").filter({ has: page.getByRole("heading", { name: "RedX" }) });
+  const courierTabs = page.getByRole("tablist", { name: "কুরিয়ার" });
+  const tab = (name: string | RegExp) => courierTabs.getByRole("tab", { name });
+  const pathao = page.getByRole("tabpanel", { name: /pathao/i });
+  const redx = page.getByRole("tabpanel", { name: /RedX/ });
+  // One courier at a time, the one owed the most first.
+  await expect(tab(/pathao/i)).toHaveAttribute("aria-selected", "true");
+  await expect(tab(/pathao/i)).toContainText("৳৩,১২০");
   await expect(pathao.getByText("পাওনা ৳৩,১২০, ২টি পার্সেল")).toBeVisible();
+  await expect(redx).toHaveCount(0);
+  await tab(/pathao/i).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(tab("RedX")).toBeFocused();
+  await expect(tab("RedX")).toHaveAttribute("aria-selected", "true");
+  await expect(pathao).toHaveCount(0);
   await expect(redx.getByText("পাওনা ৳১,৫৬০, ১টি পার্সেল")).toBeVisible();
   await expect(redx.getByText("আরও ৳১,৫৬০ এখনো পথে")).toBeVisible();
+  await tab(/pathao/i).click();
   const totals = page.getByRole("region", { name: "মোট হিসাব" });
   await expect(totals.getByText("৳৪,৬৮০")).toBeVisible();
   await expect(totals.getByText("৩টি পার্সেলের টাকা")).toBeVisible();
@@ -576,6 +618,10 @@ test("COD to settle: what each courier owes, and marking its payout received", a
 
   // This payout covers one of the two.
   await pathao.getByRole("checkbox", { name: `বেছে নিন: ${second.label}` }).uncheck();
+  // It stays unticked after a look at another courier.
+  await tab("RedX").click();
+  await tab(/pathao/i).click();
+  await expect(pathao.getByRole("checkbox", { name: `বেছে নিন: ${second.label}` })).not.toBeChecked();
   await pathao.getByRole("button", { name: "৳১,৫৬০ বুঝে পেয়েছি" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "৳১,৫৬০ বুঝে পেয়েছি" }).click();
   await expect(pathao.getByText("পাওনা ৳১,৫৬০, ১টি পার্সেল")).toBeVisible();
@@ -590,6 +636,13 @@ test("COD to settle: what each courier owes, and marking its payout received", a
   await post(page.request, `/api/v1/orders/${short.id}/ship`, { courier: "Steadfast" });
   await post(page.request, `/api/v1/orders/${short.id}/deliver`, { codCollected: 100000 });
   await page.goto("/cod");
-  const steadfast = page.locator("section").filter({ has: page.getByRole("heading", { name: "Steadfast" }) });
+  await tab("Steadfast").click();
+  const steadfast = page.getByRole("tabpanel", { name: /Steadfast/ });
   await expect(steadfast.getByText("আদায়ের কথা ছিল ৳১,৫৬০").locator("visible=true")).toBeVisible();
+
+  // Settled in full and nothing on the way: its tab goes, and another courier opens.
+  await steadfast.getByRole("button", { name: "৳১,০০০ বুঝে পেয়েছি" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "৳১,০০০ বুঝে পেয়েছি" }).click();
+  await expect(tab("Steadfast")).toHaveCount(0);
+  await expect(courierTabs.getByRole("tab", { selected: true })).toHaveCount(1);
 });

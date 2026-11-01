@@ -2453,26 +2453,6 @@ export interface components {
             /** Format: int32 */
             shipments: number;
         };
-        CursorPageAuditLogEntry: {
-            items: components["schemas"]["AuditLogEntry"][];
-            nextCursor: string | null;
-        };
-        CursorPageCustomerView: {
-            items: components["schemas"]["CustomerView"][];
-            nextCursor: string | null;
-        };
-        CursorPageOrderSummary: {
-            items: components["schemas"]["OrderSummary"][];
-            nextCursor: string | null;
-        };
-        CursorPageProductMovement: {
-            items: components["schemas"]["ProductMovement"][];
-            nextCursor: string | null;
-        };
-        CursorPageProductSummary: {
-            items: components["schemas"]["ProductSummary"][];
-            nextCursor: string | null;
-        };
         CustomerCreateRequest: {
             address?: string;
             altPhone?: string;
@@ -2857,7 +2837,14 @@ export interface components {
         };
         NotificationPage: {
             items: components["schemas"]["NotificationItem"][];
-            nextCursor: string | null;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
             /** Format: int64 */
             unread: number;
         };
@@ -3240,6 +3227,116 @@ export interface components {
             /** Format: int64 */
             version?: number;
         };
+        PagedResultAdminAuditEntry: {
+            items: components["schemas"]["AdminAuditEntry"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultAdminBusinessRow: {
+            items: components["schemas"]["AdminBusinessRow"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultAuditLogEntry: {
+            items: components["schemas"]["AuditLogEntry"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultBillingAdminAdminInvoice: {
+            items: components["schemas"]["BillingAdminAdminInvoice"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultCustomerView: {
+            items: components["schemas"]["CustomerView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultInvoicesInvoiceView: {
+            items: components["schemas"]["InvoicesInvoiceView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultLowStockItem: {
+            items: components["schemas"]["LowStockItem"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultOrderSummary: {
+            items: components["schemas"]["OrderSummary"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultProductMovement: {
+            items: components["schemas"]["ProductMovement"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
+        PagedResultProductSummary: {
+            items: components["schemas"]["ProductSummary"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
         ProductActor: {
             /** Format: uuid */
             id: string;
@@ -3565,7 +3662,8 @@ export interface operations {
         parameters: {
             query?: {
                 businessId?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -3579,7 +3677,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminAuditEntry"][];
+                    "application/json": components["schemas"]["PagedResultAdminAuditEntry"];
                 };
             };
         };
@@ -3588,6 +3686,9 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string;
+                payBy?: string;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -3601,7 +3702,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BillingAdminAdminInvoice"][];
+                    "application/json": components["schemas"]["PagedResultBillingAdminAdminInvoice"];
                 };
             };
         };
@@ -3654,7 +3755,8 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -3668,7 +3770,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminBusinessRow"][];
+                    "application/json": components["schemas"]["PagedResultAdminBusinessRow"];
                 };
             };
         };
@@ -4156,7 +4258,10 @@ export interface operations {
     };
     invoices: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number | null;
+                size?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4169,7 +4274,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvoicesInvoiceView"][];
+                    "application/json": components["schemas"]["PagedResultInvoicesInvoiceView"];
                 };
             };
         };
@@ -4358,8 +4463,8 @@ export interface operations {
     list_9: {
         parameters: {
             query?: {
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -4373,7 +4478,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageAuditLogEntry"];
+                    "application/json": components["schemas"]["PagedResultAuditLogEntry"];
                 };
             };
         };
@@ -4713,8 +4818,8 @@ export interface operations {
             query?: {
                 q?: string;
                 phone?: string;
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -4728,7 +4833,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageCustomerView"];
+                    "application/json": components["schemas"]["PagedResultCustomerView"];
                 };
             };
         };
@@ -5518,8 +5623,8 @@ export interface operations {
     list_8: {
         parameters: {
             query?: {
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -5612,8 +5717,8 @@ export interface operations {
                 to?: string;
                 phone?: string;
                 number?: string;
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -5627,7 +5732,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageOrderSummary"];
+                    "application/json": components["schemas"]["PagedResultOrderSummary"];
                 };
             };
         };
@@ -6041,8 +6146,8 @@ export interface operations {
                 categoryId?: string;
                 tagId?: string;
                 q?: string;
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path?: never;
@@ -6056,7 +6161,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageProductSummary"];
+                    "application/json": components["schemas"]["PagedResultProductSummary"];
                 };
             };
         };
@@ -6732,7 +6837,10 @@ export interface operations {
     };
     list_5: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number | null;
+                size?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -6745,7 +6853,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LowStockItem"][];
+                    "application/json": components["schemas"]["PagedResultLowStockItem"];
                 };
             };
         };
@@ -6918,8 +7026,8 @@ export interface operations {
     history: {
         parameters: {
             query?: {
-                cursor?: string;
-                limit?: number;
+                page?: number | null;
+                size?: number | null;
             };
             header?: never;
             path: {
@@ -6935,7 +7043,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPageProductMovement"];
+                    "application/json": components["schemas"]["PagedResultProductMovement"];
                 };
             };
         };

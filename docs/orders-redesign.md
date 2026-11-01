@@ -67,6 +67,8 @@ Proposed by Claude. Change any of these by saying so:
 
 ## COD to settle
 
+Decided by Al Mahamud: one courier at a time, with tabs to switch between them.
+
 Design: [Mojud COD to settle design](https://claude.ai/artifact/QYZqLLawfMnC4wK9dp63Ju). No backend change.
 
 Proposed by Claude. Change any of these by saying so:
@@ -74,13 +76,16 @@ Proposed by Claude. Change any of these by saying so:
 | Proposal | Detail |
 |---|---|
 | Totals on top | A dark band with what couriers owe, how many parcels, and what's still on the way. |
-| One card per courier | What it owes and what's on the way. A courier with only parcels on the way has a short card. |
+| Courier tabs | Underlined on a laptop, swipeable buttons on phones. Each tab shows what that courier owes, or "পথে ৳…" with only parcels on the way. |
+| Which opens | The courier owed the most comes first and opens first. |
+| Ticks and settling | What's unticked stays when switching tabs. A courier with nothing left to settle or on the way loses its tab, and another opens. |
+| One courier's card | What it owes and what's on the way, with a short card when only parcels are on the way. |
 | Parcels | A table from a laptop up: order, tracking number, delivery date, amount collected. Rows on phones. |
 | Settling | Everything starts ticked, with a tick box for all of a courier's parcels. The button shows the amount, and the confirmation stays. |
 | Shortfall | A row says "আদায়ের কথা ছিল ৳…" when the courier collected less than expected. |
 | Staff | See the amounts, without ticks or the button, as before. |
 
-**Known limits:** a partly delivered order also shows the shortfall note, since less was collected than first expected. Past payouts aren't on this page, the same as before.
+**Known limits:** a partly delivered order also shows the shortfall note, since less was collected than first expected. Past payouts aren't on this page, the same as before. Reloading, or coming back from an order, opens the first tab with everything ticked again.
 
 ## Different from the drawing
 
@@ -106,3 +111,4 @@ In `frontend/src/i18n/bn.json` and `en.json` under `orders.list`, `orders.detail
 - **Nov 1, 2026:** the search on the products card replaced by the add items button and modal.
 - **Nov 1, 2026:** the cancel order button changed from small red text to a red button.
 - **Nov 1, 2026:** COD to settle designed and built.
+- **Nov 1, 2026:** COD to settle changed from every courier on the page to one at a time, with tabs.

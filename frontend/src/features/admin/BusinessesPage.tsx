@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { SearchBox } from "@/components/layout/SearchBox";
 import { useFormat } from "@/lib/format";
 import { businessesQuery } from "./api";
@@ -11,9 +12,9 @@ const route = getRouteApi("/admin/");
 export function BusinessesPage() {
   const text = useAdminTexts();
   const format = useFormat();
-  const { q } = route.useSearch();
+  const { q, ...paging } = route.useSearch();
   const navigate = route.useNavigate();
-  const { data, isSuccess } = useQuery(businessesQuery(q));
+  const { data } = useQuery(businessesQuery(q, paging));
   return (
     <div className="flex max-w-3xl flex-col gap-3">
       <h1 className="text-2xl font-bold tracking-tight">{text.nav.businesses}</h1>
@@ -21,14 +22,12 @@ export function BusinessesPage() {
         label={text.businesses.search}
         hint={text.businesses.searchHint}
         value={q ?? ""}
-        onChange={(next) => void navigate({ search: next ? { q: next } : {}, replace: true })}
+        onChange={(next) => void navigate({ search: { q: next || undefined, size: paging.size }, replace: true })}
       />
-      {isSuccess && data.length === 0 && (
-        <p className="py-8 text-center text-muted-foreground">{text.businesses.none}</p>
-      )}
-      {data && data.length > 0 && (
+      {data?.items.length === 0 && <p className="py-8 text-center text-muted-foreground">{text.businesses.none}</p>}
+      {!!data?.items.length && (
         <ul className="flex flex-col rounded-xl border bg-card px-4">
-          {data.map(({ business, subscription }) => (
+          {data.items.map(({ business, subscription }) => (
             <li key={business.id} className="border-t first:border-t-0">
               <Link
                 to="/admin/businesses/$businessId"
@@ -56,6 +55,7 @@ export function BusinessesPage() {
           ))}
         </ul>
       )}
+      <AddressPagination result={data} />
     </div>
   );
 }

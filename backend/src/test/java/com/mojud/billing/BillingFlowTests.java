@@ -133,8 +133,8 @@ class BillingFlowTests {
         assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.bankTransfer")).isEqualTo(checkout.<String>json("$.bankTransfer"));
 
         ApiClient admin = admin();
-        assertThat(admin.get("/api/v1/admin/billing/invoices?status=OPEN").<List<String>>json("$[*].id")).contains(invoice);
-        assertThat(admin.get("/api/v1/admin/billing/invoices?status=OPEN").<List<String>>json("$[*].businessName")).isNotEmpty();
+        assertThat(admin.get("/api/v1/admin/billing/invoices?status=OPEN").<List<String>>json("$.items[*].id")).contains(invoice);
+        assertThat(admin.get("/api/v1/admin/billing/invoices?status=OPEN").<List<String>>json("$.items[*].businessName")).isNotEmpty();
         admin.post("/api/v1/admin/billing/invoices/" + invoice + "/mark-paid", Map.of("reference", "DBBL-778812"))
                 .expectStatus(200);
 
@@ -179,7 +179,7 @@ class BillingFlowTests {
         pay(invoice, "990.00");
         owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201);
 
-        assertThat(owner.get("/api/v1/billing/invoices").<List<String>>json("$[*].status")).containsExactly("OPEN", "PAID");
+        assertThat(owner.get("/api/v1/billing/invoices").<List<String>>json("$.items[*].status")).containsExactly("OPEN", "PAID");
 
         var page = owner.download("/api/v1/billing/invoices/" + invoice + "/print?lang=en");
         assertThat(page.headers().firstValue("Content-Security-Policy")).hasValue(InvoicePages.CONTENT_SECURITY_POLICY);

@@ -1,7 +1,8 @@
 package com.mojud.catalog.product;
 
 import com.mojud.catalog.CatalogLimits;
-import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.error.ApiException;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
@@ -13,6 +14,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,17 +49,17 @@ class ProductController {
     }
 
     /**
-     * Newest first, page by page. With {@code q}: the best 50 matches by name (also with small
-     * typos) or SKU, on one page. A top-level {@code categoryId} also finds products in its
+     * Newest first. With {@code q}: the best matches first, by name (also with small typos) or SKU.
+     * A top-level {@code categoryId} also finds products in its
      * subcategories.
      */
     @GetMapping
     @RequiresRole(BusinessRole.STAFF)
-    CursorPage<ProductViews.Summary> list(@RequestParam(defaultValue = "ACTIVE") ProductStatus status,
+    PagedResult<ProductViews.Summary> list(@RequestParam(defaultValue = "ACTIVE") ProductStatus status,
             @RequestParam(required = false) UUID categoryId, @RequestParam(required = false) UUID tagId,
             @RequestParam(required = false) @Size(max = 100) String q,
-            @RequestParam(required = false) String cursor, @RequestParam(required = false) Integer limit) {
-        return products.list(status, categoryId, tagId, q, cursor, limit);
+            @ParameterObject PageQuery paging) {
+        return products.list(status, categoryId, tagId, q, paging);
     }
 
     @GetMapping("/{id}")

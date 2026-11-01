@@ -1,7 +1,8 @@
-import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 import type { LinkProps } from "@tanstack/react-router";
 import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";
+import { type Paging, pagedQuery } from "@/lib/paging";
 
 export type Notification = components["schemas"]["NotificationItem"];
 
@@ -10,17 +11,15 @@ const EVERY_MINUTE = 60_000;
 /** How many are unread, asked every minute while the app is on screen. */
 export const unreadQuery = queryOptions({
   queryKey: ["notifications", "unread"],
-  queryFn: async () => (await call(api.GET("/api/v1/notifications", { params: { query: { limit: 1 } } }))).unread,
+  queryFn: async () => (await call(api.GET("/api/v1/notifications", { params: { query: { size: 1 } } }))).unread,
   refetchInterval: EVERY_MINUTE,
   meta: { showsOwnErrors: true },
 });
 
-export const notificationsQuery = infiniteQueryOptions({
-  queryKey: ["notifications", "list"],
-  queryFn: ({ pageParam }) => call(api.GET("/api/v1/notifications", { params: { query: { cursor: pageParam } } })),
-  initialPageParam: undefined as string | undefined,
-  getNextPageParam: (page) => page.nextCursor ?? undefined,
-});
+export const notificationsQuery = (paging: Paging) =>
+  pagedQuery(["notifications", "list", paging], () =>
+    call(api.GET("/api/v1/notifications", { params: { query: paging } })),
+  );
 
 export const preferencesQuery = queryOptions({
   queryKey: ["notification-preferences"],

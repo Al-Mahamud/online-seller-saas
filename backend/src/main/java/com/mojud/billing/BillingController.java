@@ -1,6 +1,8 @@
 package com.mojud.billing;
 
 import com.mojud.shared.error.ApiException;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.RequiresRole;
@@ -12,6 +14,7 @@ import java.util.UUID;
 import com.mojud.tenancy.BusinessProfile;
 import java.nio.charset.StandardCharsets;
 import org.jspecify.annotations.Nullable;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -158,8 +161,8 @@ class BillingController {
     @GetMapping("/api/v1/billing/invoices")
     @RequiresRole(BusinessRole.MANAGER)
     @Transactional(readOnly = true)
-    List<Invoices.InvoiceView> invoices() {
-        return invoices.list();
+    PagedResult<Invoices.InvoiceView> invoices(@ParameterObject PageQuery paging) {
+        return invoices.list(paging);
     }
 
     /** The invoice as a page to print or save as PDF; {@code lang} bn or en (default: the reader's). */

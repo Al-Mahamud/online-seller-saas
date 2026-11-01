@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -9,10 +9,12 @@ import { z } from "zod/mini";
 import { api, call } from "@/api/client";
 import { FormError, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
+import { Pagination } from "@/components/layout/Pagination";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useFormat } from "@/lib/format";
 import { takaInput } from "@/lib/money";
+import { type Paging, pagedQuery } from "@/lib/paging";
 import { cn } from "@/lib/utils";
 import { type Product, productChanged, type Variant } from "./api";
 import { optionalCount, optionalTaka, taka, variantRow } from "./schemas";
@@ -418,22 +420,18 @@ function VariantDialog({ product, variant, onClose }: { product: Product; varian
 function HistoryDialog({ variant, onClose }: { variant: Variant; onClose: () => void }) {
   const { t } = useTranslation();
   const format = useFormat();
-  const history = useInfiniteQuery({
-    queryKey: ["movements", variant.id],
-    queryFn: ({ pageParam }) =>
-      call(
-        api.GET("/api/v1/variants/{id}/movements", {
-          params: { path: { id: variant.id }, query: { cursor: pageParam } },
-        }),
-      ),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-  });
-  const movements = history.data?.pages.flatMap((page) => page.items) ?? [];
+  const [paging, setPaging] = useState<Paging>({});
+  const top = useRef<HTMLDivElement>(null);
+  const history = useQuery(
+    pagedQuery(["movements", variant.id, paging], () =>
+      call(api.GET("/api/v1/variants/{id}/movements", { params: { path: { id: variant.id }, query: paging } })),
+    ),
+  );
+  const movements = history.data?.items ?? [];
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-dvh overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader ref={top}>
           <DialogTitle>{t("stock.history")}</DialogTitle>
           <DialogDescription>{variant.label || variant.sku}</DialogDescription>
         </DialogHeader>
@@ -458,11 +456,7 @@ function HistoryDialog({ variant, onClose }: { variant: Variant; onClose: () => 
             </li>
           ))}
         </ul>
-        {history.hasNextPage && (
-          <Button variant="outline" disabled={history.isFetchingNextPage} onClick={() => void history.fetchNextPage()}>
-            {t("audit.more")}
-          </Button>
-        )}
+        <Pagination result={history.data} onChange={setPaging} scrollTo={top} />
       </DialogContent>
     </Dialog>
   );

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useId, useState } from "react";
+import { type KeyboardEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { hasRole, useBusiness } from "@/api/business";
@@ -40,6 +40,8 @@ function byCourier(owed: CodRow[], inTransit: CodRow[]): Courier[] {
 }
 
 const collected = (row: CodRow) => row.codCollected ?? 0;
+const owedBy = (courier: Courier) => courier.owed.reduce((sum, row) => sum + collected(row), 0);
+const keyOf = (courier: Courier) => courier.name.toLowerCase();
 
 /** What each courier owes the business, and marking its payout as received. */
 export function CodPage() {
@@ -47,7 +49,8 @@ export function CodPage() {
   const format = useFormat();
   const owed = useQuery(codOwedQuery);
   const inTransit = useQuery(codInTransitQuery);
-  const couriers = byCourier(owed.data ?? [], inTransit.data ?? []);
+  // The one owed the most comes first, and opens first.
+  const couriers = byCourier(owed.data ?? [], inTransit.data ?? []).sort((a, b) => owedBy(b) - owedBy(a));
   const owedRows = owed.data ?? [];
   const owedTotal = owedRows.reduce((sum, row) => sum + collected(row), 0);
   const transitTotal = (inTransit.data ?? []).reduce((sum, row) => sum + row.codExpected, 0);
@@ -87,11 +90,80 @@ export function CodPage() {
           )}
         </section>
       </div>
-      <div className="flex flex-col gap-3.5 max-md:relative max-md:-mx-4 max-md:-mt-7.5 max-md:rounded-t-3xl max-md:bg-background max-md:px-3.5 max-md:pt-3.5 md:gap-4">
-        {couriers.map((courier) => (
-          <CourierSection key={courier.name.toLowerCase()} courier={courier} />
-        ))}
+      <div className="max-md:relative max-md:-mx-4 max-md:-mt-7.5 max-md:rounded-t-3xl max-md:bg-background max-md:px-3.5 max-md:pt-3.5">
+        {couriers.length > 0 && <CourierTabs couriers={couriers} />}
       </div>
+    </div>
+  );
+}
+
+/** One courier at a time. The others stay mounted, hidden, so what's unticked waits for coming back. */
+function CourierTabs({ couriers }: { couriers: Courier[] }) {
+  const { t } = useTranslation();
+  const format = useFormat();
+  const baseId = useId();
+  const [chosenKey, setChosenKey] = useState<string>();
+  // A courier that's fully settled has gone from the list; then the next one opens.
+  const activeKey = couriers.some((courier) => keyOf(courier) === chosenKey) ? chosenKey : couriers.map(keyOf)[0];
+  const tabId = (key: string) => `${baseId}-tab-${key}`;
+  const panelId = (key: string) => `${baseId}-panel-${key}`;
+  function move(event: KeyboardEvent, from: number) {
+    const last = couriers.length - 1;
+    const to = {
+      ArrowRight: from === last ? 0 : from + 1,
+      ArrowLeft: from === 0 ? last : from - 1,
+      Home: 0,
+      End: last,
+    }[event.key];
+    const next = to === undefined ? undefined : couriers[to];
+    if (next) {
+      event.preventDefault();
+      setChosenKey(keyOf(next));
+      document.getElementById(tabId(keyOf(next)))?.focus();
+    }
+  }
+  return (
+    <div className="flex flex-col gap-3.5 md:gap-0 md:overflow-hidden md:rounded-[14px] md:border md:bg-card">
+      <div
+        role="tablist"
+        aria-label={t("cod.tabs")}
+        className="flex gap-2 overflow-x-auto max-md:-mx-3.5 max-md:px-3.5 max-md:pb-0.5 md:gap-1 md:border-b md:px-3 md:pt-1.5"
+      >
+        {couriers.map((courier, index) => {
+          const key = keyOf(courier);
+          const selected = key === activeKey;
+          return (
+            <button
+              key={key}
+              id={tabId(key)}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={panelId(key)}
+              tabIndex={selected ? 0 : -1}
+              className="min-h-14.5 flex-none cursor-pointer rounded-[14px] border-[1.5px] bg-card px-4 py-1.25 text-left text-foreground focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-ring aria-selected:border-primary aria-selected:bg-primary aria-selected:text-primary-foreground md:min-h-15.5 md:min-w-33 md:rounded-none md:border-0 md:border-b-[3px] md:border-transparent md:bg-transparent md:px-3.5 md:hover:bg-muted md:aria-selected:border-primary md:aria-selected:bg-transparent md:aria-selected:text-accent-foreground"
+              onClick={() => setChosenKey(key)}
+              onKeyDown={(event) => move(event, index)}
+            >
+              <span className="block font-bold md:text-[17px]">{courier.name}</span>
+              <span className="block text-sm font-semibold md:text-muted-foreground">
+                {courier.owed.length > 0
+                  ? format.taka(owedBy(courier))
+                  : t("cod.onTheWay", { amount: format.taka(courier.inTransit) })}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {couriers.map((courier) => (
+        <CourierSection
+          key={keyOf(courier)}
+          courier={courier}
+          id={panelId(keyOf(courier))}
+          tabId={tabId(keyOf(courier))}
+          hidden={keyOf(courier) !== activeKey}
+        />
+      ))}
     </div>
   );
 }
@@ -111,12 +183,21 @@ function Amount({ row }: { row: CodRow }) {
   );
 }
 
-function CourierSection({ courier }: { courier: Courier }) {
+function CourierSection({
+  courier,
+  id,
+  tabId,
+  hidden,
+}: {
+  courier: Courier;
+  id: string;
+  tabId: string;
+  hidden: boolean;
+}) {
   const { t } = useTranslation();
   const format = useFormat();
   const business = useBusiness();
   const queryClient = useQueryClient();
-  const titleId = useId();
   const canSettle = hasRole(business, "MANAGER");
   // Everything is ticked at first: usually the payout covers all of it. Untick what it doesn't.
   const [left, setLeft] = useState<Set<string>>(new Set());
@@ -157,13 +238,17 @@ function CourierSection({ courier }: { courier: Courier }) {
       {format.orderNumber(row.orderNumberLabel)}
     </Link>
   );
-  const owes = courier.owed.reduce((sum, row) => sum + collected(row), 0);
+  const owes = owedBy(courier);
   return (
-    <section aria-labelledby={titleId} className="overflow-hidden rounded-[14px] border bg-card">
+    <section
+      id={id}
+      role="tabpanel"
+      aria-labelledby={tabId}
+      hidden={hidden}
+      className="overflow-hidden max-md:rounded-[14px] max-md:border max-md:bg-card"
+    >
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-3.5 py-3 md:px-5 md:py-3.5">
-        <h2 id={titleId} className="text-xl font-bold md:text-[21px]">
-          {courier.name}
-        </h2>
+        <h2 className="text-xl font-bold md:text-[21px]">{courier.name}</h2>
         <p className="text-[15px] max-md:w-full">
           <span className="font-bold">
             {courier.owed.length > 0

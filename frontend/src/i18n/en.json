@@ -971,7 +971,9 @@
     "selectAll": "{{courier}}: select all",
     "trackingColumn": "Tracking number",
     "deliveredColumn": "Delivered",
-    "collectedColumn": "Collected"
+    "collectedColumn": "Collected",
+    "tabs": "Couriers",
+    "onTheWay": "On the way {{amount}}"
   },
   "paymentMethod": {
     "BKASH": "bKash",
@@ -1100,5 +1102,15 @@
     "alwaysSent": "Payment and security emails always go.",
     "saved": "Saved.",
     "unread": "unread"
+  },
+  "pagination": {
+    "label": "Pages",
+    "range": "{{from}}–{{to}} of {{total}}",
+    "total": "{{total}} in all",
+    "perPage": "Rows per page",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {{page}}",
+    "ofPages": "Page {{page}} of {{last}}"
   }
 }

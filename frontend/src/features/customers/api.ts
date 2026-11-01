@@ -1,7 +1,8 @@
-import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";
 import { latinDigits } from "@/lib/digits";
+import { type Paging, pagedQuery } from "@/lib/paging";
 
 export type Customer = components["schemas"]["CustomerView"];
 
@@ -20,14 +21,10 @@ export function customerSearch(text: string): { phone?: string; q?: string } {
   return looksLikeNumber && digits.length >= 11 ? { phone: typed } : { q: looksLikeNumber ? digits : typed };
 }
 
-export const customersQuery = (search: string) =>
-  infiniteQueryOptions({
-    queryKey: ["customers", search],
-    queryFn: ({ pageParam }) =>
-      call(api.GET("/api/v1/customers", { params: { query: { ...customerSearch(search), cursor: pageParam } } })),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-  });
+export const customersQuery = (search: string, paging: Paging) =>
+  pagedQuery(["customers", search, paging], () =>
+    call(api.GET("/api/v1/customers", { params: { query: { ...customerSearch(search), ...paging } } })),
+  );
 
 export const customerQuery = (id: string) =>
   queryOptions({
@@ -36,10 +33,7 @@ export const customerQuery = (id: string) =>
   });
 
 /** A customer's orders: the server finds them by the phone number on the order. */
-export const customerOrdersQuery = (phone: string) =>
-  infiniteQueryOptions({
-    queryKey: ["customer-orders", phone],
-    queryFn: ({ pageParam }) => call(api.GET("/api/v1/orders", { params: { query: { phone, cursor: pageParam } } })),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-  });
+export const customerOrdersQuery = (phone: string, paging: Paging) =>
+  pagedQuery(["customer-orders", phone, paging], () =>
+    call(api.GET("/api/v1/orders", { params: { query: { phone, ...paging } } })),
+  );

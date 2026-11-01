@@ -251,7 +251,7 @@ Rules the code enforces:
 
 ## 7. API
 
-REST under `/api/v1`, JSON, cookie session with CSRF token (double-submit cookie). Lists use cursor paging (`?cursor=…&limit=50`). Errors are Problem Details with a stable `code` (for example `stock.insufficient`) and a `detail` in the user's language, plus `errors[]` for field problems. Every write returns the new resource.
+REST under `/api/v1`, JSON, cookie session with CSRF token (double-submit cookie). Lists use numbered pages (`?page=&size=`; see `docs/pagination.md`). Errors are Problem Details with a stable `code` (for example `stock.insufficient`) and a `detail` in the user's language, plus `errors[]` for field problems. Every write returns the new resource.
 
 Endpoint groups (complete list will be in the OpenAPI spec):
 

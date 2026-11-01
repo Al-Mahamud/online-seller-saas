@@ -11,8 +11,8 @@ import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.idempotency.Idempotency;
-import com.mojud.shared.paging.Cursor;
-import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.phone.PhoneNumber;
 import com.mojud.shared.text.Text;
 import com.mojud.shared.time.DhakaTime;
@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +48,6 @@ class OrderService {
 
     private static final Instant END_OF_TIME = Instant.parse("9999-12-31T00:00:00Z");
     private static final Instant START_OF_TIME = Instant.parse("2000-01-01T00:00:00Z");
-    private static final UUID LAST_ID = new UUID(-1L, -1L);
 
     /** {@code unitPrice} null: the variant's price. */
     record ItemInput(UUID variantId, int quantity, Long unitPrice) {
@@ -213,25 +211,24 @@ class OrderService {
      * customer's or the delivery number, written any way; {@code number}: 1001, "#1001" or "RK-1001".
      */
     @Transactional(readOnly = true)
-    CursorPage<OrderViews.Summary> list(List<OrderStatus> statuses, LocalDate from, LocalDate to, String phone,
-            String number, String cursor, Integer limit) {
+    PagedResult<OrderViews.Summary> list(List<OrderStatus> statuses, LocalDate from, LocalDate to, String phone,
+            String number, PageQuery paging) {
         Filter filter = Filter.of(from, to, phone, number);
         if (filter == null) {
-            return new CursorPage<>(List.of(), null);
+            return PagedResult.empty(paging);
         }
-        int pageSize = CursorPage.limit(limit);
-        Cursor after = Cursor.decode(cursor);
-        List<Order> page = orders.findPage(statuses == null || statuses.isEmpty() ? Arrays.asList(OrderStatus.values()) : statuses,
-                filter.from(), filter.to(), filter.phone(), filter.number(), after == null ? END_OF_TIME : after.sortKeyAsInstant(),
-                after == null ? LAST_ID : after.id(), Limit.of(pageSize + 1));
-        CursorPage<Order> paged = CursorPage.of(page, pageSize, o -> new Cursor(o.getCreatedAt().toString(), o.getId()));
+        return PagedResult.of(orders.findPage(statuses == null || statuses.isEmpty() ? Arrays.asList(OrderStatus.values()) : statuses,
+                filter.from(), filter.to(), filter.phone(), filter.number(), paging.pageable()), paging)
+                .mapItems(this::summaries);
+    }
+
+    private List<OrderViews.Summary> summaries(List<Order> page) {
         Map<UUID, Integer> counts = new HashMap<>();
-        if (!paged.items().isEmpty()) {
-            items.countByOrders(paged.items().stream().map(Order::getId).toList())
+        if (!page.isEmpty()) {
+            items.countByOrders(page.stream().map(Order::getId).toList())
                     .forEach(row -> counts.put((UUID) row[0], ((Number) row[1]).intValue()));
         }
-        return new CursorPage<>(paged.items().stream().map(o -> OrderViews.summary(o, counts.getOrDefault(o.getId(), 0)))
-                .toList(), paged.nextCursor());
+        return page.stream().map(o -> OrderViews.summary(o, counts.getOrDefault(o.getId(), 0))).toList();
     }
 
     /** How many orders each status has, for the same filters as the list: every status, none left out. */

@@ -6,6 +6,8 @@ import com.mojud.shared.csv.CsvDownload;
 import com.mojud.shared.csv.CsvWriter;
 import com.mojud.shared.db.system.SystemDatabase;
 import com.mojud.shared.error.ApiException;
+import com.mojud.shared.paging.PageQuery;
+import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.time.DhakaTime;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -18,6 +20,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -55,19 +58,25 @@ class BillingAdminController {
         this.clock = clock;
     }
 
-    /** Newest first, up to 500; {@code status} OPEN, PAID, VOID or REFUNDED (default: all). */
+    /** Newest first; {@code status} OPEN, PAID, VOID or REFUNDED and {@code payBy} narrow them (default: all). */
     @GetMapping("/api/v1/admin/billing/invoices")
-    List<AdminInvoice> invoices(@RequestParam(required = false) String status) {
-        return database.jdbc().sql("""
+    PagedResult<AdminInvoice> invoices(@RequestParam(required = false) String status,
+            @RequestParam(required = false) String payBy, @ParameterObject PageQuery paging) {
+        String wantedStatus = status == null ? "" : status;
+        String wantedPayBy = payBy == null ? "" : payBy;
+        String where = "where (? = '' or i.status = ?) and (? = '' or i.pay_by = ?) ";
+        List<AdminInvoice> rows = database.jdbc().sql("""
                         select i.id, i.number, i.business_id, b.name, i.kind, i.plan_code, i.amount, i.status, i.pay_by, i.created_at
                         from invoices i join businesses b on b.id = i.business_id
-                        where (? = '' or i.status = ?) order by i.created_at desc limit 500
-                        """)
-                .params(status == null ? "" : status, status == null ? "" : status)
+                        """ + where + "order by i.created_at desc, i.id desc limit ? offset ?")
+                .params(wantedStatus, wantedStatus, wantedPayBy, wantedPayBy, paging.limit(), paging.offset())
                 .query((rs, n) -> new AdminInvoice(rs.getObject(1, UUID.class), rs.getString(2), rs.getObject(3, UUID.class),
                         rs.getString(4), rs.getString(5), rs.getString(6), rs.getLong(7), rs.getString(8), rs.getString(9),
                         rs.getTimestamp(10).toInstant()))
                 .list();
+        long total = database.jdbc().sql("select count(*) from invoices i " + where)
+                .params(wantedStatus, wantedStatus, wantedPayBy, wantedPayBy).query(Long.class).single();
+        return PagedResult.of(rows, paging, total);
     }
 
     /** A bank transfer seen in the account; {@code reference}: the bank's. 409 if the invoice is not open. */

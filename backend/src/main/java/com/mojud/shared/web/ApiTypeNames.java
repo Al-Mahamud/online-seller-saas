@@ -34,7 +34,7 @@ final class ApiTypeNames extends TypeNameResolver {
     /** Every schema name given out, generic ones included, with the class it describes. */
     private final Map<String, Class<?>> schemas = new ConcurrentHashMap<>();
 
-    /** The class behind a schema, such as {@code CursorPage} for {@code CursorPageOrderSummary}. */
+    /** The class behind a schema, such as {@code PagedResult} for {@code PagedResultOrderSummary}. */
     Optional<Class<?>> typeOf(String schemaName) {
         return Optional.ofNullable(schemas.get(schemaName));
     }

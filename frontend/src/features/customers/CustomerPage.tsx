@@ -1,17 +1,18 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { hasRole, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import { ConfirmDialog } from "@/components/form/ConfirmDialog";
-import { LoadMore } from "@/components/layout/LoadMore";
+import { Pagination } from "@/components/layout/Pagination";
 import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { usePlaceName } from "@/features/delivery/geo";
 import { useFormat } from "@/lib/format";
+import type { Paging } from "@/lib/paging";
 import { customerOrdersQuery, customerQuery } from "./api";
 
 // With the form libraries it brings, this is only needed when the dialog opens.
@@ -121,39 +122,43 @@ export function CustomerPage() {
 function OrdersSection({ phone }: { phone: string }) {
   const { t } = useTranslation();
   const format = useFormat();
-  const orders = useInfiniteQuery(customerOrdersQuery(phone));
-  const items = orders.data?.pages.flatMap((page) => page.items) ?? [];
+  const [paging, setPaging] = useState<Paging>({});
+  const top = useRef<HTMLDivElement>(null);
+  const orders = useQuery(customerOrdersQuery(phone, paging));
+  const items = orders.data?.items ?? [];
   return (
-    <Section title={t("customers.orders")}>
-      {orders.isSuccess && items.length === 0 && <p className="text-muted-foreground">{t("customers.noOrders")}</p>}
-      {items.length > 0 && (
-        <ul className="flex flex-col">
-          {items.map((order) => (
-            <li key={order.id} className="border-t first:border-t-0">
-              <Link
-                to="/orders/$orderId"
-                params={{ orderId: order.id }}
-                className="flex items-center justify-between gap-3 py-2 text-foreground no-underline"
-              >
-                <span className="min-w-0">
-                  <span className="block font-medium">{format.orderNumber(order.numberLabel)}</span>
-                  <span className="block text-sm text-muted-foreground">
-                    {t("customers.orderLine", {
-                      count: format.number(order.itemCount),
-                      date: format.date(order.createdAt),
-                    })}
+    <div ref={top} className="scroll-mt-16 md:scroll-mt-4">
+      <Section title={t("customers.orders")}>
+        {orders.isSuccess && items.length === 0 && <p className="text-muted-foreground">{t("customers.noOrders")}</p>}
+        {items.length > 0 && (
+          <ul className="flex flex-col">
+            {items.map((order) => (
+              <li key={order.id} className="border-t first:border-t-0">
+                <Link
+                  to="/orders/$orderId"
+                  params={{ orderId: order.id }}
+                  className="flex items-center justify-between gap-3 py-2 text-foreground no-underline"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-medium">{format.orderNumber(order.numberLabel)}</span>
+                    <span className="block text-sm text-muted-foreground">
+                      {t("customers.orderLine", {
+                        count: format.number(order.itemCount),
+                        date: format.date(order.createdAt),
+                      })}
+                    </span>
                   </span>
-                </span>
-                <span className="flex-none text-right">
-                  <span className="block font-semibold">{format.taka(order.total)}</span>
-                  <span className="block text-sm text-muted-foreground">{t(`orderStatus.${order.status}`)}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      <LoadMore query={orders} />
-    </Section>
+                  <span className="flex-none text-right">
+                    <span className="block font-semibold">{format.taka(order.total)}</span>
+                    <span className="block text-sm text-muted-foreground">{t(`orderStatus.${order.status}`)}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Pagination result={orders.data} onChange={setPaging} scrollTo={top} />
+      </Section>
+    </div>
   );
 }

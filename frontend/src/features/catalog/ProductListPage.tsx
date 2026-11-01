@@ -1,11 +1,11 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { ChevronRight, Plus, Search, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { hasRole, useBusiness } from "@/api/business";
 import { SelectBox } from "@/components/form/Field";
-import { LoadMore } from "@/components/layout/LoadMore";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCanWrite } from "@/features/billing/status";
@@ -25,11 +25,11 @@ export function ProductListPage() {
   const canWrite = useCanWrite();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  const products = useInfiniteQuery(productsQuery(filters));
-  const items = products.data?.pages.flatMap((page) => page.items) ?? [];
+  const products = useQuery(productsQuery(filters));
+  const items = products.data?.items ?? [];
   const filtered = !!(filters.q || filters.categoryId || filters.tagId);
   const canManage = hasRole(business, "MANAGER") && canWrite;
-  const reset = () => void navigate({ search: {}, replace: true });
+  const reset = () => void navigate({ search: { size: filters.size }, replace: true });
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -88,7 +88,7 @@ export function ProductListPage() {
           ))}
         </ul>
         {items.length > 0 && <ProductTable products={items} />}
-        <LoadMore query={products} />
+        <AddressPagination result={products.data} />
       </div>
     </div>
   );
@@ -102,7 +102,7 @@ function SearchPanel() {
   const navigate = route.useNavigate();
   const { data: categories } = useQuery(categoriesQuery);
   const { data: tags } = useQuery(tagsQuery);
-  const { data: lowStock } = useQuery(lowStockQuery);
+  const { data: lowStock } = useQuery(lowStockQuery({ size: 1 }));
   const [q, setQ] = useState(filters.q ?? "");
   const [categoryId, setCategoryId] = useState(filters.categoryId ?? "");
   const [tagId, setTagId] = useState(filters.tagId ?? "");
@@ -127,6 +127,7 @@ function SearchPanel() {
             categoryId: categoryId || undefined,
             tagId: tagId || undefined,
             status: filters.status,
+            size: filters.size,
           },
           replace: true,
         });
@@ -191,7 +192,7 @@ function SearchPanel() {
                 )}
                 onClick={() =>
                   void navigate({
-                    search: { ...filters, status: value === "ACTIVE" ? undefined : value },
+                    search: { ...filters, status: value === "ACTIVE" ? undefined : value, page: undefined },
                     replace: true,
                   })
                 }
@@ -201,7 +202,7 @@ function SearchPanel() {
             ))}
           </div>
         </fieldset>
-        {!!lowStock?.length && (
+        {!!lowStock?.totalItems && (
           <Link
             to="/products/low-stock"
             className={cn(
@@ -210,7 +211,7 @@ function SearchPanel() {
             )}
           >
             <TriangleAlert aria-hidden="true" className="size-4.5" />
-            {t("products.lowStockCount", { count: format.number(lowStock.length) })}
+            {t("products.lowStockCount", { count: format.number(lowStock.totalItems) })}
           </Link>
         )}
         <div className="grid flex-[1_1_100%] grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 md:ml-auto md:flex md:flex-none">
@@ -220,7 +221,7 @@ function SearchPanel() {
               "h-12 cursor-pointer rounded-[10px] border-[1.5px] border-ledger-text text-base font-semibold text-white hover:bg-white/10 md:h-11 md:px-4 md:text-[15px]",
               ON_DARK_FOCUS,
             )}
-            onClick={() => void navigate({ search: {}, replace: true })}
+            onClick={() => void navigate({ search: { size: filters.size }, replace: true })}
           >
             {t("products.list.reset")}
           </button>
@@ -250,7 +251,7 @@ function ActiveFilters() {
   const category = flatCategories(categories ?? []).find((option) => option.id === filters.categoryId);
   const tag = tags?.find((option) => option.id === filters.tagId);
   const remove = (change: { q?: undefined; categoryId?: undefined; tagId?: undefined }) =>
-    void navigate({ search: { ...filters, ...change }, replace: true });
+    void navigate({ search: { ...filters, ...change, page: undefined }, replace: true });
   const chips = [
     filters.q && {
       key: "q",

@@ -261,10 +261,12 @@ class OrderTests {
         assertThat(ids("?phone=%2B8801819876543")).containsExactly(second.<String>json("$.id"));
         assertThat(ids("?phone=nonsense")).isEmpty();
         assertThat(ids("?number=1002")).containsExactly(second.<String>json("$.id"));
-        assertThat(owner.get("/api/v1/orders?limit=1").<Integer>json("$.items[0].itemCount")).isEqualTo(1);
-        ApiResponse page = owner.get("/api/v1/orders?limit=1");
-        assertThat(owner.get("/api/v1/orders?limit=1&cursor=" + page.json("$.nextCursor")).<List<String>>json("$.items[*].id"))
+        assertThat(owner.get("/api/v1/orders?size=1").<Integer>json("$.items[0].itemCount")).isEqualTo(1);
+        assertThat(owner.get("/api/v1/orders?size=1").<Integer>json("$.totalPages")).isEqualTo(2);
+        assertThat(owner.get("/api/v1/orders?size=1&page=2").<List<String>>json("$.items[*].id"))
                 .containsExactly(first.<String>json("$.id"));
+        // A filter that can match nothing still answers with a whole, empty page.
+        assertThat(owner.get("/api/v1/orders?phone=nonsense").<Integer>json("$.totalItems")).isZero();
     }
 
     @Test

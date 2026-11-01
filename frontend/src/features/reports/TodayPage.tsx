@@ -534,7 +534,8 @@ function Deliveries({ overview }: { overview: Overview }) {
 function Products({ data, isToday }: { data: Today; isToday: boolean }) {
   const { t } = useTranslation();
   const format = useFormat();
-  const { data: items, isSuccess } = useQuery(lowStockQuery);
+  const { data: lowStock, isSuccess } = useQuery(lowStockQuery({ size: SHOWN }));
+  const items = lowStock?.items;
   return (
     <section aria-labelledby="products" className={cn(CARD, "flex-[5_1_320px]")}>
       <h2 id="products" className="text-[19px] font-bold">
@@ -559,9 +560,9 @@ function Products({ data, isToday }: { data: Today; isToday: boolean }) {
       </div>
       <div className="flex flex-col">
         <h3 className="pb-1.5 text-[15px] font-semibold">{t("today.runningLow")}</h3>
-        {isSuccess && items.length === 0 && <p className="text-muted-foreground">{t("products.lowStockNone")}</p>}
+        {isSuccess && items?.length === 0 && <p className="text-muted-foreground">{t("products.lowStockNone")}</p>}
         <ul className="flex flex-col">
-          {items?.slice(0, SHOWN).map((item) => (
+          {items?.map((item) => (
             <li key={item.variantId} className="border-t">
               <Link
                 to="/products/$productId"
@@ -579,7 +580,7 @@ function Products({ data, isToday }: { data: Today; isToday: boolean }) {
             </li>
           ))}
         </ul>
-        {items && items.length > SHOWN && (
+        {lowStock && lowStock.totalItems > SHOWN && (
           <Link to="/products/low-stock" className="flex min-h-11 w-fit items-center">
             {t("today.seeAll")}
           </Link>

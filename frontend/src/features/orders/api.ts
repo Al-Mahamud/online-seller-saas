@@ -1,4 +1,4 @@
-import { infiniteQueryOptions, type QueryClient, queryOptions } from "@tanstack/react-query";
+import { type QueryClient, queryOptions } from "@tanstack/react-query";
 import { api, call } from "@/api/client";
 import { ApiError } from "@/api/errors";
 import { errorMessages } from "@/api/query";
@@ -6,6 +6,7 @@ import type { components } from "@/api/schema";
 import i18n from "@/i18n";
 import { latinDigits } from "@/lib/digits";
 import { formatNumber } from "@/lib/format";
+import { pagedQuery } from "@/lib/paging";
 import type { OrderFilters } from "./search";
 
 export type Order = components["schemas"]["OrderDetail"];
@@ -30,23 +31,20 @@ export function orderSearch(text: string | undefined): { phone?: string; number?
 const listQuery = ({ q, from, to }: OrderFilters) => ({ ...orderSearch(q), from, to });
 
 export const ordersQuery = (filters: OrderFilters) =>
-  infiniteQueryOptions({
-    queryKey: ["orders", filters],
-    queryFn: ({ pageParam }) =>
-      call(
-        api.GET("/api/v1/orders", {
-          params: {
-            query: {
-              ...listQuery(filters),
-              status: filters.status ? [filters.status] : undefined,
-              cursor: pageParam,
-            },
+  pagedQuery(["orders", filters], () =>
+    call(
+      api.GET("/api/v1/orders", {
+        params: {
+          query: {
+            ...listQuery(filters),
+            status: filters.status ? [filters.status] : undefined,
+            page: filters.page,
+            size: filters.size,
           },
-        }),
-      ),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-  });
+        },
+      }),
+    ),
+  );
 
 export const orderCountsQuery = (filters: OrderFilters) =>
   queryOptions({

@@ -105,7 +105,7 @@ class PaymentTests {
         ApiResponse delivered = owner.post("/api/v1/orders/" + id + "/deliver", Map.of("codCollected", 90000)).expectStatus(200);
 
         assertThat(money(delivered)).isEqualTo(List.of(107000, 0, 107000, 90000, 17000, "PARTIAL"));
-        assertThat(owner.get("/api/v1/orders?limit=1").<String>json("$.items[0].paymentStatus")).isEqualTo("PARTIAL");
+        assertThat(owner.get("/api/v1/orders?size=1").<String>json("$.items[0].paymentStatus")).isEqualTo("PARTIAL");
         owner.post("/api/v1/orders/" + id + "/payments", Map.of("method", "CASH", "amount", 17001))
                 .expectError(400, "validation.failed");
 
