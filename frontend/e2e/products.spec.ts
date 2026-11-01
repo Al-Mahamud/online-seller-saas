@@ -132,19 +132,81 @@ test("receives stock, counts it, and shows the history", async ({ page }) => {
   await expectAccessible(page);
 });
 
-test("refuses taking more stock than there is, with the server's message", async ({ page }) => {
+test("shows what a stock change will leave, and stops what can't be done", async ({ page }) => {
   await signUpWithBusiness(page.request);
-  const id = await makeProduct(page.request, { name: "ব্যাগ", price: 10000, openingStock: 2 });
+  const id = await makeProduct(page.request, {
+    name: "ব্যাগ",
+    variants: [
+      { size: "M", price: 10000, quantity: 10 },
+      { size: "L", price: 10000, quantity: 3 },
+    ],
+  });
   await page.goto(`/products/${id}`);
-
   await page.getByRole("button", { name: "স্টক বদলান" }).click();
   const dialog = page.getByRole("dialog");
-  await page.getByRole("radio", { name: "নষ্ট বা হারিয়ে গেছে" }).check();
-  await label(dialog, "ব্যাগ").fill("5");
-  await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
+  await expect(dialog.getByRole("status")).toHaveText("এখনো কিছু বদলায়নি");
 
-  await expect(dialog.getByRole("alert")).toBeVisible();
+  // New stock adds up as it's typed.
+  await label(dialog, "M").fill("৫");
+  await label(dialog, "L").fill("2");
+  await expect(dialog.getByText("১৫", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("status")).toHaveText("২টি ভ্যারিয়েন্টে মোট +৭টি");
+  await expectAccessible(page);
+
+  // Damage can't be more than there is, and nothing goes to the server.
+  await page.getByRole("radio", { name: "নষ্ট বা হারিয়ে গেছে" }).check();
+  await expect(dialog.getByText("কতগুলো গেছে লিখুন। স্টক থেকে কমবে।")).toBeVisible();
+  await label(dialog, "L").fill("5");
+  await expect(dialog.getByText("বিক্রয়যোগ্য আছে মাত্র ৩টি। এর বেশি বাদ দেওয়া যাবে না।")).toBeVisible();
+  await expect(label(dialog, "L")).toHaveAttribute("aria-invalid", "true");
+  await expectAccessible(page);
+  await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
   await expect(dialog).toBeVisible();
+
+  await label(dialog, "L").fill("দুই");
+  await expect(dialog.getByText("সঠিক একটি সংখ্যা লিখুন।")).toBeVisible();
+
+  // Someone sells it while this is open: the server has the last word, and the rows take the latest.
+  await label(dialog, "L").fill("2");
+  const product = (await (await page.request.get(`/api/v1/products/${id}`)).json()) as {
+    variants: { id: string; label: string }[];
+  };
+  const large = product.variants.find((variant) => variant.label === "L")?.id;
+  const moved = await page.request.post("/api/v1/stock/adjustments", {
+    headers: { "X-XSRF-TOKEN": await xsrf(page.request), "Idempotency-Key": crypto.randomUUID() },
+    data: { lines: [{ variantId: large, kind: "DAMAGE", quantity: 3 }] },
+  });
+  expect(moved.ok()).toBe(true);
+  await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(dialog.getByText("এখন হাতে ০")).toBeVisible();
+  await expect(dialog).toBeVisible();
+});
+
+test("a count can't go below what's set aside for orders", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  const id = await makeProduct(page.request, { name: "ব্যাগ", price: 10000, openingStock: 5 });
+  const product = (await (await page.request.get(`/api/v1/products/${id}`)).json()) as { variants: { id: string }[] };
+  const headers = { "X-XSRF-TOKEN": await xsrf(page.request) };
+  const order = await page.request.post("/api/v1/orders", {
+    headers,
+    data: {
+      customer: { name: "রহিমা", phone: "01712345678", address: "বাসা ৪", districtId: 47 },
+      items: [{ variantId: product.variants[0]?.id, quantity: 2 }],
+    },
+  });
+  const orderId = ((await order.json()) as { id: string }).id;
+  expect((await page.request.post(`/api/v1/orders/${orderId}/confirm`, { headers, data: {} })).ok()).toBe(true);
+
+  await page.goto(`/products/${id}`);
+  await page.getByRole("button", { name: "স্টক বদলান" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("এখন হাতে ৫ · আলাদা ২")).toBeVisible();
+  await page.getByRole("radio", { name: "গুনে দেখেছি" }).check();
+  await label(dialog, "ব্যাগ").fill("1");
+  await expect(dialog.getByText("অর্ডারের জন্য ২টি আলাদা আছে। এর কম হতে পারবে না।")).toBeVisible();
+  await label(dialog, "ব্যাগ").fill("4");
+  await expect(dialog.getByRole("status")).toHaveText("১টি ভ্যারিয়েন্টে মোট −১টি");
 });
 
 test("edits a variant, adds another, and archives and restores", async ({ page }) => {
@@ -281,6 +343,20 @@ test("adds, arranges and removes images", async ({ page }) => {
   await expect(page.locator("a img").filter({ visible: true })).toHaveCount(1);
 });
 
+test.describe("on a device set to dark mode", () => {
+  test.use({ colorScheme: "dark" });
+
+  test("the app stays light, its boxes white", async ({ page }) => {
+    await signUpWithBusiness(page.request);
+    await page.goto("/products");
+    const white = "rgb(255, 255, 255)";
+    await expect(page.getByRole("searchbox", { name: "পণ্য খুঁজুন" })).toHaveCSS("background-color", white);
+    await page.goto("/products/new");
+    await expect(label(page, "পণ্যের নাম")).toHaveCSS("background-color", white);
+    await expect(label(page, "পণ্যের নাম")).toHaveCSS("color-scheme", "light");
+  });
+});
+
 test("searches and filters, keeping them in the address", async ({ page }) => {
   await signUpWithBusiness(page.request);
   const headers = { "X-XSRF-TOKEN": await xsrf(page.request) };
@@ -303,31 +379,67 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   await page.goto("/products");
   const kurtiLink = page.getByRole("link", { name: /সুতি কুর্তি/ });
   const panjabiLink = page.getByRole("link", { name: /পাঞ্জাবি/ });
+  const search = page.getByRole("button", { name: "খুঁজুন", exact: true });
+  const reset = page.getByRole("button", { name: "রিসেট", exact: true }).first();
   await expect(kurtiLink).toBeVisible();
   await expect(panjabiLink).toBeVisible();
+  await expectAccessible(page);
 
-  await page.getByRole("button", { name: "মহিলা" }).click();
+  // Nothing changes until the search button: picking only waits in the panel.
+  const category = label(page, "ক্যাটাগরি");
+  // The top category and its subcategory, once the list has loaded.
+  await expect(category.locator("option", { hasText: "মহিলা" })).toHaveCount(2);
+  await category.selectOption({ label: "মহিলা" });
+  await expect(panjabiLink).toBeVisible();
+  await search.click();
   await expect(panjabiLink).toBeHidden();
   await expect(kurtiLink).toBeVisible();
-  await page.getByRole("button", { name: "কুর্তি", exact: true }).click();
-  await expect(kurtiLink).toBeVisible();
+  await expect(page).toHaveURL(/categoryId=/);
+  await expectAccessible(page);
 
-  await page.getByRole("button", { name: "#ঈদ" }).click();
+  // A chip takes one filter off.
+  await page.getByRole("button", { name: "মহিলা মুছুন" }).click();
+  await expect(panjabiLink).toBeVisible();
+  await expect(category).toHaveValue("");
+
+  // Tag and category work together, and stay through a reload.
+  await label(page, "ট্যাগ").selectOption({ label: "ঈদ" });
+  await search.click();
   await expect(kurtiLink).toBeHidden();
   await expect(panjabiLink).toBeVisible();
   await expect(page).toHaveURL(/tagId=/);
   await page.reload();
   await expect(panjabiLink).toBeVisible();
   await expect(kurtiLink).toBeHidden();
+  await expect(label(page, "ট্যাগ")).not.toHaveValue("");
+  await category.selectOption({ label: "মহিলা" });
+  await search.click();
+  await expect(page.getByText("এই খোঁজে কোনো পণ্য পাওয়া যায়নি।")).toBeVisible();
 
-  await page.getByRole("button", { name: "সব", exact: true }).click();
-  await page.getByRole("searchbox", { name: "পণ্য খুঁজুন" }).fill("কুর্তি");
+  // Reset clears everything.
+  await reset.click();
+  await expect(kurtiLink).toBeVisible();
+  await expect(panjabiLink).toBeVisible();
+  await expect(page).not.toHaveURL(/categoryId|tagId/);
+  await expect(category).toHaveValue("");
+
+  // Typing waits too, and Enter searches.
+  const box = page.getByRole("searchbox", { name: "পণ্য খুঁজুন" });
+  await box.fill("কুর্তি");
+  await expect(panjabiLink).toBeVisible();
+  await box.press("Enter");
   await expect(panjabiLink).toBeHidden();
   await expect(kurtiLink).toBeVisible();
   await expect(page).toHaveURL(/q=/);
+  await page.getByRole("button", { name: '"কুর্তি" মুছুন' }).click();
+  await expect(panjabiLink).toBeVisible();
+  await expect(box).toHaveValue("");
 
-  await page.getByRole("searchbox", { name: "পণ্য খুঁজুন" }).fill("কিছুই নেই এমন");
+  await box.fill("কিছুই নেই এমন");
+  await search.click();
   await expect(page.getByText("এই খোঁজে কোনো পণ্য পাওয়া যায়নি।")).toBeVisible();
+  await page.getByRole("button", { name: "রিসেট", exact: true }).last().click();
+  await expect(kurtiLink).toBeVisible();
 });
 
 test("the low-stock list shows what's running low, and links to it", async ({ page }) => {

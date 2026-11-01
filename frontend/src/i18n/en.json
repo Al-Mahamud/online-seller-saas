@@ -137,8 +137,29 @@
     "paymentSaved": "Payment added.",
     "cancelTitle": "Cancel {{number}}?",
     "address": "Address",
-    "byDate": "Filter by date",
-    "readOnlyForm": "The shop is read-only, so new orders can't be taken."
+    "readOnlyForm": "The shop is read-only, so new orders can't be taken.",
+    "list": {
+      "fromChip": "From {{date}}",
+      "toChip": "To {{date}}",
+      "tableLabel": "Order list",
+      "paid": "Paid",
+      "codShort": "COD {{amount}}",
+      "orderColumn": "Order",
+      "itemsColumn": "Items",
+      "statusColumn": "Status",
+      "itemCount": "{{count}}",
+      "cardLine": "{{count}} items · {{date}}"
+    },
+    "detail": {
+      "status": "Order status",
+      "now": "Now: {{status}}",
+      "next": "Next: {{status}}",
+      "call": "Call",
+      "callLabel": "Call {{name}}",
+      "payments": "Payments",
+      "noPayments": "No payments yet.",
+      "sent": "Sent {{time}}"
+    }
   },
   "page": {
     "comingSoon": "This part is coming soon.",
@@ -487,7 +508,6 @@
     "new": "New product",
     "search": "Search products",
     "searchHint": "Search by name or SKU",
-    "all": "All",
     "statusLabel": "Product status",
     "status": {
       "ACTIVE": "Active",
@@ -507,7 +527,6 @@
       "product": "Product",
       "category": "Category",
       "tags": "Tags",
-      "stock": "Stock",
       "price": "Price"
     },
     "details": "Details",
@@ -593,6 +612,14 @@
       "costColumn": "Buying price",
       "onHandColumn": "On hand",
       "reservedColumn": "Set aside"
+    },
+    "list": {
+      "searchButton": "Search",
+      "reset": "Reset",
+      "allCategories": "All categories",
+      "allTags": "All tags",
+      "removeFilter": "Remove {{name}}",
+      "tableLabel": "Product list"
     }
   },
   "stock": {
@@ -616,7 +643,6 @@
     "save": "Save",
     "done": "Stock changed.",
     "nothing": "Enter a number in at least one box.",
-    "badQuantity": "{{name}}: enter a valid number.",
     "after": "{{count}} on hand after",
     "movement": {
       "OPENING": "Opening stock",
@@ -630,7 +656,20 @@
       "UNSALE": "Sale undone",
       "RETURN": "Returned",
       "RETURN_DAMAGED": "Returned damaged"
-    }
+    },
+    "amount": {
+      "RECEIVE": "How many came",
+      "DAMAGE": "How many went",
+      "COUNT": "How many you counted"
+    },
+    "afterColumn": "On hand after",
+    "nowReserved": "{{count}} on hand now · {{reserved}} set aside",
+    "noChange": "Nothing changed yet",
+    "summary_one": "{{change}} in all, across {{variants}} variant",
+    "summary_other": "{{change}} in all, across {{variants}} variants",
+    "badNumber": "Enter a valid number.",
+    "tooManyGone": "Only {{count}} available. You can't take away more than that.",
+    "belowReserved": "{{count}} are set aside for orders. It can't be fewer than that."
   },
   "categories": {
     "title": "Categories and tags",

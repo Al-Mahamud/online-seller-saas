@@ -137,8 +137,29 @@
     "paymentSaved": "পেমেন্ট যোগ হয়েছে।",
     "cancelTitle": "{{number}} বাতিল করবেন?",
     "address": "ঠিকানা",
-    "byDate": "তারিখ দিয়ে খুঁজুন",
-    "readOnlyForm": "দোকানটি এখন শুধু দেখা যাবে, তাই নতুন অর্ডার নেওয়া যাবে না।"
+    "readOnlyForm": "দোকানটি এখন শুধু দেখা যাবে, তাই নতুন অর্ডার নেওয়া যাবে না।",
+    "list": {
+      "fromChip": "{{date}} থেকে",
+      "toChip": "{{date}} পর্যন্ত",
+      "tableLabel": "অর্ডারের তালিকা",
+      "paid": "পরিশোধিত",
+      "codShort": "COD {{amount}}",
+      "orderColumn": "অর্ডার",
+      "itemsColumn": "পণ্য",
+      "statusColumn": "অবস্থা",
+      "itemCount": "{{count}}টি",
+      "cardLine": "{{count}}টি পণ্য · {{date}}"
+    },
+    "detail": {
+      "status": "অর্ডারের অবস্থা",
+      "now": "এখন: {{status}}",
+      "next": "পরের ধাপ: {{status}}",
+      "call": "ফোন করুন",
+      "callLabel": "{{name}}: ফোন করুন",
+      "payments": "পেমেন্ট",
+      "noPayments": "এখনো কোনো পেমেন্ট নেই।",
+      "sent": "{{time}} পাঠানো"
+    }
   },
   "page": {
     "comingSoon": "এই অংশটি শীঘ্রই আসছে।",
@@ -487,7 +508,6 @@
     "new": "নতুন পণ্য",
     "search": "পণ্য খুঁজুন",
     "searchHint": "নাম বা SKU দিয়ে খুঁজুন",
-    "all": "সব",
     "statusLabel": "পণ্যের অবস্থা",
     "status": {
       "ACTIVE": "চালু",
@@ -507,7 +527,6 @@
       "product": "পণ্য",
       "category": "ক্যাটাগরি",
       "tags": "ট্যাগ",
-      "stock": "স্টক",
       "price": "দাম"
     },
     "details": "বিবরণ",
@@ -593,6 +612,14 @@
       "costColumn": "কেনা দাম",
       "onHandColumn": "হাতে",
       "reservedColumn": "আলাদা"
+    },
+    "list": {
+      "searchButton": "খুঁজুন",
+      "reset": "রিসেট",
+      "allCategories": "সব ক্যাটাগরি",
+      "allTags": "সব ট্যাগ",
+      "removeFilter": "{{name}} মুছুন",
+      "tableLabel": "পণ্যের তালিকা"
     }
   },
   "stock": {
@@ -616,7 +643,6 @@
     "save": "সংরক্ষণ করুন",
     "done": "স্টক বদলানো হয়েছে।",
     "nothing": "অন্তত একটি ঘরে সংখ্যা লিখুন।",
-    "badQuantity": "{{name}}: সঠিক একটি সংখ্যা লিখুন।",
     "after": "এরপর হাতে {{count}}",
     "movement": {
       "OPENING": "শুরুর স্টক",
@@ -630,7 +656,20 @@
       "UNSALE": "বিক্রি বাতিল",
       "RETURN": "ফেরত এসেছে",
       "RETURN_DAMAGED": "নষ্ট অবস্থায় ফেরত"
-    }
+    },
+    "amount": {
+      "RECEIVE": "কতগুলো এলো",
+      "DAMAGE": "কতগুলো গেল",
+      "COUNT": "গুনে কত পেলেন"
+    },
+    "afterColumn": "এরপর হাতে",
+    "nowReserved": "এখন হাতে {{count}} · আলাদা {{reserved}}",
+    "noChange": "এখনো কিছু বদলায়নি",
+    "summary_one": "{{variants}}টি ভ্যারিয়েন্টে মোট {{change}}টি",
+    "summary_other": "{{variants}}টি ভ্যারিয়েন্টে মোট {{change}}টি",
+    "badNumber": "সঠিক একটি সংখ্যা লিখুন।",
+    "tooManyGone": "বিক্রয়যোগ্য আছে মাত্র {{count}}টি। এর বেশি বাদ দেওয়া যাবে না।",
+    "belowReserved": "অর্ডারের জন্য {{count}}টি আলাদা আছে। এর কম হতে পারবে না।"
   },
   "categories": {
     "title": "ক্যাটাগরি ও ট্যাগ",

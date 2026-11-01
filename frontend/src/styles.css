@@ -1,11 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* shadcn/ui's dark: styles follow a .dark class nobody sets, not the device's setting: the app has no dark look yet. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * Mojud's look, from the reviewed mockup (frontend-plan.md, "Look"): green #0B6B4F, ink #17201B,
  * ground #F6F7F5, Hind Siliguri. shadcn/ui components read these tokens. Light only for now.
  */
 :root {
+  color-scheme: light;
   --radius: 0.625rem;
   --background: #f6f7f5;
   --foreground: #17201b;

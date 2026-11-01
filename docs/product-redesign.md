@@ -1,6 +1,6 @@
 # Product pages redesign
 
-Nov 1, 2026 · **Status: the new product page and the product detail page are built on branch `product-variants`. Not yet tried on a real server, on a real phone or with sellers.** Add later changes to this document's change log.
+Nov 1, 2026 · **Status: the new product page, the product detail page, the change stock dialog and the products list are built on branch `product-variants`. Not yet tried on a real server, on a real phone or with sellers.** Add later changes to this document's change log.
 
 Design: [Mojud new product design](https://claude.ai/artifact/JnTNBkY6Jz3BCPpFqNExAD) (laptop, phone, and the problems a form can show).
 
@@ -65,6 +65,46 @@ Proposed by Claude. Change any of these by saying so:
 
 **Not redrawn.** The stock, photo, history and variant dialogs work as before.
 
+## Change stock dialog
+
+Design: [Mojud change stock design](https://claude.ai/artifact/8hvkLYvbxFpHzWaw6ryTjw) (laptop, phone, and its problems). Built on `product-variants`.
+
+Proposed by Claude. Change any of these by saying so:
+
+| Proposal | Detail |
+|---|---|
+| Three cards | What happened: + new stock came, − damaged or lost, = counted. |
+| On hand after | Each row shows the stock it will leave as it's typed; the footer adds them up. |
+| Problems on the row | The server's rules, shown before saving: damage up to what's available, a count down to what's set aside. |
+| Cancel | A button on laptops. On phones the dialog fills the screen and the cross closes it. |
+
+**No backend change.** The server still checks everything. If stock changed while the dialog was open, its refusal shows above the form and the rows take the latest numbers.
+
+## Products list
+
+Design: [Mojud product list design](https://claude.ai/artifact/5RhXt6upQdQrPVVzZJXohk) (laptop, phone, and nothing found). Built on `product-variants`. No backend change.
+
+Decided by Al Mahamud:
+
+| Decision | Detail |
+|---|---|
+| Search panel | A panel with the search, its filters, and search and reset buttons. |
+| Table | Redesigned. |
+
+Proposed by Claude. Change any of these by saying so:
+
+| Proposal | Detail |
+|---|---|
+| Search on the button | The list changes on খুঁজুন or Enter, not while typing. The চালু / আর্কাইভ switch changes it at once. |
+| Filters | Category and tag dropdowns, which can now be combined. Chips below the panel show what's applied, each with an ×. |
+| Reset | Clears the search, category and tag, and goes back to চালু. |
+| Whole row | Anywhere on a row opens the product. |
+| Left out | Sorting and a total count, which need backend work. |
+
+The search stays in the address, so a refresh, the back button or a shared link keeps it. The other lists (orders, customers) keep their old search box that follows the typing.
+
+**Different from the drawing.** The phone header stays white above the dark area, as on Today.
+
 ## Known limits
 
 - **`PUT /api/v1/products/{id}/options`** is still there and still tested, but the app no longer calls it. On a product made from rows it would create the missing combinations. Remove it once nothing needs it.
@@ -80,3 +120,5 @@ All of it is in `frontend/src/i18n/bn.json` and `en.json` under `products.varian
 - **Nov 1, 2026:** designed for laptop and phone, with the problems a form can show. The profit column was removed on review.
 - **Nov 1, 2026:** built in the backend and the web app.
 - **Nov 1, 2026:** product detail page designed and built.
+- **Nov 1, 2026:** change stock dialog designed and built.
+- **Nov 1, 2026:** products list designed, with search and reset buttons added on review, and built.

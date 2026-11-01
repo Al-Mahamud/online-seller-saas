@@ -98,7 +98,7 @@ test("takes a new order for a new customer through delivery with COD and a retur
   expect(seconds).toBeLessThan(60);
 
   await expect(toast(page, "অর্ডার নিশ্চিত হয়েছে।")).toBeVisible();
-  await expect(page.getByRole("link", { name: "রহিমা খাতুন" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "রহিমা খাতুন", exact: true })).toBeVisible();
   await expectAccessible(page);
   expect(await available(page.request, kurti.id)).toBe(3);
 
@@ -376,7 +376,7 @@ test("a payment lowers what the courier collects, and cancelling gives the stock
   await label(pay, "ট্রানজেকশন আইডি (ঐচ্ছিক)").fill("TX1");
   await pay.getByRole("button", { name: "পেমেন্ট সংরক্ষণ করুন" }).click();
   await expect(toast(page, "পেমেন্ট যোগ হয়েছে।")).toBeVisible();
-  await expect(page.getByText(/নগদ · TX1/)).toBeVisible();
+  await expect(page.getByText(/TX1/)).toBeVisible();
   await expect(page.locator("dd").filter({ hasText: "৳১,০০০" })).toBeVisible();
 
   await page.getByRole("button", { name: "অর্ডার বাতিল করুন" }).click();
@@ -408,17 +408,30 @@ test("the list counts by status, filters, and packs and ships together, telling 
   // By number and by phone, however they're typed; the counts follow.
   await tabs.getByRole("link", { name: "সব ৪" }).click();
   const search = page.getByRole("searchbox", { name: "অর্ডার খুঁজুন" });
+  const find = page.getByRole("button", { name: "খুঁজুন", exact: true });
   await search.fill(one.phone);
+  // Typing only waits in the panel, until the button or Enter.
+  await expect(page.getByRole("link", { name: /দ্বিতীয়/ })).toBeVisible();
+  await find.click();
   await expect(page.getByRole("link", { name: /প্রথম/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /দ্বিতীয়/ })).toHaveCount(0);
   await expect(tabs.getByRole("link", { name: "সব ১" })).toBeVisible();
+  await expect(page).toHaveURL(/q=/);
+  await expectAccessible(page);
   await search.fill(two.label);
+  await search.press("Enter");
   await expect(page.getByRole("link", { name: /দ্বিতীয়/ })).toBeVisible();
-  await search.fill("");
-  await page.getByText("তারিখ দিয়ে খুঁজুন").click();
+  // A chip takes the search off.
+  await page.getByRole("button", { name: /মুছুন$/ }).click();
+  await expect(search).toHaveValue("");
+  await expect(tabs.getByRole("link", { name: "সব ৪" })).toBeVisible();
+  // Nothing in these dates, and a way back.
   await label(page, "তারিখ পর্যন্ত").fill("2020-01-01");
+  await find.click();
   await expect(page.getByText("এই খোঁজে কোনো অর্ডার নেই।")).toBeVisible();
-  await label(page, "তারিখ পর্যন্ত").fill("");
+  await page.getByRole("button", { name: "রিসেট", exact: true }).last().click();
+  await expect(tabs.getByRole("link", { name: "সব ৪" })).toBeVisible();
+  await expect(label(page, "তারিখ পর্যন্ত")).toHaveValue("");
 
   // Pack two; one of them is cancelled by someone else first.
   await tabs.getByRole("link", { name: /^নিশ্চিত/ }).click();

@@ -1,23 +1,36 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
-import { Printer } from "lucide-react";
+import { Phone, Printer } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { api, call } from "@/api/client";
 import { ApiError } from "@/api/errors";
-import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { usePlaceName } from "@/features/delivery/geo";
 import { useFormat } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { type Order, orderChanged, orderErrorText, orderQuery, slipsUrl, stillOut } from "./api";
 import { BackToOrders } from "./BackToOrders";
 import { CancelDialog, DeliverDialog, PaymentDialog, ReturnDialog, ShipDialog } from "./OrderDialogs";
 import { StatusBadge } from "./StatusBadge";
+import type { OrderStatus } from "./search";
 
 const route = getRouteApi("/_app/orders/$orderId/");
 
 type DialogName = "ship" | "deliver" | "failed" | "return" | "payment" | "cancel";
+
+const ON_DARK_FOCUS = "focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-marigold-text";
+const CARD = "flex flex-col gap-2.5 rounded-[14px] border bg-card p-3.5 md:px-5 md:py-4";
+const MAIN_ACTION = cn(
+  "h-13 cursor-pointer rounded-[10px] bg-marigold-text px-4.5 text-lg font-bold text-ledger hover:bg-marigold disabled:opacity-60 md:h-11.5 md:text-base",
+  ON_DARK_FOCUS,
+);
+const SECOND_ACTION = cn(
+  "h-11.5 cursor-pointer rounded-[10px] border-[1.5px] border-ledger-text px-3.5 text-base font-semibold text-white hover:bg-white/10 disabled:opacity-60 md:text-[15px]",
+  ON_DARK_FOCUS,
+);
+const FLOW: OrderStatus[] = ["DRAFT", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED"];
 
 export function OrderPage() {
   const { t } = useTranslation();
@@ -60,76 +73,149 @@ export function OrderPage() {
   const canReturn = order.status === "DELIVERED" && [...stillOut(order).values()].some((count) => count > 0);
   const canShip =
     order.status === "CONFIRMED" || order.status === "PACKED" || (order.status === "RETURNED" && !order.deliveredAt);
-  return (
-    <div className="flex max-w-2xl flex-col gap-4">
-      <div>
-        <BackToOrders />
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{format.orderNumber(order.numberLabel)}</h1>
-          <StatusBadge status={order.status} />
-        </div>
-        <p className="text-muted-foreground">{format.dateTime(order.createdAt)}</p>
-      </div>
 
-      <div className="flex flex-wrap gap-2">
-        {order.status === "DRAFT" && (
-          <Button disabled={step.isPending} onClick={() => step.mutate({ path: "confirm", current: order })}>
-            {t("orders.confirm")}
-          </Button>
-        )}
-        {order.status === "CONFIRMED" && (
-          <Button disabled={step.isPending} onClick={() => step.mutate({ path: "pack", current: order })}>
-            {t("orders.pack")}
-          </Button>
-        )}
-        {canShip && (
-          <Button variant={order.status === "CONFIRMED" ? "outline" : "default"} onClick={() => setDialog("ship")}>
-            {t(order.status === "RETURNED" ? "orders.shipAgain" : "orders.ship")}
-          </Button>
-        )}
-        {order.status === "SHIPPED" && <Button onClick={() => setDialog("deliver")}>{t("orders.deliver")}</Button>}
-        {order.status === "SHIPPED" && (
-          <Button variant="outline" onClick={() => setDialog("failed")}>
-            {t("orders.failedDelivery")}
-          </Button>
-        )}
-        {canReturn && (
-          <Button variant="outline" onClick={() => setDialog("return")}>
-            {t("orders.customerReturn")}
-          </Button>
-        )}
-        {payable && (
-          <Button variant="outline" onClick={() => setDialog("payment")}>
-            {t("orders.addPayment")}
-          </Button>
-        )}
-        {editable && (
-          <Button asChild variant="outline">
-            <Link to="/orders/$orderId/edit" params={{ orderId: order.id }}>
-              {t("orders.edit")}
-            </Link>
-          </Button>
-        )}
-        <Button asChild variant="outline">
-          <a href={slipsUrl([order.id])} target="_blank" rel="noopener">
-            <Printer aria-hidden="true" />
-            {t("orders.printSlip")}
-          </a>
+  // The one next step stands out; only what applies to this status is offered.
+  const actions = (
+    <div className="flex flex-col gap-2 md:flex-[1_1_240px] md:flex-row-reverse md:flex-wrap">
+      {order.status === "DRAFT" && (
+        <button
+          type="button"
+          className={MAIN_ACTION}
+          disabled={step.isPending}
+          onClick={() => step.mutate({ path: "confirm", current: order })}
+        >
+          {t("orders.confirm")}
+        </button>
+      )}
+      {order.status === "CONFIRMED" && (
+        <button
+          type="button"
+          className={MAIN_ACTION}
+          disabled={step.isPending}
+          onClick={() => step.mutate({ path: "pack", current: order })}
+        >
+          {t("orders.pack")}
+        </button>
+      )}
+      {canShip && (
+        <button
+          type="button"
+          className={order.status === "CONFIRMED" ? SECOND_ACTION : MAIN_ACTION}
+          onClick={() => setDialog("ship")}
+        >
+          {t(order.status === "RETURNED" ? "orders.shipAgain" : "orders.ship")}
+        </button>
+      )}
+      {order.status === "SHIPPED" && (
+        <button type="button" className={MAIN_ACTION} onClick={() => setDialog("deliver")}>
+          {t("orders.deliver")}
+        </button>
+      )}
+      {order.status === "SHIPPED" && (
+        <button type="button" className={SECOND_ACTION} onClick={() => setDialog("failed")}>
+          {t("orders.failedDelivery")}
+        </button>
+      )}
+      {canReturn && (
+        <button type="button" className={SECOND_ACTION} onClick={() => setDialog("return")}>
+          {t("orders.customerReturn")}
+        </button>
+      )}
+    </div>
+  );
+  const smallButton = "h-11 rounded-[10px] border-[1.5px] text-[15px] font-semibold max-md:h-12 max-md:text-base";
+  const tools = (
+    <>
+      {payable && (
+        <Button variant="outline" className={smallButton} onClick={() => setDialog("payment")}>
+          {t("orders.addPayment")}
         </Button>
-        {(editable || order.status === "PACKED") && (
-          <Button variant="outline" onClick={() => setDialog("cancel")}>
-            {t("orders.cancel")}
-          </Button>
-        )}
+      )}
+      {editable && (
+        <Button asChild variant="outline" className={smallButton}>
+          <Link
+            to="/orders/$orderId/edit"
+            params={{ orderId: order.id }}
+            className="text-foreground no-underline hover:text-foreground"
+          >
+            {t("orders.edit")}
+          </Link>
+        </Button>
+      )}
+      <Button asChild variant="outline" className={smallButton}>
+        <a
+          href={slipsUrl([order.id])}
+          target="_blank"
+          rel="noopener"
+          className="text-foreground no-underline hover:text-foreground"
+        >
+          <Printer aria-hidden="true" />
+          {t("orders.printSlip")}
+        </a>
+      </Button>
+    </>
+  );
+  return (
+    <div className="flex w-full flex-col gap-4">
+      {/* On phones the title, the progress and the next step share one dark header. */}
+      <div className="max-md:relative max-md:-mx-4 max-md:-mt-4 max-md:flex max-md:flex-col max-md:gap-3 max-md:bg-ledger max-md:pt-1 max-md:pr-4.5 max-md:pb-8.5 max-md:pl-6.5 max-md:text-white md:contents">
+        <div aria-hidden="true" className="absolute inset-y-0 left-2.5 w-0.5 bg-marigold md:hidden" />
+        <div className="flex flex-wrap items-end justify-between gap-x-5 gap-y-2.5">
+          <div>
+            <div className="max-md:[&_a]:text-marigold-text">
+              <BackToOrders />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className="text-[28px] leading-tight font-bold md:text-[32px]">
+                {format.orderNumber(order.numberLabel)}
+              </h1>
+              <StatusBadge status={order.status} />
+            </div>
+            <p className="text-[15px] max-md:text-ledger-text md:text-muted-foreground">
+              {format.dateTime(order.createdAt)}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2.5 max-md:hidden">{tools}</div>
+        </div>
+        <section
+          aria-label={t("orders.detail.status")}
+          className="flex flex-col gap-3 md:relative md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-x-8 md:gap-y-4 md:overflow-hidden md:rounded-2xl md:bg-ledger md:py-5 md:pr-6 md:pl-14 md:text-white"
+        >
+          <div aria-hidden="true" className="absolute inset-y-0 left-7 hidden w-0.5 bg-marigold md:block" />
+          <Progress order={order} />
+          {actions}
+        </section>
       </div>
 
-      {order.cancelReason && <p className="rounded-lg bg-muted p-3">{order.cancelReason}</p>}
-
-      <Parties order={order} />
-      <Items order={order} />
-      <Money order={order} />
-      <Shipments order={order} />
-      <Timeline order={order} />
+      <div className="flex flex-col gap-3.5 max-md:relative max-md:-mx-4 max-md:-mt-7.5 max-md:rounded-t-3xl max-md:bg-background max-md:px-3.5 max-md:pt-4 md:gap-4">
+        {order.cancelReason && (
+          <p className="rounded-[10px] bg-muted px-3.5 py-3">
+            <span className="font-semibold">{t("orders.reason")}:</span> {order.cancelReason}
+          </p>
+        )}
+        {/* Two columns on a laptop. On phones the customer comes first, for calling and packing. */}
+        <div className="flex flex-col gap-3.5 lg:flex-row lg:items-start lg:gap-4">
+          <div className="contents lg:flex lg:min-w-0 lg:flex-[7_1_0%] lg:flex-col lg:gap-4">
+            <Items order={order} />
+            <Timeline order={order} />
+          </div>
+          <div className="contents lg:flex lg:min-w-0 lg:flex-[5_1_0%] lg:flex-col lg:gap-4">
+            <Parties order={order} />
+            <Shipments order={order} />
+            <Payments order={order} />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 md:hidden">{tools}</div>
+        {(editable || order.status === "PACKED") && (
+          <button
+            type="button"
+            className="min-h-11 w-fit cursor-pointer self-center rounded-[10px] px-3 text-[15px] font-semibold text-destructive hover:bg-danger-soft md:self-end"
+            onClick={() => setDialog("cancel")}
+          >
+            {t("orders.cancel")}
+          </button>
+        )}
+      </div>
 
       {dialog === "ship" && <ShipDialog order={order} onClose={close} />}
       {dialog === "deliver" && <DeliverDialog order={order} onClose={close} />}
@@ -141,6 +227,116 @@ export function OrderPage() {
   );
 }
 
+type Stage = { status: OrderStatus; at: string | null; state: "done" | "now" | "later" };
+
+/** The steps this order took or has ahead. A step may have been skipped: confirmed goes straight to the courier. */
+function stagesOf(order: Order): Stage[] {
+  const times: Partial<Record<OrderStatus, string | null | undefined>> = {
+    DRAFT: order.createdAt,
+    CONFIRMED: order.confirmedAt,
+    PACKED: order.packedAt,
+    SHIPPED: order.shippedAt,
+    DELIVERED: order.deliveredAt,
+    RETURNED: order.returnedAt,
+    CANCELLED: order.cancelledAt,
+  };
+  const at = (status: OrderStatus) => times[status] ?? null;
+  if (order.status === "CANCELLED") {
+    return [
+      ...FLOW.filter((status) => at(status)).map((status): Stage => ({ status, at: at(status), state: "done" })),
+      { status: "CANCELLED", at: at("CANCELLED"), state: "now" },
+    ];
+  }
+  if (order.status === "RETURNED") {
+    return [
+      ...FLOW.filter((status) => status !== "DELIVERED" || at(status)).map(
+        (status): Stage => ({ status, at: at(status), state: "done" }),
+      ),
+      { status: "RETURNED", at: at("RETURNED"), state: "now" },
+    ];
+  }
+  const current = FLOW.indexOf(order.status);
+  return FLOW.map((status, index) => ({
+    status,
+    at: index <= current ? at(status) : null,
+    state: index < current ? "done" : index === current ? "now" : "later",
+  }));
+}
+
+function Progress({ order }: { order: Order }) {
+  const { t } = useTranslation();
+  const format = useFormat();
+  const stages = stagesOf(order);
+  const next = stages.find((stage) => stage.state === "later");
+  return (
+    <>
+      {/* A short bar on phones, where the five names wouldn't fit. */}
+      <div className="flex flex-col gap-1.5 md:hidden">
+        <div aria-hidden="true" className="grid auto-cols-fr grid-flow-col gap-1">
+          {stages.map((stage) => (
+            <div
+              key={stage.status}
+              className={cn("h-1.25 rounded-full", stage.state === "later" ? "bg-ledger-outline" : "bg-marigold")}
+            />
+          ))}
+        </div>
+        <p className="flex flex-wrap items-baseline justify-between gap-x-2.5">
+          <span className="text-[15px] font-bold text-marigold-text">
+            {t("orders.detail.now", { status: t(`orderStatus.${order.status}`) })}
+          </span>
+          {next && (
+            <span className="text-sm text-ledger-text">
+              {t("orders.detail.next", { status: t(`orderStatus.${next.status}`) })}
+            </span>
+          )}
+        </p>
+      </div>
+      <ol
+        className="hidden min-w-0 flex-[3_1_480px] grid-flow-col pt-1.75 md:grid"
+        style={{ gridAutoColumns: "minmax(0, 1fr)" }}
+      >
+        {stages.map((stage, index) => (
+          <li
+            key={stage.status}
+            aria-current={stage.state === "now" ? "step" : undefined}
+            className={cn(
+              "relative border-t-2 pt-3.5 pr-2",
+              index === stages.length - 1
+                ? "border-transparent"
+                : stage.state === "done"
+                  ? "border-marigold"
+                  : "border-ledger-outline",
+            )}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "absolute rounded-full",
+                stage.state === "now"
+                  ? "-top-2.75 -left-0.75 size-5 border-[5px] border-marigold bg-white"
+                  : "-top-2 left-0 size-3.5",
+                stage.state === "done" && "bg-marigold",
+                stage.state === "later" && "border-2 border-ledger-outline bg-ledger",
+              )}
+            />
+            <p
+              className={cn(
+                "text-[15px]",
+                stage.state === "now" && "font-bold text-marigold-text",
+                stage.state === "done" && "font-semibold",
+                stage.state === "later" && "text-ledger-text",
+              )}
+            >
+              {t(`orderStatus.${stage.status}`)}
+            </p>
+            {stage.at && <p className="text-[13px] text-ledger-text">{format.dateTime(stage.at)}</p>}
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
 function Parties({ order }: { order: Order }) {
   const { t } = useTranslation();
   const format = useFormat();
@@ -149,74 +345,94 @@ function Parties({ order }: { order: Order }) {
   const place = [delivery.area, delivery.district].flatMap((part) => (part ? [placeName(part)] : [])).join(", ");
   const otherRecipient = delivery.name !== customer.name || delivery.phone !== customer.phone;
   return (
-    <Section title={t("orders.customer")}>
-      <div className="flex flex-col gap-1">
-        <Link
-          to="/customers/$customerId"
-          params={{ customerId: customer.id }}
-          className="w-fit font-semibold text-primary"
+    <section aria-labelledby="order-customer" className={cn(CARD, "max-lg:order-first")}>
+      <h2 id="order-customer" className="text-[19px] font-bold">
+        {t("orders.customer")}
+      </h2>
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="min-w-0">
+          <Link
+            to="/customers/$customerId"
+            params={{ customerId: customer.id }}
+            className="block w-fit font-bold text-primary"
+          >
+            {customer.name}
+          </Link>
+          <p className="text-[15px] text-[#2B342F]">{format.phone(customer.phone)}</p>
+        </div>
+        <a
+          href={`tel:${customer.phone}`}
+          aria-label={t("orders.detail.callLabel", { name: customer.name })}
+          className="flex h-11 flex-none items-center gap-1.5 rounded-[10px] border-[1.5px] border-primary px-3 text-[15px] font-semibold text-primary no-underline hover:bg-accent"
         >
-          {customer.name}
-        </Link>
-        <a href={`tel:${customer.phone}`} className="w-fit text-primary">
-          {format.phone(customer.phone)}
+          <Phone aria-hidden="true" className="size-4.5" />
+          {t("orders.detail.call")}
         </a>
-        {otherRecipient && (
-          <p className="mt-2">
-            {t("orders.goesTo")}: <span className="font-semibold">{delivery.name}</span>{" "}
-            <a href={`tel:${delivery.phone}`} className="text-primary">
-              {format.phone(delivery.phone)}
-            </a>
-          </p>
-        )}
-        {delivery.address && <p className="mt-2 whitespace-pre-wrap">{delivery.address}</p>}
-        {place && <p className="text-muted-foreground">{place}</p>}
-        {order.note && <p className="mt-2 rounded-lg bg-muted p-2 text-sm whitespace-pre-wrap">{order.note}</p>}
       </div>
-    </Section>
-  );
-}
-
-function Items({ order }: { order: Order }) {
-  const { t } = useTranslation();
-  const format = useFormat();
-  return (
-    <Section title={t("orders.items")}>
-      <ul className="flex flex-col">
-        {order.items.map((item) => (
-          <li key={item.id} className="flex items-start justify-between gap-3 border-t py-2 first:border-t-0">
-            <span className="min-w-0">
-              <span className="block font-medium break-words">
-                {[item.productName, item.variantLabel].filter(Boolean).join(" · ")}
-              </span>
-              <span className="block text-sm text-muted-foreground">
-                {format.number(item.quantity)} × {format.taka(item.unitPrice)}
-              </span>
-            </span>
-            <span className="flex-none font-semibold">{format.taka(item.amount)}</span>
-          </li>
-        ))}
-      </ul>
-    </Section>
+      {(otherRecipient || delivery.address || place) && (
+        <div className="border-t pt-2.5">
+          <p className="text-sm text-muted-foreground">{t("orders.deliverTo")}</p>
+          {otherRecipient && (
+            <p className="mt-0.5">
+              <span className="font-semibold">{delivery.name}</span>{" "}
+              <a href={`tel:${delivery.phone}`} className="text-primary">
+                {format.phone(delivery.phone)}
+              </a>
+            </p>
+          )}
+          {delivery.address && <p className="mt-0.5 text-[15px] whitespace-pre-wrap">{delivery.address}</p>}
+          {place && <p className="text-[15px]">{place}</p>}
+        </div>
+      )}
+      {order.note && <p className="rounded-lg bg-muted px-2.5 py-2 text-sm whitespace-pre-wrap">{order.note}</p>}
+    </section>
   );
 }
 
 function Line({ label, children, strong }: { label: string; children: ReactNode; strong?: boolean }) {
   return (
-    <div className={`flex justify-between gap-3 ${strong ? "border-t pt-2 font-bold" : ""}`}>
+    <div className={cn("flex justify-between gap-3", strong && "border-t pt-1.5 font-bold")}>
       <dt>{label}</dt>
       <dd>{children}</dd>
     </div>
   );
 }
 
-function Money({ order }: { order: Order }) {
+/** A big line for what's still to happen with the money. */
+function Due({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="mt-1.5 flex items-center justify-between gap-2.5 rounded-[10px] bg-accent px-3 py-2.5 text-base font-bold text-accent-foreground md:text-[17px]">
+      <dt>{label}</dt>
+      <dd className="text-[19px] md:text-xl">{children}</dd>
+    </div>
+  );
+}
+
+function Items({ order }: { order: Order }) {
   const { t } = useTranslation();
   const format = useFormat();
   const settled = order.status === "DELIVERED" || order.status === "RETURNED";
   return (
-    <Section title={t("orders.money")}>
-      <dl className="flex flex-col gap-1">
+    <section aria-labelledby="order-items" className={cn(CARD, "gap-0")}>
+      <h2 id="order-items" className="mb-2 text-[19px] font-bold">
+        {t("orders.items")}
+      </h2>
+      <ul className="flex flex-col">
+        {order.items.map((item) => (
+          <li key={item.id} className="flex items-center justify-between gap-3 border-t py-2.25">
+            <span className="min-w-0">
+              <span className="block font-semibold break-words">{item.productName}</span>
+              <span className="block text-sm text-muted-foreground">
+                {[item.variantLabel, `${format.number(item.quantity)} × ${format.taka(item.unitPrice)}`]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </span>
+            <span className="flex-none font-bold">{format.taka(item.amount)}</span>
+          </li>
+        ))}
+      </ul>
+      <dl className="flex flex-col gap-1 border-t pt-2.5 text-[15px]">
         <Line label={t("orders.subtotal")}>{format.taka(order.subtotal)}</Line>
         {order.discount > 0 && <Line label={t("orders.discountShort")}>−{format.taka(order.discount)}</Line>}
         <Line label={t("orders.deliveryChargeShort")}>{format.taka(order.deliveryCharge)}</Line>
@@ -225,36 +441,41 @@ function Money({ order }: { order: Order }) {
         </Line>
         {order.returnCredit > 0 && <Line label={t("orders.returnCredit")}>−{format.taka(order.returnCredit)}</Line>}
         {order.amountPaid !== 0 && <Line label={t("orders.amountPaid")}>{format.taka(order.amountPaid)}</Line>}
-        {!settled && order.status !== "CANCELLED" && (
-          <Line label={t("orders.cod")} strong>
-            {format.taka(order.codAmount)}
-          </Line>
-        )}
-        {settled && order.balanceDue > 0 && (
-          <Line label={t("orders.balanceDue")} strong>
-            {format.taka(order.balanceDue)}
-          </Line>
-        )}
-        {order.balanceDue < 0 && (
-          <Line label={t("orders.refundDue")} strong>
-            {format.taka(-order.balanceDue)}
-          </Line>
-        )}
+        {!settled && order.status !== "CANCELLED" && <Due label={t("orders.cod")}>{format.taka(order.codAmount)}</Due>}
+        {settled && order.balanceDue > 0 && <Due label={t("orders.balanceDue")}>{format.taka(order.balanceDue)}</Due>}
+        {order.balanceDue < 0 && <Due label={t("orders.refundDue")}>{format.taka(-order.balanceDue)}</Due>}
       </dl>
+    </section>
+  );
+}
+
+function Payments({ order }: { order: Order }) {
+  const { t } = useTranslation();
+  const format = useFormat();
+  return (
+    <section aria-labelledby="order-payments" className={CARD}>
+      <h2 id="order-payments" className="text-[19px] font-bold">
+        {t("orders.detail.payments")}
+      </h2>
+      {order.payments.length === 0 && (
+        <p className="text-[15px] text-muted-foreground">{t("orders.detail.noPayments")}</p>
+      )}
       {order.payments.length > 0 && (
-        <ul className="flex flex-col gap-1 border-t pt-2 text-sm text-muted-foreground">
+        <ul className="flex flex-col">
           {order.payments.map((payment) => (
-            <li key={payment.id} className="flex justify-between gap-3">
-              <span>
-                {t(`paymentMethod.${payment.method}`)}
-                {payment.reference && ` · ${payment.reference}`} · {format.date(payment.receivedAt)}
+            <li key={payment.id} className="flex justify-between gap-3 border-t py-2 text-[15px]">
+              <span className="min-w-0">
+                <span className="block font-semibold">{t(`paymentMethod.${payment.method}`)}</span>
+                <span className="block text-sm text-muted-foreground">
+                  {[payment.reference, format.date(payment.receivedAt)].filter(Boolean).join(" · ")}
+                </span>
               </span>
-              <span>{format.taka(payment.amount)}</span>
+              <span className="flex-none font-bold">{format.taka(payment.amount)}</span>
             </li>
           ))}
         </ul>
       )}
-    </Section>
+    </section>
   );
 }
 
@@ -265,17 +486,22 @@ function Shipments({ order }: { order: Order }) {
     return null;
   }
   return (
-    <Section title={t("orders.shipments")}>
-      <ul className="flex flex-col gap-3">
+    <section aria-labelledby="order-courier" className={CARD}>
+      <h2 id="order-courier" className="text-[19px] font-bold">
+        {t("orders.shipments")}
+      </h2>
+      <ul className="flex flex-col gap-2.5">
         {order.shipments.map((shipment) => (
-          <li key={shipment.id} className="border-t pt-3 first:border-t-0 first:pt-0">
-            <p className="font-semibold">
-              {shipment.courier}
-              {shipment.trackingNo && <span className="font-normal"> · {shipment.trackingNo}</span>}
+          <li key={shipment.id} className="border-t pt-2.5 first:border-t-0 first:pt-0">
+            <p className="flex flex-wrap items-baseline justify-between gap-x-2.5">
+              <span className="font-bold">{shipment.courier}</span>
+              {shipment.trackingNo && <span className="text-[15px] text-[#2B342F]">{shipment.trackingNo}</span>}
             </p>
-            <p className="text-sm text-muted-foreground">{format.dateTime(shipment.shippedAt)}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("orders.detail.sent", { time: format.dateTime(shipment.shippedAt) })}
+            </p>
             {shipment.codExpected > 0 && (
-              <p>
+              <p className="text-[15px] font-semibold">
                 {shipment.codCollected === null
                   ? t("orders.codToCollect", { amount: format.taka(shipment.codExpected) })
                   : t("orders.codCollected", { amount: format.taka(shipment.codCollected) })}
@@ -285,7 +511,7 @@ function Shipments({ order }: { order: Order }) {
           </li>
         ))}
       </ul>
-    </Section>
+    </section>
   );
 }
 
@@ -317,14 +543,18 @@ function Timeline({ order }: { order: Order }) {
         .join("\n"),
       by: null,
     })),
-  ].sort((a, b) => a.at.localeCompare(b.at));
+    // The latest first.
+  ].sort((a, b) => b.at.localeCompare(a.at));
   return (
-    <Section title={t("orders.timeline")}>
-      <ol className="flex flex-col gap-3">
+    <section aria-labelledby="order-history" className={cn(CARD, "gap-0 max-lg:order-last")}>
+      <h2 id="order-history" className="mb-2 text-[19px] font-bold">
+        {t("orders.timeline")}
+      </h2>
+      <ol className="flex flex-col">
         {steps.map((step) => (
-          <li key={step.key} className="border-l-2 border-primary pl-3">
-            <p className="font-semibold">{step.title}</p>
-            {step.detail && <p className="whitespace-pre-wrap">{step.detail}</p>}
+          <li key={step.key} className="border-t py-2 last:pb-0">
+            <p className="text-[15px] font-semibold">{step.title}</p>
+            {step.detail && <p className="text-[15px] whitespace-pre-wrap">{step.detail}</p>}
             <p className="text-sm text-muted-foreground">
               {format.dateTime(step.at)}
               {step.by && ` · ${step.by}`}
@@ -332,6 +562,6 @@ function Timeline({ order }: { order: Order }) {
           </li>
         ))}
       </ol>
-    </Section>
+    </section>
   );
 }
