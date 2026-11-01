@@ -8,6 +8,7 @@ import com.mojud.support.CapturedMessages;
 import com.mojud.support.IntegrationTest;
 import com.mojud.support.TestAccounts;
 import com.mojud.support.TestBusinesses;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -410,5 +411,112 @@ class ProductTests {
         String token = body.substring(body.indexOf("/invites#") + 9).split("\\s")[0];
         staff.post("/api/v1/invites/accept", Map.of("token", token)).expectStatus(200);
         return staff;
+    }
+
+    @Test
+    void eachVariantRowKeepsItsOwnPricesAndStockAndNotEveryCombinationIsMade() {
+        ApiResponse product = owner.post("/api/v1/products", Map.of("name", "Kurti", "variants", List.of(
+                row("Red", "M", 140000, 85000L, 10),
+                row("Red", "L", 145000, 85000L, 8),
+                row("Blue", "M", 150000, 90000L, 12)))).expectStatus(201);
+
+        assertThat(product.<List<String>>json("$.variants[*].label")).containsExactly("Red / M", "Red / L", "Blue / M");
+        assertThat(product.<List<Integer>>json("$.variants[*].price")).containsExactly(140000, 145000, 150000);
+        assertThat(product.<List<Integer>>json("$.variants[*].costPrice")).containsExactly(85000, 85000, 90000);
+        assertThat(product.<List<Integer>>json("$.variants[*].onHand")).containsExactly(10, 8, 12);
+        // No "Blue / L", and each has its own generated SKU.
+        assertThat(product.<List<String>>json("$.variants[*].sku")).doesNotHaveDuplicates().hasSize(3);
+    }
+
+    @Test
+    void aSingleRowMayHaveNoNameOrSizeButSeveralMayNot() {
+        ApiResponse plain = owner.post("/api/v1/products", Map.of("name", "Watch", "variants",
+                List.of(row("", " ", 500000, null, 3)))).expectStatus(201);
+        assertThat(plain.<List<String>>json("$.variants[*].label")).containsExactly("");
+        assertThat(plain.<List<Object>>json("$.options")).isEmpty();
+
+        ApiResponse onlySize = owner.post("/api/v1/products", Map.of("name", "Belt", "variants",
+                List.of(row("", "M", 50000, null, 1), row(null, "L", 50000, null, 1)))).expectStatus(201);
+        assertThat(onlySize.<List<String>>json("$.variants[*].label")).containsExactly("M", "L");
+
+        owner.post("/api/v1/products", Map.of("name", "Bad", "variants",
+                List.of(row("Red", "", 100, null, 0), row("", "", 100, null, 0)))).expectStatus(400);
+        owner.post("/api/v1/products", Map.of("name", "Bad", "variants", List.of())).expectStatus(400);
+        owner.post("/api/v1/products", Map.of("name", "No price")).expectStatus(400);
+    }
+
+    @Test
+    void theSameNameAndSizeTwiceIsRefusedWhateverTheCase() {
+        owner.post("/api/v1/products", Map.of("name", "Kurti", "variants",
+                List.of(row("Red", "M", 100, null, 0), row("red ", "m", 200, null, 0))))
+                .expectError(409, "variant.duplicate");
+    }
+
+    @Test
+    void aVariantCanBeAddedRenamedArchivedAndRestored() {
+        ApiResponse product = owner.post("/api/v1/products", Map.of("name", "Kurti", "variants",
+                List.of(row("Red", "M", 140000, 85000L, 10)))).expectStatus(201);
+        String id = product.json("$.id");
+
+        ApiResponse added = owner.post("/api/v1/products/" + id + "/variants", Map.of("variant",
+                row("Blue", "L", 150000, 90000L, 4))).expectStatus(201);
+        assertThat(added.<List<String>>json("$.variants[*].label")).containsExactly("Red / M", "Blue / L");
+        assertThat(added.<List<Integer>>json("$.variants[*].price")).containsExactly(140000, 150000);
+        assertThat(added.<List<Integer>>json("$.variants[*].onHand")).containsExactly(10, 4);
+
+        owner.post("/api/v1/products/" + id + "/variants", Map.of("variant", row("BLUE", "l", 1, null, 0)))
+                .expectError(409, "variant.duplicate");
+        owner.post("/api/v1/products/" + id + "/variants", Map.of("variant", row("", "", 1, null, 0))).expectStatus(400);
+
+        String blue = added.<List<String>>json("$.variants[*].id").get(1);
+        owner.patch("/api/v1/variants/" + blue, Map.of("name", "Red", "size", "M")).expectError(409, "variant.duplicate");
+        owner.patch("/api/v1/variants/" + blue, Map.of("name", "Navy", "size", "")).expectStatus(200);
+        ApiResponse renamed = owner.get("/api/v1/products/" + id);
+        assertThat(renamed.<List<String>>json("$.variants[*].label")).containsExactly("Red / M", "Navy");
+        // The name, not the SKU, changed; stock and prices stay.
+        assertThat(renamed.<List<Integer>>json("$.variants[*].onHand")).containsExactly(10, 4);
+
+        owner.post("/api/v1/variants/" + blue + "/archive", null).expectStatus(200);
+        owner.post("/api/v1/variants/" + blue + "/restore", null).expectStatus(200);
+    }
+
+    @Test
+    void aNameAddedLaterStillReadsBeforeTheSize() {
+        ApiResponse product = owner.post("/api/v1/products", Map.of("name", "Belt", "variants",
+                List.of(row("", "M", 100, null, 0), row("Red", "L", 100, null, 0)))).expectStatus(201);
+        assertThat(product.<List<String>>json("$.variants[*].label")).containsExactly("M", "Red / L");
+
+        ApiResponse sizes = owner.post("/api/v1/products", Map.of("name", "Cap", "variants",
+                List.of(row("", "M", 100, null, 0)))).expectStatus(201);
+        ApiResponse added = owner.post("/api/v1/products/" + sizes.json("$.id") + "/variants",
+                Map.of("variant", row("Blue", "S", 100, null, 0))).expectStatus(201);
+        assertThat(added.<List<String>>json("$.variants[*].label")).containsExactly("M", "Blue / S");
+    }
+
+    @Test
+    void anOlderProductCannotGoOverThreeOptions() {
+        ApiResponse product = owner.post("/api/v1/products", Map.of("name", "Old", "price", 100, "options", List.of(
+                Map.of("name", "Fit", "values", List.of("Slim")),
+                Map.of("name", "Fabric", "values", List.of("Silk"))))).expectStatus(201);
+
+        owner.post("/api/v1/products/" + product.json("$.id") + "/variants",
+                Map.of("variant", row("Blue", "S", 100, null, 0))).expectStatus(400);
+        // One more option still fits.
+        owner.post("/api/v1/products/" + product.json("$.id") + "/variants",
+                Map.of("variant", row("Blue", "", 100, null, 0))).expectStatus(201);
+    }
+
+    private static Map<String, Object> row(String name, String size, long price, Long cost, int quantity) {
+        Map<String, Object> row = new HashMap<>(Map.of("price", price, "quantity", quantity));
+        if (name != null) {
+            row.put("name", name);
+        }
+        if (size != null) {
+            row.put("size", size);
+        }
+        if (cost != null) {
+            row.put("costPrice", cost);
+        }
+        return row;
     }
 }

@@ -32,9 +32,12 @@ class VariantController {
 
     /**
      * Fields left out stay as they are. An empty {@code sku} generates one; {@code clearCostPrice}
-     * and {@code useDefaultThreshold} clear those. {@code version} refuses a stale change.
+     * and {@code useDefaultThreshold} clear those; an empty {@code name} or {@code size} removes
+     * it. {@code version} refuses a stale change.
      */
     record VariantRequest(
+            @Size(max = 200) String name,
+            @Size(max = 200) String size,
             @Size(max = 200) String sku,
             @PositiveOrZero @Max(ProductController.MAX_POISHA) Long price,
             @PositiveOrZero @Max(ProductController.MAX_POISHA) Long costPrice,
@@ -46,7 +49,7 @@ class VariantController {
 
     @PatchMapping("/{id}")
     ProductViews.Variant update(@PathVariable UUID id, @Valid @RequestBody VariantRequest body) {
-        return products.updateVariant(id, new ProductService.VariantCommand(body.sku(), body.price(), body.costPrice(),
+        return products.updateVariant(id, new ProductService.VariantCommand(body.name(), body.size(), body.sku(), body.price(), body.costPrice(),
                 Boolean.TRUE.equals(body.clearCostPrice()), body.lowStockThreshold(),
                 Boolean.TRUE.equals(body.useDefaultThreshold()), body.version()));
     }

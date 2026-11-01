@@ -3436,9 +3436,15 @@
               "type" : "string"
             },
             "type" : "array"
+          },
+          "variants" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProductVariantRowRequest"
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "name", "price" ],
+        "required" : [ "name" ],
         "type" : "object"
       },
       "ProductDetail" : {
@@ -3612,6 +3618,19 @@
           }
         },
         "required" : [ "at", "availableAfter", "by", "id", "note", "onHandAfter", "onHandChange", "referenceId", "referenceType", "reservedAfter", "reservedChange", "type" ],
+        "type" : "object"
+      },
+      "ProductNewVariantRequest" : {
+        "properties" : {
+          "variant" : {
+            "$ref" : "#/components/schemas/ProductVariantRowRequest"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "variant" ],
         "type" : "object"
       },
       "ProductOption" : {
@@ -3836,6 +3855,40 @@
           }
         },
         "required" : [ "attributes", "available", "id", "label", "lowStockThreshold", "onHand", "price", "reserved", "sku", "status", "version" ],
+        "type" : "object"
+      },
+      "ProductVariantRowRequest" : {
+        "properties" : {
+          "costPrice" : {
+            "format" : "int64",
+            "maximum" : 1000000000000,
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "name" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "price" : {
+            "format" : "int64",
+            "maximum" : 1000000000000,
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "maximum" : 1000000,
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "size" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "price" ],
         "type" : "object"
       },
       "SalesReportsProfit" : {
@@ -4173,11 +4226,21 @@
             "minimum" : 0,
             "type" : "integer"
           },
+          "name" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
           "price" : {
             "format" : "int64",
             "maximum" : 1000000000000,
             "minimum" : 0,
             "type" : "integer"
+          },
+          "size" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
           },
           "sku" : {
             "maxLength" : 200,
@@ -7610,6 +7673,43 @@
               }
             },
             "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/v1/products/{id}/variants" : {
+      "post" : {
+        "operationId" : "addVariant",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProductNewVariantRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDetail"
+                }
+              }
+            },
+            "description" : "Created"
           }
         },
         "tags" : [ "product-controller" ]

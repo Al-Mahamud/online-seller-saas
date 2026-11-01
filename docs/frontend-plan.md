@@ -294,6 +294,8 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
 
 ### F3: Products and stock (5 days)
 
+**Changed Nov 1, 2026:** creating a product and its variants was redesigned; see `product-redesign.md`. Notes below on options describe the first version.
+
 **Builds**
 - **Product list:** as in the mockup; search, category and tag chips, low-stock badge, infinite scroll.
 - **Product editor:**

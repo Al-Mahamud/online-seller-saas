@@ -8,14 +8,12 @@ import { toast } from "sonner";
 import { z } from "zod/mini";
 import { hasRole, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
-import { errorText } from "@/api/query";
 import { FormError, SelectField, TextAreaField, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
 import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { categoriesQuery, flatCategories, type Product, productChanged, productQuery, type Variant } from "./api";
 import { BackToProducts } from "./LowStockPage";
-import { type OptionDraft, OptionsEditor, optionsProblem } from "./OptionsEditor";
 import { ProductImages } from "./ProductImages";
 import { StockDialog } from "./StockDialog";
 import { TagPicker } from "./TagPicker";
@@ -51,7 +49,6 @@ export function ProductPage() {
       </div>
       {manager ? <DetailsSection product={product} /> : <ReadOnlyDetails product={product} />}
       <ProductImages product={product} canEdit={manager} />
-      {manager && <OptionsSection product={product} />}
       <VariantList product={product} canEdit={manager} />
       {changingStock && <StockDialog product={product} onClose={() => setChangingStock(false)} />}
     </div>
@@ -178,62 +175,6 @@ function DetailsSection({ product }: { product: Product }) {
           {t("account.save")}
         </Button>
       </form>
-    </Section>
-  );
-}
-
-function OptionsSection({ product }: { product: Product }) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const saved: OptionDraft[] = product.options.map((option) => ({ ...option }));
-  const [options, setOptions] = useState(saved);
-  const [problem, setProblem] = useState<string>();
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `saved` is rebuilt from the product each render.
-  useEffect(() => setOptions(saved), [product.version]);
-  const save = useMutation({
-    mutationFn: () =>
-      call(
-        api.PUT("/api/v1/products/{id}/options", {
-          params: { path: { id: product.id } },
-          body: {
-            options: options.map((option) => ({ id: option.id, name: option.name.trim(), values: option.values })),
-            version: product.version,
-          },
-        }),
-      ),
-    meta: { showsOwnErrors: true },
-    onSuccess: (updated) => {
-      productChanged(queryClient, updated);
-      toast.success(t("account.saved"));
-    },
-    onError: (error) => {
-      setProblem(errorText(error));
-      void queryClient.invalidateQueries(productQuery(product.id));
-    },
-  });
-  const changed = JSON.stringify(options) !== JSON.stringify(saved);
-  return (
-    <Section title={t("products.options.title")}>
-      <p className="text-sm text-muted-foreground">{t("products.options.explainEdit")}</p>
-      <OptionsEditor options={options} onChange={setOptions} />
-      {problem && (
-        <p role="alert" className="text-sm text-destructive">
-          {problem}
-        </p>
-      )}
-      <Button
-        className="self-start"
-        disabled={!changed || save.isPending}
-        onClick={() => {
-          const local = optionsProblem(options);
-          setProblem(local ? t(local) : undefined);
-          if (!local) {
-            save.mutate();
-          }
-        }}
-      >
-        {t("account.save")}
-      </Button>
     </Section>
   );
 }

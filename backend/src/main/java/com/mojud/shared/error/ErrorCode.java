@@ -86,6 +86,7 @@ public enum ErrorCode {
     SKU_TAKEN("product.sku_taken", HttpStatus.CONFLICT),
     /** The variant's option values are no longer in the product's options. */
     VARIANT_NOT_IN_OPTIONS("variant.not_in_options", HttpStatus.CONFLICT),
+    VARIANT_DUPLICATE("variant.duplicate", HttpStatus.CONFLICT),
     /** A product keeps at least one active variant; archive the product instead. */
     VARIANT_LAST_ACTIVE("variant.last_active", HttpStatus.CONFLICT),
 

@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -13,8 +14,15 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useFormat } from "@/lib/format";
 import { takaInput } from "@/lib/money";
-import type { Product, Variant } from "./api";
-import { optionalCount, optionalTaka, taka } from "./schemas";
+import { type Product, productChanged, type Variant } from "./api";
+import { optionalCount, optionalTaka, taka, variantRow } from "./schemas";
+
+/** Variants made from a row have only these; older ones may have other options, which can't be renamed here. */
+const NAME_OPTION = "Variant";
+const SIZE_OPTION = "Size";
+const canRename = (variant: Variant) =>
+  Object.keys(variant.attributes).every((option) => option === NAME_OPTION || option === SIZE_OPTION);
+const MAX_VARIANTS = 100;
 
 /**
  * The product's variants: a row for each, with its stock and price. Managers open one to edit it.
@@ -23,6 +31,7 @@ import { optionalCount, optionalTaka, taka } from "./schemas";
 export function VariantList({ product, canEdit }: { product: Product; canEdit: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<{ variant: Variant; view: "edit" | "history" }>();
+  const [adding, setAdding] = useState(false);
   // Reads the variant from the latest answer, so an open dialog follows its changes.
   const current = open && product.variants.find((variant) => variant.id === open.variant.id);
   return (
@@ -38,6 +47,13 @@ export function VariantList({ product, canEdit }: { product: Product; canEdit: b
           />
         ))}
       </ul>
+      {canEdit && product.variants.length < MAX_VARIANTS && (
+        <Button variant="outline" className="self-start" onClick={() => setAdding(true)}>
+          <Plus aria-hidden="true" />
+          {t("products.variantRows.addShort")}
+        </Button>
+      )}
+      {adding && <AddVariantDialog product={product} onClose={() => setAdding(false)} />}
       {open?.view === "edit" && current && (
         <VariantDialog product={product} variant={current} onClose={() => setOpen(undefined)} />
       )}
@@ -109,7 +125,75 @@ function VariantRow({
   );
 }
 
+function AddVariantDialog({ product, onClose }: { product: Product; onClose: () => void }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const form = useForm({
+    resolver: zodResolver(variantRow),
+    defaultValues: { name: "", size: "", quantity: "", costPrice: "", price: "" },
+  });
+  const add = useMutation({
+    mutationFn: (values: z.output<typeof variantRow>) =>
+      call(
+        api.POST("/api/v1/products/{id}/variants", {
+          params: { path: { id: product.id } },
+          body: { variant: values, version: product.version },
+        }),
+      ),
+    meta: { showsOwnErrors: true },
+    onSuccess: (updated) => {
+      productChanged(queryClient, updated);
+      toast.success(t("account.saved"));
+      onClose();
+    },
+    onError: (error) =>
+      showServerError(form, error, { codes: { "variant.duplicate": "name" }, fields: { variants: "name" } }),
+  });
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-dvh overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{t("products.variantRows.newTitle")}</DialogTitle>
+          <DialogDescription>{product.name}</DialogDescription>
+        </DialogHeader>
+        <form noValidate className="flex flex-col gap-4" onSubmit={form.handleSubmit((values) => add.mutate(values))}>
+          <FormError form={form} />
+          <TextField
+            form={form}
+            name="name"
+            label={t("products.variantRows.name")}
+            hint={t("products.variantRows.newHint")}
+            placeholder={t("products.variantRows.nameHint")}
+            maxLength={30}
+          />
+          <TextField
+            form={form}
+            name="size"
+            label={t("products.variantRows.size")}
+            placeholder={t("products.variantRows.sizeHint")}
+            maxLength={30}
+          />
+          <TextField form={form} name="quantity" label={t("products.variantRows.quantity")} inputMode="numeric" />
+          <TextField
+            form={form}
+            name="costPrice"
+            label={t("products.variantRows.cost")}
+            hint={t("products.costHint")}
+            inputMode="decimal"
+          />
+          <TextField form={form} name="price" label={t("products.variantRows.price")} inputMode="decimal" />
+          <Button type="submit" disabled={add.isPending}>
+            {t("products.variantRows.addShort")}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const variantSchema = z.object({
+  name: variantRow.shape.name,
+  size: variantRow.shape.size,
   price: taka,
   costPrice: optionalTaka,
   sku: z.string().check(z.trim(), z.maxLength(64, "field.skuLong")),
@@ -119,9 +203,12 @@ const variantSchema = z.object({
 function VariantDialog({ product, variant, onClose }: { product: Product; variant: Variant; onClose: () => void }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const renamable = canRename(variant);
   const form = useForm({
     resolver: zodResolver(variantSchema),
     defaultValues: {
+      name: variant.attributes[NAME_OPTION] ?? "",
+      size: variant.attributes[SIZE_OPTION] ?? "",
       price: takaInput(variant.price),
       costPrice: variant.costPrice === undefined ? "" : takaInput(variant.costPrice),
       sku: variant.sku,
@@ -140,6 +227,7 @@ function VariantDialog({ product, variant, onClose }: { product: Product; varian
         api.PATCH("/api/v1/variants/{id}", {
           params: { path: { id: variant.id } },
           body: {
+            ...(renamable ? { name: values.name, size: values.size } : {}),
             price: values.price,
             // An empty SKU makes the server generate one.
             sku: values.sku,
@@ -158,7 +246,10 @@ function VariantDialog({ product, variant, onClose }: { product: Product; varian
       onClose();
     },
     onError: (error) => {
-      showServerError(form, error, { codes: { "product.sku_taken": "sku" } });
+      showServerError(form, error, {
+        codes: { "product.sku_taken": "sku", "variant.duplicate": "name" },
+        fields: { variants: "name" },
+      });
       refresh();
     },
   });
@@ -186,6 +277,12 @@ function VariantDialog({ product, variant, onClose }: { product: Product; varian
         </DialogHeader>
         <form noValidate className="flex flex-col gap-4" onSubmit={form.handleSubmit((values) => save.mutate(values))}>
           <FormError form={form} />
+          {renamable && (
+            <>
+              <TextField form={form} name="name" label={t("products.variantRows.name")} maxLength={30} />
+              <TextField form={form} name="size" label={t("products.variantRows.size")} maxLength={30} />
+            </>
+          )}
           <TextField form={form} name="price" label={t("products.price")} inputMode="decimal" />
           <TextField
             form={form}

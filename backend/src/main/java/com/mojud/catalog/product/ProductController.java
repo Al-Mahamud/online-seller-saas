@@ -2,6 +2,7 @@ package com.mojud.catalog.product;
 
 import com.mojud.catalog.CatalogLimits;
 import com.mojud.shared.paging.CursorPage;
+import com.mojud.shared.error.ApiException;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
 import jakarta.validation.Valid;
@@ -68,17 +69,33 @@ class ProductController {
     record OptionRequest(UUID id, @NotBlank String name, @NotNull List<String> values) {
     }
 
+    /** One variant: its own name and size (both optional), prices and starting stock. */
+    record VariantRowRequest(
+            @Size(max = 200) String name,
+            @Size(max = 200) String size,
+            @NotNull @PositiveOrZero @Max(MAX_POISHA) Long price,
+            @PositiveOrZero @Max(MAX_POISHA) Long costPrice,
+            @PositiveOrZero @Max(1_000_000) Integer quantity) {
+
+        ProductService.VariantRow row() {
+            return new ProductService.VariantRow(name, size, price, costPrice, quantity == null ? 0 : quantity);
+        }
+    }
+
     /**
-     * Without options: one variant, with {@code sku} if given. With options: one variant per
-     * combination, SKUs generated. All variants start with {@code price} and {@code costPrice}.
+     * With {@code variants}: one variant per row, as given; the fields below it are not used.
+     * Otherwise, without options: one variant, with {@code sku} if given. With options: one variant
+     * per combination, SKUs generated. All variants start with {@code price} and {@code costPrice}.
      */
     record CreateRequest(
             @NotBlank @Size(max = 400) String name,
             @Size(max = 10000) String description,
             UUID categoryId,
             List<UUID> tagIds,
+            @Valid List<VariantRowRequest> variants,
             @Valid List<OptionRequest> options,
-            @NotNull @PositiveOrZero @Max(MAX_POISHA) Long price,
+            /** Needed without {@code variants}. */
+            @PositiveOrZero @Max(MAX_POISHA) Long price,
             @PositiveOrZero @Max(MAX_POISHA) Long costPrice,
             String sku,
             /** On hand for every variant to start with; 0 when left out. */
@@ -88,6 +105,13 @@ class ProductController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     ProductViews.Detail create(@Valid @RequestBody CreateRequest body) {
+        if (body.variants() != null) {
+            return products.createWithRows(new ProductService.RowsCommand(body.name(), body.description(),
+                    body.categoryId(), body.tagIds(), body.variants().stream().map(VariantRowRequest::row).toList()));
+        }
+        if (body.price() == null) {
+            throw ApiException.invalidField("price", "jakarta.validation.constraints.NotNull.message");
+        }
         return products.create(new ProductService.CreateCommand(body.name(), body.description(), body.categoryId(),
                 body.tagIds(), inputs(body.options()), body.price(), body.costPrice(), body.sku(),
                 body.openingStock() == null ? 0 : body.openingStock()));
@@ -138,6 +162,16 @@ class ProductController {
     }
 
     /** An uploaded file ({@code POST /uploads}), for the whole product or one variant. Up to 8. */
+    /** {@code version} refuses a stale change. */
+    record NewVariantRequest(@NotNull @Valid VariantRowRequest variant, Long version) {
+    }
+
+    @PostMapping("/{id}/variants")
+    @ResponseStatus(HttpStatus.CREATED)
+    ProductViews.Detail addVariant(@PathVariable UUID id, @Valid @RequestBody NewVariantRequest body) {
+        return products.addVariant(id, body.variant().row(), body.version());
+    }
+
     record ImageRequest(@NotNull UUID fileId, UUID variantId) {
     }
 

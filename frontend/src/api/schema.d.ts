@@ -1620,6 +1620,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/{id}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addVariant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/gateway/sslcommerz/ipn": {
         parameters: {
             query?: never;
@@ -3240,9 +3256,10 @@ export interface components {
             openingStock?: number;
             options?: components["schemas"]["ProductOptionRequest"][];
             /** Format: int64 */
-            price: number;
+            price?: number;
             sku?: string;
             tagIds?: string[];
+            variants?: components["schemas"]["ProductVariantRowRequest"][];
         };
         ProductDetail: {
             /** Format: uuid */
@@ -3307,6 +3324,11 @@ export interface components {
             reservedChange: number;
             /** @enum {string} */
             type: "OPENING" | "RECEIVE" | "ADJUST" | "DAMAGE" | "RESERVE" | "RELEASE" | "SHIP" | "SALE" | "UNSALE" | "RETURN" | "RETURN_DAMAGED";
+        };
+        ProductNewVariantRequest: {
+            variant: components["schemas"]["ProductVariantRowRequest"];
+            /** Format: int64 */
+            version?: number;
         };
         ProductOption: {
             /** Format: uuid */
@@ -3392,6 +3414,16 @@ export interface components {
             status: "ACTIVE" | "ARCHIVED";
             /** Format: int64 */
             version: number;
+        };
+        ProductVariantRowRequest: {
+            /** Format: int64 */
+            costPrice?: number;
+            name?: string;
+            /** Format: int64 */
+            price: number;
+            /** Format: int32 */
+            quantity?: number;
+            size?: string;
         };
         SalesReportsProfit: {
             /** Format: date */
@@ -3510,8 +3542,10 @@ export interface components {
             costPrice?: number;
             /** Format: int32 */
             lowStockThreshold?: number;
+            name?: string;
             /** Format: int64 */
             price?: number;
+            size?: string;
             sku?: string;
             useDefaultThreshold?: boolean;
             /** Format: int64 */
@@ -6261,6 +6295,32 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDetail"];
+                };
+            };
+        };
+    };
+    addVariant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductNewVariantRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

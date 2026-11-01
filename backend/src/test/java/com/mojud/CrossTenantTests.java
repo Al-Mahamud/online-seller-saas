@@ -166,6 +166,9 @@ class CrossTenantTests {
                 b.owner().post("/api/v1/products/" + a.productId() + "/restore", null)));
         CASES.put("PUT /api/v1/products/{id}/options", (a, b) -> expectNotFound(
                 b.owner().put("/api/v1/products/" + a.productId() + "/options", Map.of("options", List.of()))));
+        CASES.put("POST /api/v1/products/{id}/variants", (a, b) -> expectNotFound(
+                b.owner().post("/api/v1/products/" + a.productId() + "/variants",
+                        Map.of("variant", Map.of("name", "New", "price", 1)))));
         CASES.put("PATCH /api/v1/variants/{id}", (a, b) -> expectNotFound(
                 b.owner().patch("/api/v1/variants/" + a.variantId(), Map.of("price", 1))));
         CASES.put("POST /api/v1/variants/{id}/archive", (a, b) -> expectNotFound(

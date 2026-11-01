@@ -7,16 +7,8 @@ import { expect, test } from "./support/test";
 const label = (scope: Page | ReturnType<Page["getByRole"]>, name: string) => scope.getByLabel(name, { exact: true });
 const heading = (page: Page, name: string) => page.getByRole("heading", { level: 1, name });
 
-/** Adds an option through the form: its name, then each value with the keyboard. */
-async function addOption(page: Page, number: number, name: string, values: string[]) {
-  await page.getByRole("button", { name: "অপশন যোগ করুন" }).click();
-  const group = page.getByRole("group", { name: `অপশন ${"০১২৩"[number]}` });
-  await label(group, "অপশনের নাম").fill(name);
-  for (const value of values) {
-    await label(group, "মান যোগ করুন").fill(value);
-    await label(group, "মান যোগ করুন").press("Enter");
-  }
-}
+/** One variant's boxes in the new-product form, by its number on screen. */
+const box = (page: Page, number: string, name: string) => label(page, `ভ্যারিয়েন্ট ${number}: ${name}`);
 
 async function xsrf(request: APIRequestContext): Promise<string> {
   await request.get("/api/v1/auth/csrf");
@@ -30,7 +22,7 @@ async function makeProduct(request: APIRequestContext, data: Record<string, unkn
   return ((await created.json()) as { id: string }).id;
 }
 
-test("creates a product with 2 options and 6 variants, from the list", async ({ page }) => {
+test("creates a product whose variants each have their own size, quantity and prices", async ({ page }) => {
   await signUpWithBusiness(page.request);
   await page.goto("/products");
   await expect(page.getByText("এখনো কোনো পণ্য নেই।")).toBeVisible();
@@ -42,32 +34,72 @@ test("creates a product with 2 options and 6 variants, from the list", async ({ 
   // The form says what's missing first.
   await page.getByRole("button", { name: "পণ্য তৈরি করুন" }).click();
   await expect(page.getByText("এটি পূরণ করুন।")).toBeVisible();
-  await expect(label(page, "বিক্রয় দাম (৳)")).toHaveAttribute("aria-invalid", "true");
-
-  await label(page, "পণ্যের নাম").fill("সুতি কুর্তি");
-  await addOption(page, 1, "সাইজ", ["S", "M", "L"]);
-  await addOption(page, 2, "রং", ["লাল"]);
-  await label(page.getByRole("group", { name: "অপশন ২" }), "মান যোগ করুন").fill("নীল, ");
-  await expect(page.getByRole("status").filter({ hasText: "মোট ৬টি ভ্যারিয়েন্ট" })).toBeVisible();
+  await expect(page.getByText("বিক্রয় দাম দিন।")).toBeVisible();
+  await expect(box(page, "১", "বিক্রয় দাম (৳)")).toHaveAttribute("aria-invalid", "true");
   await expectAccessible(page);
 
-  await label(page, "বিক্রয় দাম (৳)").fill("১,৫০০");
-  await label(page, "কেনা দাম (৳, ঐচ্ছিক)").fill("900");
-  await label(page, "শুরুর স্টক (ঐচ্ছিক)").fill("5");
+  await label(page, "পণ্যের নাম").fill("সুতি কুর্তি");
+  await box(page, "১", "নাম").fill("লাল");
+  await box(page, "১", "সাইজ").fill("M");
+  await box(page, "১", "পরিমাণ").fill("১০");
+  await box(page, "১", "কেনা দাম (৳)").fill("850");
+  await box(page, "১", "বিক্রয় দাম (৳)").fill("১,৪০০");
+
+  // A new row starts like the one above: the same name and prices, its own size and quantity.
+  await page.getByRole("button", { name: "আরেকটি ভ্যারিয়েন্ট যোগ করুন" }).click();
+  await expect(box(page, "২", "নাম")).toHaveValue("লাল");
+  await expect(box(page, "২", "বিক্রয় দাম (৳)")).toHaveValue("১,৪০০");
+  await expect(box(page, "২", "সাইজ")).toBeFocused();
+  await box(page, "২", "সাইজ").fill("m");
+  await expect(page.getByText("এই নাম আর সাইজের ভ্যারিয়েন্ট আগেই আছে।").first()).toBeVisible();
+  await page.getByRole("button", { name: "পণ্য তৈরি করুন" }).click();
+  await expect(page.getByText("পণ্য তৈরির আগে লাল চিহ্ন দেওয়া ঘরগুলো ঠিক করুন।")).toBeVisible();
+  await box(page, "২", "সাইজ").fill("L");
+  await box(page, "২", "পরিমাণ").fill("8");
+
+  await page.getByRole("button", { name: "আরেকটি ভ্যারিয়েন্ট যোগ করুন" }).click();
+  await box(page, "৩", "নাম").fill("নীল");
+  await box(page, "৩", "সাইজ").fill("M");
+  await box(page, "৩", "পরিমাণ").fill("12");
+  await box(page, "৩", "কেনা দাম (৳)").fill("1600");
+  // Below cost is a warning, not a refusal: a sale can do that on purpose.
+  await expect(page.getByText("বিক্রয় দাম কেনা দামের চেয়ে কম।")).toBeVisible();
+  await box(page, "৩", "কেনা দাম (৳)").fill("900");
+  await box(page, "৩", "বিক্রয় দাম (৳)").fill("1500");
+  await expect(page.getByRole("status").filter({ hasText: "৩টি ভ্যারিয়েন্ট, মোট ৩০টি" })).toBeVisible();
+
+  // A row added by mistake goes again.
+  await page.getByRole("button", { name: "আরেকটি ভ্যারিয়েন্ট যোগ করুন" }).click();
+  await page.getByRole("button", { name: "ভ্যারিয়েন্ট ৪ মুছুন" }).click();
+  await expect(box(page, "৪", "নাম")).toHaveCount(0);
+  await expectAccessible(page);
+
   await page.getByRole("button", { name: "পণ্য তৈরি করুন" }).click();
 
   await expect(heading(page, "সুতি কুর্তি")).toBeVisible();
-  await expect(page.getByRole("button", { name: /^ইতিহাস:/ })).toHaveCount(6);
-  await expect(page.getByText("S / লাল", { exact: true })).toBeVisible();
-  await expect(page.getByText("L / নীল", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^ইতিহাস:/ })).toHaveCount(3);
+  await expect(page.getByText("লাল / M", { exact: true })).toBeVisible();
+  await expect(page.getByText("নীল / M", { exact: true })).toBeVisible();
+  await expect(page.getByText("নীল / L", { exact: true })).toHaveCount(0);
   await expect(page.getByText("৳১,৫০০").first()).toBeVisible();
-  await expect(page.getByText("লাভ ৳৬০০").first()).toBeVisible();
+  await expect(page.getByText("হাতে ১২ · আলাদা করা ০ · বিক্রয়যোগ্য ১২")).toBeVisible();
   await expectAccessible(page);
 
   // And in the list.
   await page.getByRole("link", { name: "পণ্য", exact: true }).last().click();
   await expect(page.getByRole("link", { name: /সুতি কুর্তি/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /৬টি ভ্যারিয়েন্ট/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /৩টি ভ্যারিয়েন্ট/ })).toBeVisible();
+});
+
+test("a product of one kind needs only a selling price", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  await page.goto("/products/new");
+  await label(page, "পণ্যের নাম").fill("হাতঘড়ি");
+  await box(page, "১", "বিক্রয় দাম (৳)").fill("500");
+  await expect(page.getByRole("button", { name: "ভ্যারিয়েন্ট ১ মুছুন" })).toHaveCount(0);
+  await page.getByRole("button", { name: "পণ্য তৈরি করুন" }).click();
+  await expect(heading(page, "হাতঘড়ি")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^ইতিহাস:/ })).toHaveCount(1);
 });
 
 test("receives stock, counts it, and shows the history", async ({ page }) => {
@@ -115,13 +147,16 @@ test("refuses taking more stock than there is, with the server's message", async
   await expect(dialog).toBeVisible();
 });
 
-test("edits a variant, its options, and archives and restores", async ({ page }) => {
+test("edits a variant, adds another, and archives and restores", async ({ page }) => {
   await signUpWithBusiness(page.request);
   const id = await makeProduct(page.request, {
     name: "পাঞ্জাবি",
     price: 220000,
     costPrice: 150000,
-    options: [{ name: "সাইজ", values: ["M", "L"] }],
+    variants: [
+      { size: "M", price: 220000, costPrice: 150000 },
+      { size: "L", price: 220000, costPrice: 150000 },
+    ],
   });
   await page.goto(`/products/${id}`);
 
@@ -139,12 +174,32 @@ test("edits a variant, its options, and archives and restores", async ({ page })
   await expect(dialog).toBeHidden();
   await expect(page.getByText("৳২,৪৫০.৫০")).toBeVisible();
 
-  // A new value adds a variant, keeping the others as they are.
-  const group = page.getByRole("group", { name: "অপশন ১" });
-  await label(group, "মান যোগ করুন").fill("XL");
-  await label(group, "মান যোগ করুন").press("Enter");
-  await page.getByRole("button", { name: "সংরক্ষণ করুন" }).nth(1).click();
+  // Its name and size can be changed too; the same as another's can't.
+  await page.getByRole("button", { name: "বদলান: L", exact: true }).click();
+  await expect(label(dialog, "সাইজ")).toHaveValue("L");
+  await label(dialog, "সাইজ").fill("M");
+  await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
+  await expect(dialog.getByText("এই নাম আর সাইজের ভ্যারিয়েন্ট আগেই আছে।")).toBeVisible();
+  await label(dialog, "সাইজ").fill("XL");
+  await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("XL", { exact: true })).toBeVisible();
+
+  // A new variant has its own prices and stock, and leaves the others as they are.
+  await page.getByRole("button", { name: "ভ্যারিয়েন্ট যোগ করুন" }).click();
+  const adding = page.getByRole("dialog");
+  await expectAccessible(page);
+  await label(adding, "নাম").fill("নীল");
+  await label(adding, "সাইজ").fill("S");
+  await label(adding, "পরিমাণ").fill("7");
+  await label(adding, "কেনা দাম (৳)").fill("1000");
+  await label(adding, "বিক্রয় দাম (৳)").fill("1800");
+  await adding.getByRole("button", { name: "ভ্যারিয়েন্ট যোগ করুন" }).click();
+  await expect(adding).toBeHidden();
   await expect(page.getByRole("button", { name: /^ইতিহাস:/ })).toHaveCount(3);
+  await expect(page.getByText("নীল / S", { exact: true })).toBeVisible();
+  await expect(page.getByText("৳১,৮০০")).toBeVisible();
+  await expect(page.getByText("হাতে ৭ · আলাদা করা ০ · বিক্রয়যোগ্য ৭")).toBeVisible();
   await expect(page.getByText("৳২,৪৫০.৫০")).toBeVisible();
 
   await page.getByRole("button", { name: "আর্কাইভ করুন" }).click();
@@ -304,7 +359,7 @@ test("the plan's variant limit opens the upgrade dialog", async ({ page }) => {
 
   await page.goto("/products/new");
   await label(page, "পণ্যের নাম").fill("একটি বেশি");
-  await label(page, "বিক্রয় দাম (৳)").fill("100");
+  await box(page, "১", "বিক্রয় দাম (৳)").fill("100");
   await page.getByRole("button", { name: "পণ্য তৈরি করুন" }).click();
 
   const dialog = page.getByRole("dialog");
