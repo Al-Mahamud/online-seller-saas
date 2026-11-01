@@ -184,9 +184,12 @@ test("takes a new order for a new customer through delivery with COD and a retur
   // One comes back: on the shelf again, with the money for it offered as a refund.
   await page.getByRole("button", { name: "পণ্য ফেরত নিন" }).click();
   const back = page.getByRole("dialog");
+  await expect(back.locator("footer").getByRole("status")).toHaveText("এখনো কোনো পণ্য বাছা হয়নি");
+  await expect(label(back, "গ্রাহককে ফেরত (৳)")).toBeHidden();
   await label(back, "কারণ").fill("সাইজ ছোট");
-  await label(back.getByRole("group", { name: "সুতি কুর্তি" }), "কয়টি").fill("১");
+  await back.getByRole("group", { name: "সুতি কুর্তি" }).getByRole("button", { name: "একটি বাড়ান" }).click();
   await expect(label(back, "গ্রাহককে ফেরত (৳)")).toHaveValue("1500");
+  await expect(back.locator("footer").getByRole("status")).toHaveText("১টি পণ্য ফেরত, স্টকে ফিরবে ১টি");
   await expectAccessible(page);
   await back.getByRole("button", { name: "পণ্য ফেরত নিন" }).click();
   await expect(toast(page, "ফেরত লেখা হয়েছে।")).toBeVisible();
@@ -255,7 +258,7 @@ test("a known customer fills in by any way of writing the number, and the charge
 
   // A customer's page starts an order with their number, and lists this one.
   await page.goto("/customers");
-  await page.getByRole("link", { name: /নাসরিন/ }).click();
+  await page.getByRole("link", { name: /নাসরিন/ }).first().click();
   await page.getByRole("link", { name: /১০০১/ }).click();
   await expect(heading(page, /১০০১/)).toBeVisible();
 });
@@ -376,10 +379,33 @@ test("refused items at the door: less to collect, and what becomes of them", asy
   await page.getByRole("button", { name: "ডেলিভারি হয়েছে" }).click();
   const deliver = page.getByRole("dialog");
   await expect(label(deliver, "কুরিয়ার কত আদায় করেছে (৳)")).toHaveValue("3060");
-  await deliver.getByLabel("গ্রাহক কিছু পণ্য নেননি").check();
-  await label(deliver.getByRole("group", { name: "কুর্তি" }), "কয়টি").fill("1");
+  await expect(deliver.locator("footer").getByRole("status")).toHaveText("সব পণ্য ডেলিভারি হয়েছে");
+
+  // Saying some were refused, without saying which, would record that everything was taken.
+  await deliver.getByRole("radio", { name: "না, কিছু নেননি" }).check();
+  await deliver.getByRole("button", { name: "ডেলিভারি হয়েছে" }).click();
+  await expect(deliver.getByRole("alert")).toHaveText("কোন পণ্য কয়টি নেননি বেছে নিন।");
+
+  const line = deliver.getByRole("group", { name: "কুর্তি" });
+  await line.getByRole("button", { name: "একটি বাড়ান" }).click();
+  await expect(deliver.getByRole("alert")).toBeHidden();
   await expect(label(deliver, "কুরিয়ার কত আদায় করেছে (৳)")).toHaveValue("1560");
-  await label(deliver.getByRole("group", { name: "কুর্তি" }), "পণ্যটির কী হবে").selectOption("WRITE_OFF");
+  await expect(deliver.getByText("না নেওয়া পণ্যের জন্য বাদ")).toBeVisible();
+  await expect(deliver.getByText("−৳১,৫০০")).toBeVisible();
+
+  // It can't go past what the order holds.
+  await line.getByRole("button", { name: "একটি বাড়ান" }).click();
+  await expect(line.locator("output")).toHaveText("২");
+  await expect(line.getByRole("button", { name: "একটি বাড়ান" })).toHaveAttribute("aria-disabled", "true");
+  await line.getByRole("button", { name: "একটি কমান" }).click();
+
+  await label(deliver, "কুরিয়ার কত আদায় করেছে (৳)").fill("1500");
+  await expect(deliver.getByText("৳৬০ কম আদায় হয়েছে")).toBeVisible();
+  await label(deliver, "কুরিয়ার কত আদায় করেছে (৳)").fill("1560");
+  await expect(deliver.getByText("৳৬০ কম আদায় হয়েছে")).toBeHidden();
+
+  await line.getByRole("radio", { name: "নষ্ট, স্টকে নয়" }).check();
+  await expect(deliver.locator("footer").getByRole("status")).toHaveText("১টি পণ্য নেননি, স্টকে ফিরবে ০টি");
   await expectAccessible(page);
   await deliver.getByRole("button", { name: "ডেলিভারি হয়েছে" }).click();
 
@@ -399,8 +425,12 @@ test("a parcel that came back goes on the shelf, and can be sent again", async (
 
   await page.getByRole("button", { name: "পার্সেল ফেরত এসেছে" }).click();
   const back = page.getByRole("dialog");
+  await expect(back.getByRole("button", { name: "একটি বাড়ান" })).toHaveCount(0);
+  await expect(label(back, "গ্রাহককে ফেরত (৳)")).toHaveCount(0);
+  await expect(back.locator("footer").getByRole("status")).toHaveText("স্টকে ফিরবে ১টি");
   await back.getByRole("button", { name: "পার্সেল ফেরত এসেছে" }).click();
   await expect(label(back, "কারণ")).toHaveAttribute("aria-invalid", "true");
+  await expect(label(back, "কারণ")).toBeFocused();
   await label(back, "কারণ").fill("গ্রাহক ফোন ধরেননি");
   await back.getByRole("button", { name: "পার্সেল ফেরত এসেছে" }).click();
   await expect(toast(page, "পার্সেল ফেরত লেখা হয়েছে।")).toBeVisible();
@@ -610,7 +640,7 @@ test("COD to settle: what each courier owes, and marking its payout received", a
   // Everything is ticked at first, and all of it can be unticked together.
   const settleAll = pathao.getByRole("button", { name: "৳৩,১২০ বুঝে পেয়েছি" });
   await expect(settleAll).toBeEnabled();
-  const all = pathao.getByRole("checkbox", { name: /সব বেছে নিন/ });
+  const all = pathao.getByRole("checkbox", { name: "এই কুরিয়ারের সব পার্সেল বাছুন" });
   await all.uncheck();
   await expect(pathao.getByRole("button", { name: /বুঝে পেয়েছি/ })).toBeDisabled();
   await all.check();
@@ -618,10 +648,11 @@ test("COD to settle: what each courier owes, and marking its payout received", a
 
   // This payout covers one of the two.
   await pathao.getByRole("checkbox", { name: `বেছে নিন: ${second.label}` }).uncheck();
-  // It stays unticked after a look at another courier.
+  // Another courier starts over, and so does coming back.
   await tab("RedX").click();
   await tab(/pathao/i).click();
-  await expect(pathao.getByRole("checkbox", { name: `বেছে নিন: ${second.label}` })).not.toBeChecked();
+  await expect(pathao.getByRole("checkbox", { name: `বেছে নিন: ${second.label}` })).toBeChecked();
+  await pathao.getByRole("checkbox", { name: `বেছে নিন: ${second.label}` }).uncheck();
   await pathao.getByRole("button", { name: "৳১,৫৬০ বুঝে পেয়েছি" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "৳১,৫৬০ বুঝে পেয়েছি" }).click();
   await expect(pathao.getByText("পাওনা ৳১,৫৬০, ১টি পার্সেল")).toBeVisible();
@@ -645,4 +676,92 @@ test("COD to settle: what each courier owes, and marking its payout received", a
   await page.getByRole("dialog").getByRole("button", { name: "৳১,০০০ বুঝে পেয়েছি" }).click();
   await expect(tab("Steadfast")).toHaveCount(0);
   await expect(courierTabs.getByRole("tab", { selected: true })).toHaveCount(1);
+});
+
+test("COD to settle: search, pages, and a payout that covers them all", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  const kurti = await product(page.request, "কুর্তি", 40);
+  const parcels = [];
+  for (let index = 0; index < 22; index++) {
+    const order = await makeOrder(page.request, kurti.variantId, { name: index === 0 ? "তানিয়া সুলতানা" : "রহিমা" });
+    await post(page.request, `/api/v1/orders/${order.id}/ship`, {
+      courier: "Pathao",
+      trackingNo: `PA-${1000 + index}`,
+    });
+    await post(page.request, `/api/v1/orders/${order.id}/deliver`);
+    parcels.push(order);
+  }
+  const other = await makeOrder(page.request, kurti.variantId, { name: "সাদিয়া" });
+  await post(page.request, `/api/v1/orders/${other.id}/ship`, { courier: "RedX", trackingNo: "RX-1" });
+  await post(page.request, `/api/v1/orders/${other.id}/deliver`);
+  const each = 1560;
+  const taka = (amount: number) => `৳${new Intl.NumberFormat("bn-BD").format(amount)}`;
+
+  await page.goto("/cod");
+  const panel = page.getByRole("tabpanel", { name: "Pathao" });
+  await expect(panel.getByText(`পাওনা ${taka(22 * each)}, ২২টি পার্সেল`)).toBeVisible();
+  await expect(panel.getByText("সব পৃষ্ঠা মিলিয়ে ২২টির মধ্যে ২২টি বাছা")).toBeVisible();
+  await expectAccessible(page);
+
+  // Pages: what's unticked on one stays out of the payout on another, and stays unticked coming back.
+  const newest = parcels[21] as (typeof parcels)[number];
+  const oldest = parcels[0] as (typeof parcels)[number];
+  await panel.getByRole("checkbox", { name: `বেছে নিন: ${newest.label}` }).uncheck();
+  await page.getByRole("button", { name: "পরের" }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(panel.getByRole("link", { name: oldest.label })).toBeVisible();
+  await expect(panel.getByText("সব পৃষ্ঠা মিলিয়ে ২২টির মধ্যে ২১টি বাছা")).toBeVisible();
+  await expect(panel.getByRole("button", { name: `${taka(21 * each)} বুঝে পেয়েছি` })).toBeVisible();
+  await page.getByRole("button", { name: "আগের" }).click();
+  await expect(panel.getByRole("checkbox", { name: `বেছে নিন: ${newest.label}` })).not.toBeChecked();
+
+  // A search finds one parcel by tracking number at its own courier, and the totals stay whole.
+  const search = page.getByRole("search", { name: "পার্সেল খুঁজুন" });
+  await search.getByRole("searchbox").fill("RX-1");
+  await search.getByRole("button", { name: "খুঁজুন" }).click();
+  const redx = page.getByRole("tabpanel", { name: "RedX" });
+  await expect(redx.getByText(`এই খোঁজে ${taka(each)}, ১টি পার্সেল`)).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Pathao/ })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "মোট হিসাব" }).getByText(taka(23 * each))).toBeVisible();
+
+  // By the customer's name, with a chip to take it off.
+  await search.getByRole("searchbox").fill("তানিয়া");
+  await search.getByRole("button", { name: "খুঁজুন" }).click();
+  await expect(panel.getByRole("link", { name: oldest.label })).toBeVisible();
+  await expect(panel.getByText(`মোট পাওনা ${taka(22 * each)}, ২২টি পার্সেল`)).toBeVisible();
+  await expectAccessible(page);
+
+  // Nothing found says so.
+  await search.getByRole("searchbox").fill("no such parcel");
+  await search.getByRole("button", { name: "খুঁজুন" }).click();
+  await expect(page.getByText("এই খোঁজে কোনো পার্সেল নেই")).toBeVisible();
+  await page.getByRole("button", { name: "সব পার্সেল দেখুন" }).click();
+  await expect(panel.getByText(`পাওনা ${taka(22 * each)}, ২২টি পার্সেল`)).toBeVisible();
+
+  // A search can be settled by itself; what it didn't find stays owed.
+  await search.getByRole("searchbox").fill("তানিয়া");
+  await search.getByRole("button", { name: "খুঁজুন" }).click();
+  await panel.getByRole("button", { name: `${taka(each)} বুঝে পেয়েছি` }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: `${taka(each)} বুঝে পেয়েছি` })
+    .click();
+  await expect(toast(page, `Pathao থেকে ${taka(each)} বুঝে পাওয়া লেখা হয়েছে।`)).toBeVisible();
+  await page.goto("/cod");
+  await expect(panel.getByText(`পাওনা ${taka(21 * each)}, ২১টি পার্সেল`)).toBeVisible();
+
+  // Across pages: all but one, without opening the second page. The list changed: it asks again.
+  await panel.getByRole("checkbox", { name: `বেছে নিন: ${newest.label}` }).uncheck();
+  const late = await makeOrder(page.request, kurti.variantId);
+  await post(page.request, `/api/v1/orders/${late.id}/ship`, { courier: "Pathao" });
+  await post(page.request, `/api/v1/orders/${late.id}/deliver`);
+  await panel.getByRole("button", { name: `${taka(20 * each)} বুঝে পেয়েছি` }).click();
+  const confirm = page.getByRole("dialog");
+  await expect(confirm.getByText("সব পৃষ্ঠার বাছা পার্সেল এতে আছে")).toBeVisible();
+  await confirm.getByRole("button", { name: `${taka(20 * each)} বুঝে পেয়েছি` }).click();
+  await expect(confirm.getByRole("alert")).toHaveText("তালিকা বদলে গেছে। নতুন হিসাব দেখে আবার নিশ্চিত করুন।");
+  await confirm.getByRole("button", { name: `${taka(21 * each)} বুঝে পেয়েছি` }).click();
+  await expect(toast(page, `Pathao থেকে ${taka(21 * each)} বুঝে পাওয়া লেখা হয়েছে।`)).toBeVisible();
+  await expect(panel.getByText(`পাওনা ${taka(each)}, ১টি পার্সেল`)).toBeVisible();
+  await expect(panel.getByRole("link", { name: newest.label })).toBeVisible();
 });

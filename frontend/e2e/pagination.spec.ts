@@ -83,7 +83,9 @@ test("searching starts again from the first page, with its own total", async ({ 
   await page.goto("/customers?page=2");
   await showing(page, "২৫টির মধ্যে ২১–২৫");
 
-  await page.getByRole("searchbox", { name: "গ্রাহক খুঁজুন" }).fill("1000016");
+  const search = page.getByRole("search", { name: "গ্রাহক খুঁজুন" });
+  await search.getByRole("searchbox").fill("1000016");
+  await search.getByRole("button", { name: "খুঁজুন" }).click();
   await expect(page).not.toHaveURL(/page=/);
   await showing(page, "মোট ১টি");
 });

@@ -1732,6 +1732,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/shipments/cod/parcels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["codParcels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/cod/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["codSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/shipments/couriers": {
         parameters: {
             query?: never;
@@ -1758,6 +1790,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/settle-cod/matching": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["settleMatching"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2423,6 +2471,34 @@ export interface components {
         CategoryRenameRequest: {
             name: string;
         };
+        CodSettlementsCourierCod: {
+            /** Format: int64 */
+            inTransitAmount: number;
+            /** Format: int64 */
+            matchedAmount: number;
+            /** Format: int64 */
+            matchedParcels: number;
+            name: string;
+            /** Format: int64 */
+            owedAmount: number;
+            /** Format: int64 */
+            owedParcels: number;
+        };
+        CodSettlementsParcel: {
+            /** Format: int64 */
+            codCollected: number | null;
+            /** Format: int64 */
+            codExpected: number;
+            customerName: string;
+            /** Format: date-time */
+            deliveredAt: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            orderId: string;
+            orderNumberLabel: string;
+            trackingNo: string | null;
+        };
         CodSettlementsRow: {
             /** Format: int64 */
             codCollected: number | null;
@@ -2452,6 +2528,15 @@ export interface components {
             settledAt: string;
             /** Format: int32 */
             shipments: number;
+        };
+        CodSettlementsSummary: {
+            couriers: components["schemas"]["CodSettlementsCourierCod"][];
+            /** Format: int64 */
+            inTransitAmount: number;
+            /** Format: int64 */
+            owedAmount: number;
+            /** Format: int64 */
+            owedParcels: number;
         };
         CustomerCreateRequest: {
             address?: string;
@@ -3271,6 +3356,17 @@ export interface components {
             /** Format: int32 */
             totalPages: number;
         };
+        PagedResultCodSettlementsParcel: {
+            items: components["schemas"]["CodSettlementsParcel"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
         PagedResultCustomerView: {
             items: components["schemas"]["CustomerView"][];
             /** Format: int32 */
@@ -3562,6 +3658,19 @@ export interface components {
             orderNumberPrefix: string;
             /** @enum {string} */
             stockCommitPoint: "SHIP" | "CONFIRM";
+        };
+        ShipmentSettleMatchingRequest: {
+            courier: string;
+            exceptIds?: string[];
+            /** Format: int64 */
+            expectedAmount?: number;
+            /** Format: int64 */
+            expectedParcels?: number;
+            /** Format: date */
+            from?: string;
+            q?: string;
+            /** Format: date */
+            to?: string;
         };
         ShipmentSettleRequest: {
             shipmentIds: string[];
@@ -6595,6 +6704,57 @@ export interface operations {
             };
         };
     };
+    codParcels: {
+        parameters: {
+            query: {
+                courier: string;
+                q?: string;
+                from?: string;
+                to?: string;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedResultCodSettlementsParcel"];
+                };
+            };
+        };
+    };
+    codSummary: {
+        parameters: {
+            query?: {
+                q?: string;
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodSettlementsSummary"];
+                };
+            };
+        };
+    };
     couriers: {
         parameters: {
             query?: never;
@@ -6625,6 +6785,30 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ShipmentSettleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodSettlementsSettlement"];
+                };
+            };
+        };
+    };
+    settleMatching: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShipmentSettleMatchingRequest"];
             };
         };
         responses: {

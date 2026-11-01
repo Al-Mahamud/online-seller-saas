@@ -438,6 +438,15 @@ class CrossTenantTests {
             assertThat(a.owner().get("/api/v1/orders/" + a.shippedOrderId()).<String>json("$.shipments[0].codStatus"))
                     .isEqualTo("WITH_COURIER");
         });
+        CASES.put("GET /api/v1/shipments/cod/summary", (a, b) -> expectNoLeak(b.owner().get("/api/v1/shipments/cod/summary"), a));
+        CASES.put("GET /api/v1/shipments/cod/parcels", (a, b) ->
+                expectNoLeak(b.owner().get("/api/v1/shipments/cod/parcels?courier=" + a.courier().replace(" ", "%20")), a));
+        CASES.put("POST /api/v1/shipments/settle-cod/matching", (a, b) -> {
+            b.owner().post("/api/v1/shipments/settle-cod/matching", Map.of("courier", a.courier(), "expectedParcels", 1,
+                    "expectedAmount", 1)).expectError(409, "cod.list_changed");
+            assertThat(a.owner().get("/api/v1/orders/" + a.shippedOrderId()).<String>json("$.shipments[0].codStatus"))
+                    .isEqualTo("WITH_COURIER");
+        });
         CASES.put("GET /api/v1/shipments/couriers", (a, b) -> expectNoLeak(b.owner().get("/api/v1/shipments/couriers"), a));
         CASES.put("POST /api/v1/orders/{id}/cancel", (a, b) -> {
             expectNotFound(b.owner().post("/api/v1/orders/" + a.orderId() + "/cancel", Map.of("reason", "Not mine")));

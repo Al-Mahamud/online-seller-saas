@@ -192,7 +192,7 @@ test("read-only: a banner, the server refuses what the screen didn't stop, and p
 
   // A write the screen doesn't stop: refused by the server, with its reason.
   await page.goto("/customers");
-  await page.getByRole("button", { name: "নতুন গ্রাহক" }).click();
+  await page.getByRole("button", { name: "নতুন গ্রাহক" }).first().click();
   const dialog = page.getByRole("dialog");
   await label(dialog, "গ্রাহকের নাম").fill("করিম");
   await label(dialog, "ফোন নম্বর").fill("01712345678");

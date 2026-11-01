@@ -3,10 +3,11 @@ import { api, call } from "@/api/client";
 import { ApiError } from "@/api/errors";
 import { errorMessages } from "@/api/query";
 import type { components } from "@/api/schema";
+import type { DatedSearchValue } from "@/components/layout/SearchPanel";
 import i18n from "@/i18n";
 import { latinDigits } from "@/lib/digits";
 import { formatNumber } from "@/lib/format";
-import { pagedQuery } from "@/lib/paging";
+import { type Paging, pagedQuery } from "@/lib/paging";
 import type { OrderFilters } from "./search";
 
 export type Order = components["schemas"]["OrderDetail"];
@@ -14,7 +15,8 @@ export type OrderSummary = components["schemas"]["OrderSummary"];
 export type OrderItem = components["schemas"]["OrderItem"];
 export type PaymentMethod = components["schemas"]["OrderPaymentRequest"]["method"];
 export type BulkResult = components["schemas"]["BulkActionsResult"];
-export type CodRow = components["schemas"]["CodSettlementsRow"];
+export type CodParcel = components["schemas"]["CodSettlementsParcel"];
+export type CodCourier = components["schemas"]["CodSettlementsCourierCod"];
 export type Disposition = components["schemas"]["OrderReturnLineRequest"]["disposition"];
 
 export const PAYMENT_METHODS: PaymentMethod[] = ["BKASH", "NAGAD", "ROCKET", "BANK", "CASH", "CARD", "OTHER"];
@@ -63,17 +65,17 @@ export const couriersQuery = queryOptions({
   queryFn: () => call(api.GET("/api/v1/shipments/couriers")),
 });
 
-export const codOwedQuery = queryOptions({
-  queryKey: ["shipments", "owed"],
-  queryFn: () =>
-    call(api.GET("/api/v1/shipments", { params: { query: { status: "DELIVERED", codStatus: "WITH_COURIER" } } })),
-});
+/** All that couriers hold, and what of it the search finds. */
+export const codSummaryQuery = (search: DatedSearchValue) =>
+  pagedQuery(["shipments", "cod", "summary", search], () =>
+    call(api.GET("/api/v1/shipments/cod/summary", { params: { query: search } })),
+  );
 
-export const codInTransitQuery = queryOptions({
-  queryKey: ["shipments", "in-transit"],
-  queryFn: () =>
-    call(api.GET("/api/v1/shipments", { params: { query: { status: "IN_TRANSIT", codStatus: "WITH_COURIER" } } })),
-});
+/** One courier's parcels under the search, a page at a time. */
+export const codParcelsQuery = (courier: string, search: DatedSearchValue, paging: Paging) =>
+  pagedQuery(["shipments", "cod", "parcels", courier.toLowerCase(), search, paging], () =>
+    call(api.GET("/api/v1/shipments/cod/parcels", { params: { query: { courier, ...search, ...paging } } })),
+  );
 
 /** An order moves stock, money and the lists: whatever shows those reads again. */
 export function ordersChanged(queryClient: QueryClient) {

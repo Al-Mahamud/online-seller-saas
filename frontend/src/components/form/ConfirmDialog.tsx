@@ -14,6 +14,7 @@ import {
 export function ConfirmDialog({
   title,
   description,
+  problem,
   confirm,
   pending,
   onConfirm,
@@ -21,6 +22,8 @@ export function ConfirmDialog({
 }: {
   title: string;
   description: ReactNode;
+  /** Why it was refused, when the dialog stays open to try again. */
+  problem?: string;
   confirm: string;
   pending: boolean;
   onConfirm: () => void;
@@ -34,6 +37,14 @@ export function ConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {problem && (
+          <p
+            role="alert"
+            className="rounded-[10px] bg-danger-soft px-3.5 py-2.75 text-[15px] font-semibold text-danger-ink"
+          >
+            {problem}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             {t("page.cancel")}

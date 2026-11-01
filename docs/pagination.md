@@ -51,13 +51,14 @@ A filter that changes the list must also send `page: undefined`, so it starts fr
 
 | Numbered pages, place in the address | Numbered pages, place kept only while there | Not paged, and why |
 |---|---|---|
-| Orders | One customer's orders | COD parcels: a payout has to add up across all of a courier's parcels |
-| Products | A variant's stock history | Add items modal: reads on as it scrolls, because ticks carry across products |
-| Low stock | Invoices, on the billing page | Staff, categories, tags, delivery zones and plans: short lists |
-| Customers | | Today's low-stock panel: shows 3, and asks the server for only those |
+| Orders | One customer's orders | Add items modal: reads on as it scrolls, because ticks carry across products |
+| Products | A variant's stock history | Staff, categories, tags, delivery zones and plans: short lists |
+| Low stock | Invoices, on the billing page | Today's low-stock panel: shows 3, and asks the server for only those |
+| Customers | | |
 | Notifications | | |
 | The activity log | | |
 | Admin: businesses, invoices, activity | | |
+| COD parcels, per courier | | |
 
 ## Proposed by Claude
 
@@ -71,6 +72,7 @@ Change any of these by saying so:
 | Short lists | Only "মোট ১২টি". An empty list keeps its own message and shows nothing more. |
 | Filters | A new search, filter or status tab goes back to page 1 and keeps the rows per page. |
 | Choosing orders | Ticks are for the page on screen and clear when the page changes, so nothing is packed or shipped from a page out of sight. |
+| COD parcels | The opposite: a payout covers every page, so ticks stay and the totals come from the server. `docs/orders-redesign.md` has the rule. |
 
 ## Different from the drawing
 
@@ -92,3 +94,4 @@ In `frontend/src/i18n/bn.json` and `en.json` under `pagination`, and in `docs/ba
 ## Change log
 
 - **Nov 1, 2026:** designed and built, replacing "load more" and the cursor-based lists.
+- **Nov 1, 2026:** COD parcels moved from not paged to paged, at Al Mahamud's request.

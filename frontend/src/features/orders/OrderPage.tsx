@@ -12,7 +12,8 @@ import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type Order, orderChanged, orderErrorText, orderQuery, slipsUrl, stillOut } from "./api";
 import { BackToOrders } from "./BackToOrders";
-import { CancelDialog, DeliverDialog, PaymentDialog, ReturnDialog, ShipDialog } from "./OrderDialogs";
+import { CancelDialog, PaymentDialog, ShipDialog } from "./OrderDialogs";
+import { DeliverDialog, ReturnDialog } from "./ReturnDialogs";
 import { StatusBadge } from "./StatusBadge";
 import type { OrderStatus } from "./search";
 

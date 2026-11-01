@@ -1,14 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
-import { ChevronRight, Plus, Printer, Search, X } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { ChevronRight, Plus, Printer } from "lucide-react";
+import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, call } from "@/api/client";
-import { Field } from "@/components/form/Field";
 import { AddressPagination } from "@/components/layout/Pagination";
+import { DatedSearchPanel, ON_DARK_FOCUS, SearchChips } from "@/components/layout/SearchPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useCanWrite } from "@/features/billing/status";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -21,7 +20,6 @@ const BulkShipDialog = lazy(() => import("./BulkShipDialog"));
 
 const route = getRouteApi("/_app/orders/");
 const MAX_BULK = 100;
-const ON_DARK_FOCUS = "focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-marigold-text";
 
 function StatusTabs({ filters, onChange }: { filters: OrderFilters; onChange: () => void }) {
   const { t } = useTranslation();
@@ -72,139 +70,43 @@ function StatusTabs({ filters, onChange }: { filters: OrderFilters; onChange: ()
   );
 }
 
-/** What's typed and picked waits here; the list follows the address, which changes on "search". */
 function SearchPanel({ onChange }: { onChange: () => void }) {
   const { t } = useTranslation();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  const [q, setQ] = useState(filters.q ?? "");
-  const [from, setFrom] = useState(filters.from ?? "");
-  const [to, setTo] = useState(filters.to ?? "");
-  // The address can change without this panel: a chip removed, the browser's back button, a shared link.
-  useEffect(() => {
-    setQ(filters.q ?? "");
-    setFrom(filters.from ?? "");
-    setTo(filters.to ?? "");
-  }, [filters.q, filters.from, filters.to]);
   return (
-    // biome-ignore lint/a11y/useSemanticElements: a form with this role is how a search with a button is announced.
-    <form
-      role="search"
-      aria-label={t("orders.search")}
-      className="flex flex-col gap-2.5 md:relative md:gap-3 md:overflow-hidden md:rounded-2xl md:bg-ledger md:py-4.5 md:pr-6 md:pl-14 md:text-white"
-      onSubmit={(event) => {
-        event.preventDefault();
+    <DatedSearchPanel
+      value={filters}
+      label={t("orders.search")}
+      hint={t("orders.searchHint")}
+      fromLabel={t("orders.from")}
+      toLabel={t("orders.to")}
+      className="md:relative md:overflow-hidden md:rounded-2xl md:bg-ledger md:py-4.5 md:pr-6 md:pl-14 md:text-white"
+      onSearch={(value) => {
         onChange();
-        void navigate({
-          search: {
-            status: filters.status,
-            q: q.trim() || undefined,
-            from: from || undefined,
-            to: to || undefined,
-            size: filters.size,
-          },
-          replace: true,
-        });
+        void navigate({ search: { status: filters.status, ...value, size: filters.size }, replace: true });
+      }}
+      onReset={() => {
+        onChange();
+        void navigate({ search: { size: filters.size }, replace: true });
       }}
     >
       <div aria-hidden="true" className="absolute inset-y-0 left-7 hidden w-0.5 bg-marigold md:block" />
-      <div className="relative">
-        <Search
-          aria-hidden="true"
-          className="absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-          type="search"
-          aria-label={t("orders.search")}
-          placeholder={t("orders.searchHint")}
-          className={cn(
-            "h-12.5 rounded-xl border-0 bg-card pl-11 text-base text-foreground md:h-13 md:text-[17px]",
-            ON_DARK_FOCUS,
-          )}
-          value={q}
-          onChange={(event) => setQ(event.target.value)}
-        />
-      </div>
-      <div className="flex flex-wrap items-end gap-2.5 md:gap-3">
-        <div className="grid min-w-0 flex-[2_1_100%] grid-cols-2 gap-2.5 md:flex-[2_1_340px] md:gap-3 [&_input]:h-11.5 [&_input]:rounded-[10px] [&_input]:border-0 [&_input]:bg-card [&_input]:px-2 [&_input]:text-[15px] [&_input]:text-foreground md:[&_input]:h-11 [&_label]:text-sm [&_label]:text-ledger-text">
-          <Field label={t("orders.from")} type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
-          <Field label={t("orders.to")} type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-        </div>
-        <div className="grid flex-[1_1_100%] grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 md:ml-auto md:flex md:flex-none">
-          <button
-            type="button"
-            className={cn(
-              "h-12 cursor-pointer rounded-[10px] border-[1.5px] border-ledger-text text-base font-semibold text-white hover:bg-white/10 md:h-11 md:px-4 md:text-[15px]",
-              ON_DARK_FOCUS,
-            )}
-            onClick={() => {
-              onChange();
-              void navigate({ search: { size: filters.size }, replace: true });
-            }}
-          >
-            {t("products.list.reset")}
-          </button>
-          <button
-            type="submit"
-            className={cn(
-              "flex h-12 cursor-pointer items-center justify-center gap-1.5 rounded-[10px] bg-marigold-text text-base font-bold text-ledger hover:bg-marigold md:h-11 md:px-4.5 md:text-[15px]",
-              ON_DARK_FOCUS,
-            )}
-          >
-            <Search aria-hidden="true" className="size-4.5" strokeWidth={2.5} />
-            {t("products.list.searchButton")}
-          </button>
-        </div>
-      </div>
-    </form>
+    </DatedSearchPanel>
   );
 }
 
-/** What the list is searching for, each with a way to take it off. */
 function ActiveFilters({ onChange }: { onChange: () => void }) {
-  const { t } = useTranslation();
-  const format = useFormat();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  const remove = (change: Partial<OrderFilters>) => {
-    onChange();
-    void navigate({ search: { ...filters, ...change, page: undefined }, replace: true });
-  };
-  const chips = [
-    filters.q && {
-      key: "q",
-      text: `"${filters.q}"`,
-      onRemove: () => remove({ q: undefined }),
-    },
-    filters.from && {
-      key: "from",
-      text: t("orders.list.fromChip", { date: format.date(filters.from) }),
-      onRemove: () => remove({ from: undefined }),
-    },
-    filters.to && {
-      key: "to",
-      text: t("orders.list.toChip", { date: format.date(filters.to) }),
-      onRemove: () => remove({ to: undefined }),
-    },
-  ].filter((chip) => !!chip);
-  if (chips.length === 0) {
-    return null;
-  }
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {chips.map((chip) => (
-        <button
-          key={chip.key}
-          type="button"
-          aria-label={t("products.list.removeFilter", { name: chip.text })}
-          className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full bg-accent py-1 pr-2.5 pl-3 text-sm font-semibold text-accent-foreground hover:bg-[#D5E9DF]"
-          onClick={chip.onRemove}
-        >
-          {chip.text}
-          <X aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
-        </button>
-      ))}
-    </div>
+    <SearchChips
+      value={filters}
+      onRemove={(key) => {
+        onChange();
+        void navigate({ search: { ...filters, [key]: undefined, page: undefined }, replace: true });
+      }}
+    />
   );
 }
 

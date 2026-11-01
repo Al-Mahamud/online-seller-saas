@@ -32,3 +32,21 @@ export function orderFilters(search: Record<string, unknown>): OrderFilters {
     ...pagingSearch(search),
   };
 }
+
+/** What the COD page keeps in the address: a shared link shows the same courier and search. */
+export interface CodFilters extends Paging {
+  courier?: string;
+  q?: string;
+  from?: string;
+  to?: string;
+}
+
+export function codFilters(search: Record<string, unknown>): CodFilters {
+  return {
+    courier: searchText(search.courier),
+    q: searchText(search.q),
+    from: dayText(search.from),
+    to: dayText(search.to),
+    ...pagingSearch(search),
+  };
+}

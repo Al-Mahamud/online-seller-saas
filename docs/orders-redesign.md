@@ -1,6 +1,6 @@
 # Orders pages redesign
 
-Nov 1, 2026 · **Status: the orders list, the order detail page and the new order page are built on branch `product-variants`. Not yet tried on a real server, on a real phone or with sellers.** Add later changes to this document's change log.
+Nov 1, 2026 · **Status: the orders list, the order detail page, the new order page and the delivered and take items back modals are built on branch `product-variants`. Not yet tried on a real server, on a real phone or with sellers.** Add later changes to this document's change log.
 
 Design: [Mojud orders list design](https://claude.ai/artifact/XY6yzYYXkAmUR3XbuiHCqx) (the list, one order, and every status with its next step). No backend change.
 
@@ -85,9 +85,52 @@ Proposed by Claude. Change any of these by saying so:
 | Shortfall | A row says "আদায়ের কথা ছিল ৳…" when the courier collected less than expected. |
 | Staff | See the amounts, without ticks or the button, as before. |
 
-**Known limits:** a partly delivered order also shows the shortfall note, since less was collected than first expected. Past payouts aren't on this page, the same as before. Reloading, or coming back from an order, opens the first tab with everything ticked again.
+### Search and pages
+
+Decided by Al Mahamud: add a search panel and pagination.
+
+Design: [Mojud COD search and pages design](https://claude.ai/artifact/5PZTZXisHS5KSNAr5RxuPo). This one needs the backend: `/api/v1/shipments/cod/summary`, `/api/v1/shipments/cod/parcels` and `/api/v1/shipments/settle-cod/matching`.
+
+Proposed by Claude. Change any of these by saying so:
+
+| Proposal | Detail |
+|---|---|
+| Search | Order number, tracking number, name or phone, and the days of delivery, in the dark band under the totals, with chips below. |
+| Totals | The band always shows everything couriers hold. A search only changes the tabs and the courier's card. |
+| Tabs under a search | Only couriers with a match, showing what was found. |
+| Rows | The customer's name under the order number. |
+| What a payout covers | Everything the search found, on every page, less what's unticked. Parcels the search didn't find are never part of it. |
+| Ticks | Stay when changing page. A new search or another courier starts again with everything ticked, which replaces "unticked stays when switching tabs" above. |
+| The button | At the top of the courier's card, so it's reachable without scrolling past the rows. |
+| If the list changed | The server compares the count and the amount with what was shown. If they differ nothing is saved, and the confirmation stays with the new figures. |
+
+**Different from the drawing:** the confirmation's refusal doesn't repeat the figures, because the text and button above it already show them.
+
+**Known limits:** a partly delivered order also shows the shortfall note, since less was collected than first expected. Past payouts aren't on this page, the same as before. Reloading, or coming back from an order, keeps the courier, search and page but ticks everything again. One payout can cover at most 10,000 parcels when most are ticked, or 500 when everything was unticked and chosen one by one. The older `/api/v1/shipments` list is still capped at 500, and this page no longer uses it.
+
+## Delivered and take items back
+
+Design: [Mojud delivered and take back design](https://claude.ai/artifact/E7ZWftgNRLcrVAhXB5G4M1). No backend change. The same sums as before, and the same requests. The code is in `features/orders/ReturnDialogs.tsx`, on the frame in `components/layout/LedgerDialog.tsx`, which Change stock now uses too.
+
+Proposed by Claude. Change any of these by saying so:
+
+| Proposal | Detail |
+|---|---|
+| Frame | Dark header with the marigold line, a body that scrolls, and a footer with a live summary. The whole screen on phones. |
+| Delivered | গ্রাহক কি সব পণ্য নিয়েছেন? with two answers, in place of a checkbox. The items only show for না. |
+| টাকার হিসাব | What the courier was to collect, what refused items take off, and what to collect now, above the amount collected. |
+| Amount warning | A note when the amount collected isn't what was to be collected. It doesn't stop saving. |
+| Quantity | − and + buttons, up to the most allowed. No typing. |
+| What becomes of an item | Two buttons, স্টকে ফেরত and নষ্ট, স্টকে নয়, once the quantity is above zero. |
+| Take items back | Items, then the reason, then the money. Refund, method and transaction ID as before, only when something can be refunded. |
+| Parcel came back | The same modal, with no quantities and no money, since the whole parcel came back. |
 
 ## Different from the drawing
+
+- **না, কিছু নেননি with nothing chosen:** the drawing would have saved it. It now asks which items, because saving would record that everything was taken.
+- **"Off for refused items":** says না নেওয়া পণ্যের জন্য বাদ, not দাম, and shows what actually came off the amount to collect, which can be less than the price when part was paid before.
+- **A typed amount:** stays when the items change, where the drawing reset it. The warning says when it no longer matches. A refund typed earlier is dropped if its box goes away.
+- **Reason's error:** এটি পূরণ করুন, the app's usual text.
 
 - **Phone header:** the app's white header stays above the dark area, as on Today.
 - **Bar for chosen orders on phones:** it stays at the top of the list, under the header, not at the bottom, where the + button would cover it.
@@ -99,6 +142,7 @@ Proposed by Claude. Change any of these by saying so:
 - **Delivered orders** still say "COD" with the amount in the list, since that's what was to be collected.
 - **Selected rows:** a status badge of the same pale green as a selected row loses its outline; the words stay readable.
 - **English** was never drawn, but the text is in `en.json`.
+- **Large quantities** in the delivered and take items back modals take one tap each, because these have no box to type in.
 
 ## New text
 
@@ -112,3 +156,5 @@ In `frontend/src/i18n/bn.json` and `en.json` under `orders.list`, `orders.detail
 - **Nov 1, 2026:** the cancel order button changed from small red text to a red button.
 - **Nov 1, 2026:** COD to settle designed and built.
 - **Nov 1, 2026:** COD to settle changed from every courier on the page to one at a time, with tabs.
+- **Nov 1, 2026:** the delivered, take items back and parcel came back modals designed and built.
+- **Nov 1, 2026:** COD to settle gets a search panel and pages. Its totals now come from the server, which fixes them being too low past 500 parcels.
