@@ -1,117 +1,58 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, type LinkProps, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
-import { hasRole, resetBusinessData, useBusiness } from "@/api/business";
-import { api, call } from "@/api/client";
-import { useMe } from "@/api/session";
-import { ConfirmDialog } from "@/components/form/ConfirmDialog";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { Button } from "@/components/ui/button";
-import { useSignOut } from "@/features/account/useSignOut";
-import { useInstallApp } from "@/lib/install";
+import { hasRole, useBusiness } from "@/api/business";
+import { MANAGE_LINKS, type NavLink, WORK_LINKS } from "@/components/layout/navLinks";
 
 export const Route = createFileRoute("/_app/more")({
+  // For phones: from a laptop up, all of this is in the sidebar.
+  beforeLoad: () => {
+    if (window.matchMedia("(min-width: 768px)").matches) {
+      throw redirect({ to: "/", replace: true });
+    }
+  },
   component: More,
 });
 
-/** Everything that isn't a tab: the business and the account; customers, billing and the rest from F5 onwards. */
+/** Everything that isn't a tab. The account's things are behind the business's name, at the top. */
 function More() {
   const { t } = useTranslation();
-  const me = useMe();
   const business = useBusiness();
-  const signOut = useSignOut();
-  const install = useInstallApp();
+  const manage = MANAGE_LINKS.filter((link) => !link.role || hasRole(business, link.role));
   return (
-    <div className="flex max-w-md flex-col gap-4">
-      <PageHeader title={t("nav.more")} />
-      {install && <Button onClick={install}>{t("account.install")}</Button>}
-      <section className="rounded-xl border bg-card px-4 py-1">
-        <nav aria-label={t("customers.title")} className="flex flex-col">
-          <MoreLink to="/customers" label={t("customers.title")} />
-          <MoreLink to="/cod" label={t("cod.title")} />
-          <MoreLink to="/reports" label={t("reports.title")} />
-        </nav>
-      </section>
-      {hasRole(business, "MANAGER") && (
-        <section className="rounded-xl border bg-card px-4 py-1">
-          <nav aria-label={t("business.title")} className="flex flex-col">
-            <MoreLink to="/billing" label={t("billing.title")} />
-            <MoreLink to="/settings/business" label={t("business.title")} />
-            <MoreLink to="/settings/categories" label={t("categories.title")} />
-            <MoreLink to="/settings/delivery" label={t("delivery.title")} />
-            <MoreLink to="/settings/staff" label={t("staff.title")} />
-            {hasRole(business, "OWNER") && <MoreLink to="/settings/audit-log" label={t("audit.title")} />}
-          </nav>
-        </section>
-      )}
-      <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
-        <div>
-          <p className="font-semibold">{me.name}</p>
-          <p className="text-sm text-muted-foreground">{me.email ?? me.phone}</p>
-        </div>
-        <nav aria-label={t("account.title")} className="flex flex-col">
-          <MoreLink to="/settings/account" label={t("account.title")} />
-          <MoreLink to="/settings/security" label={t("account.security")} />
-          {me.platformAdmin && <MoreLink to="/admin" label={t("account.admin")} />}
-          {hasRole(business, "MANAGER") && (
-            <MoreLink to="/settings/notifications" label={t("notifications.emailChoices")} />
-          )}
-        </nav>
-        <Button variant="outline" disabled={signOut.isPending} onClick={() => signOut.mutate()}>
-          {t("account.signOut")}
-        </Button>
-      </section>
-      {!hasRole(business, "OWNER") && <LeaveBusiness />}
+    <div className="flex w-full flex-col gap-4">
+      <div className="relative -mx-4 -mt-4 bg-ledger pt-3 pr-4.5 pb-10.5 pl-6.5 text-white">
+        <div aria-hidden="true" className="absolute inset-y-0 left-2.5 w-0.5 bg-marigold" />
+        <h1 className="text-[28px] leading-tight font-bold">{t("nav.more")}</h1>
+      </div>
+      <div className="relative -mx-4 -mt-11.5 flex flex-col gap-3 rounded-t-3xl bg-background px-3.5 pt-3.5">
+        <MoreLinks label={t("nav.work")} links={WORK_LINKS} />
+        {manage.length > 0 && (
+          <>
+            <h2 className="mt-0.5 -mb-1.5 ml-1 text-sm font-semibold text-muted-foreground">{t("nav.manage")}</h2>
+            <MoreLinks label={t("nav.manage")} links={manage} />
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-/** Owners hand the business over first. */
-function LeaveBusiness() {
+function MoreLinks({ label, links }: { label: string; links: NavLink[] }) {
   const { t } = useTranslation();
-  const business = useBusiness();
-  const queryClient = useQueryClient();
-  const router = useRouter();
-  const [confirming, setConfirming] = useState(false);
-  const leave = useMutation({
-    mutationFn: () => call(api.POST("/api/v1/staff/leave")),
-    onSuccess: async () => {
-      resetBusinessData(queryClient);
-      toast.success(t("staff.left", { name: business.name }));
-      await router.navigate({ to: "/" });
-      await router.invalidate();
-    },
-  });
   return (
-    <>
-      <Button variant="outline" className="self-start" onClick={() => setConfirming(true)}>
-        {t("staff.leave")}
-      </Button>
-      {confirming && (
-        <ConfirmDialog
-          title={t("staff.leaveTitle", { name: business.name })}
-          description={t("staff.leaveDescription")}
-          confirm={t("staff.leave")}
-          pending={leave.isPending}
-          onConfirm={() => leave.mutate()}
-          onClose={() => setConfirming(false)}
-        />
-      )}
-    </>
-  );
-}
-
-function MoreLink({ to, label }: { to: LinkProps["to"]; label: string }) {
-  return (
-    <Link
-      to={to}
-      className="flex min-h-12 items-center justify-between border-t text-foreground no-underline first:border-t-0"
-    >
-      {label}
-      <ChevronRight aria-hidden="true" className="size-5 text-muted-foreground" />
-    </Link>
+    <nav aria-label={label} className="flex flex-col rounded-[14px] border bg-card px-3.5 py-0.5">
+      {links.map((link) => (
+        <Link
+          key={link.label}
+          to={link.to}
+          className="flex min-h-12.5 items-center gap-3 border-t text-foreground no-underline first:border-t-0 hover:text-foreground"
+        >
+          <link.icon aria-hidden="true" className="size-5 flex-none text-primary" />
+          <span className="flex-1">{t(link.label)}</span>
+          <ChevronRight aria-hidden="true" className="size-4.5 flex-none text-muted-foreground" />
+        </Link>
+      ))}
+    </nav>
   );
 }

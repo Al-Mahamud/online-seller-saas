@@ -7,7 +7,9 @@
     "today": "Today",
     "orders": "Orders",
     "products": "Products",
-    "more": "More"
+    "more": "More",
+    "manage": "Management",
+    "work": "Work"
   },
   "language": {
     "other": "বাংলা"
@@ -159,6 +161,21 @@
       "payments": "Payments",
       "noPayments": "No payments yet.",
       "sent": "Sent {{time}}"
+    },
+    "form": {
+      "returning": "Returning customer",
+      "noLines": "No products added yet."
+    },
+    "picker": {
+      "add": "Add items",
+      "title": "Choose items",
+      "prompt": "Choose a product on the left.",
+      "chooseVariants": "Choose the variants you need",
+      "onlyVariant": "This product has one variant",
+      "added": "Already added",
+      "nonePicked": "Nothing chosen",
+      "ok": "OK",
+      "back": "All products"
     }
   },
   "page": {
@@ -176,7 +193,7 @@
   },
   "account": {
     "signOut": "Sign out",
-    "title": "Account",
+    "title": "Profile",
     "security": "Security",
     "saved": "Saved.",
     "save": "Save",
@@ -211,9 +228,12 @@
       "submit": "Change password",
       "done": "Your password has been changed."
     },
-    "profile": "Profile",
+    "profile": "Your details",
     "admin": "Admin",
-    "install": "Add the app to your phone"
+    "install": "Add the app to your phone",
+    "info": "Details",
+    "identity": "About you",
+    "parts": "Profile sections"
   },
   "field": {
     "required": "Please fill this in.",

@@ -11,7 +11,7 @@ function mainNavigation(page: import("@playwright/test").Page) {
   return page.getByRole("navigation", { name: /প্রধান|Main/ });
 }
 
-test("opens in Bangla with the four tabs", async ({ page }) => {
+test("opens in Bangla with the four tabs", async ({ page }, info) => {
   await page.goto("/");
 
   await expect(page.locator("html")).toHaveAttribute("lang", "bn");
@@ -19,8 +19,13 @@ test("opens in Bangla with the four tabs", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "আজ" })).toBeVisible();
   const navigation = mainNavigation(page);
   await expect(navigation).toHaveCount(1);
-  for (const tab of ["আজ", "অর্ডার", "পণ্য", "আরও"]) {
-    await expect(navigation.getByRole("link", { name: tab })).toBeVisible();
+  // A phone has four tabs; from a laptop up, the sidebar has every page and no "More".
+  const pages =
+    info.project.name === "phone"
+      ? ["আজ", "অর্ডার", "পণ্য", "আরও"]
+      : ["আজ", "অর্ডার", "পণ্য", "গ্রাহক", "COD হিসাব", "রিপোর্ট", "প্ল্যান ও পেমেন্ট", "সদস্য", "কার্যক্রমের তালিকা"];
+  for (const name of pages) {
+    await expect(navigation.getByRole("link", { name })).toBeVisible();
   }
   await expectAccessible(page);
 });

@@ -209,7 +209,7 @@ export function OrderPage() {
         {(editable || order.status === "PACKED") && (
           <button
             type="button"
-            className="min-h-11 w-fit cursor-pointer self-center rounded-[10px] px-3 text-[15px] font-semibold text-destructive hover:bg-danger-soft md:self-end"
+            className="min-h-12 w-full cursor-pointer rounded-[10px] bg-destructive px-5 text-base font-bold text-white hover:bg-danger-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-destructive md:min-h-11.5 md:w-fit md:self-end"
             onClick={() => setDialog("cancel")}
           >
             {t("orders.cancel")}

@@ -1,6 +1,6 @@
 # Orders pages redesign
 
-Nov 2, 2026 · **Status: the orders list and the order detail page are built on branch `product-variants`. Not yet tried on a real server, on a real phone or with sellers.** Add later changes to this document's change log.
+Nov 1, 2026 · **Status: the orders list, the order detail page and the new order page are built on branch `product-variants`. Not yet tried on a real server, on a real phone or with sellers.** Add later changes to this document's change log.
 
 Design: [Mojud orders list design](https://claude.ai/artifact/XY6yzYYXkAmUR3XbuiHCqx) (the list, one order, and every status with its next step). No backend change.
 
@@ -29,11 +29,41 @@ Proposed by Claude. Change any of these by saying so:
 | One next step | The main action stands out in the band; only what applies to the status is offered. |
 | Money | With the items, ending in what's still to collect, to pay back or owed. |
 | Customer | A call button. On phones this card comes first, for calling and packing. |
-| Cancel | Small red text away from the other buttons, at the end of the page. |
+| Cancel | Decided by Al Mahamud: a red button, darker red on hover, so it's easy to see. It stays away from the other buttons, at the end of the page. |
 | History | Newest first. |
 | Left out | Photos beside items, which need backend work. |
 
 **Not redrawn.** The ship, deliver, return, payment and cancel dialogs work as before.
+
+## New order
+
+Decided by Al Mahamud: no search box on the products card. A **+ পণ্য যোগ করুন** button at its top right opens a modal with products on the left; clicking one shows its variants on the right; clicking selects a variant; OK closes the modal and puts the items in the list.
+
+Design: [Mojud new order design](https://claude.ai/artifact/LMc8edfaqtfqK5ntYhCuah). The same form changes an order, so "অর্ডার বদলান" looks the same, without the advance fields. Nothing about what's saved changes.
+
+Proposed by Claude. Change any of these by saying so:
+
+| Proposal | Detail |
+|---|---|
+| Customer on top | The phone number first, in the dark band. A known customer shows name and order count; an unknown number asks for a name. |
+| Two columns | From a laptop up: address, products and note on the left; the money and the save buttons on the right, staying in view. |
+| Products as rows | Quantity, price, line total and remove, with the stock warning on the row. A message says when nothing's been added. |
+| In the modal | A search above the product list. Tick several variants across products before OK; each product shows how many are ticked. New items start at quantity 1. |
+| Already on the order | Ticked and locked, marked "আগেই যোগ করা আছে". The × in the list removes one. |
+| Out of stock | Can still be ticked, marked "স্টক নেই", as before. |
+| Modal on phones | Full screen: the products, then one product's variants with a back arrow. The ticked count and OK stay at the bottom. |
+| Money like a receipt | Product price, delivery, discount, total, advance, then COD. Payment method and transaction ID only once there's an advance. |
+| Phone bar | COD and the save button stay on screen above the menu. খসড়া রাখুন is at the end of the page. |
+| Left out | Photos in the rows, because saved orders keep none for each item. The modal's product list has them. |
+
+**Not redrawn.** The district and area pickers work as before.
+
+**Different from the drawing:**
+
+- **District and area on phones** stack instead of sharing a row, since each needs room for its clear button.
+- **Stock in the modal** uses the app's existing wording, "বিক্রয়যোগ্য ১২", not "১২টি আছে".
+- **Clicking outside the modal** does nothing, so a stray click can't lose what's ticked. Close and বাতিল do close it, and add nothing.
+- **The phone bar while typing:** no code hides it. Browsers that open the keyboard over the page, the default in current Android Chrome and iPhone Safari, cover it along with the menu. An older Android browser that shrinks the page instead would keep the bar above the keyboard. Not yet tried on a real phone.
 
 ## Different from the drawing
 
@@ -50,8 +80,11 @@ Proposed by Claude. Change any of these by saying so:
 
 ## New text
 
-In `frontend/src/i18n/bn.json` and `en.json` under `orders.list` and `orders.detail`, and in `docs/bangla-review.csv`. The Bangla needs Al Mahamud's read-through.
+In `frontend/src/i18n/bn.json` and `en.json` under `orders.list`, `orders.detail` and `orders.form`, and in `docs/bangla-review.csv`. The Bangla needs Al Mahamud's read-through.
 
 ## Change log
 
-- **Nov 2, 2026:** list and detail designed and built.
+- **Nov 1, 2026:** list and detail designed and built.
+- **Nov 1, 2026:** new order designed and built, which also changes the page for changing an order.
+- **Nov 1, 2026:** the search on the products card replaced by the add items button and modal.
+- **Nov 1, 2026:** the cancel order button changed from small red text to a red button.

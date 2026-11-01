@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 export function BackToMore() {
   const { t } = useTranslation();
   return (
-    <Link to="/more" className="-ml-1 flex min-h-11 w-fit items-center gap-1 text-primary no-underline">
+    <Link to="/more" className="-ml-1 flex min-h-11 w-fit items-center gap-1 text-primary no-underline md:hidden">
       <ChevronLeft aria-hidden="true" className="size-5" />
       {t("nav.more")}
     </Link>

@@ -74,7 +74,7 @@ test("an owner invites a manager, who joins from the link; the manager can't rea
   await expect(manager.getByRole("link", { name: "সদস্য" })).toBeVisible();
   await expect(manager.getByRole("link", { name: "কার্যক্রমের তালিকা" })).toBeHidden();
   await manager.goto("/settings/audit-log");
-  await expect(manager).toHaveURL(/\/more$/);
+  await expect(manager).toHaveURL(/localhost:\d+\/$/);
   await manager.goto("/settings/business");
   await expect(manager.getByRole("heading", { level: 1, name: "ব্যবসা" })).toBeVisible();
   await expect(manager.getByRole("button", { name: "ব্যবসা মুছে ফেলুন" })).toBeHidden();
@@ -105,9 +105,9 @@ test("staff can't reach team or business pages, and a removed member is out of t
   await staff.goto("/more");
   await expect(staff.getByRole("link", { name: "সদস্য" })).toBeHidden();
   await staff.goto("/settings/staff");
-  await expect(staff).toHaveURL(/\/more$/);
+  await expect(staff).toHaveURL(/localhost:\d+\/$/);
   await staff.goto("/settings/business");
-  await expect(staff).toHaveURL(/\/more$/);
+  await expect(staff).toHaveURL(/localhost:\d+\/$/);
 
   // The owner removes them; within a minute the app notices and leaves the business.
   await page.reload();
@@ -147,6 +147,7 @@ test("changes a member's role, and hands over ownership with the password", asyn
   // The old owner is a manager now: no audit log, and they can leave.
   await page.goto("/more");
   await expect(page.getByRole("link", { name: "কার্যক্রমের তালিকা" })).toBeHidden();
+  await page.goto("/settings/account");
   await page.getByRole("button", { name: "ব্যবসা ছেড়ে দিন" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "ব্যবসা ছেড়ে দিন" }).click();
   await expect(page).toHaveURL(/\/welcome$/);

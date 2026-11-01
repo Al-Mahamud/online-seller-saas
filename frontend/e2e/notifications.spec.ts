@@ -95,7 +95,7 @@ test("the low-stock email can be turned off, and stays off", async ({ page }) =>
   await page.goto("/notifications");
   await expect(page.getByText("এখনো কোনো নোটিফিকেশন নেই।")).toBeVisible();
   await page.getByRole("link", { name: "ইমেইলের পছন্দ" }).click();
-  await expect(heading(page, "ইমেইলের পছন্দ")).toBeVisible();
+  await expect(heading(page, "প্রোফাইল")).toBeVisible();
   const digest = page.getByLabel("প্রতিদিন স্টক কমে আসা পণ্যের তালিকা");
   await expect(digest).toBeChecked();
   await expectAccessible(page);
@@ -119,6 +119,6 @@ test("staff don't get the managers' notices or the email choices", async ({ page
   await expect(bell(staff)).toHaveAccessibleName("নোটিফিকেশন");
   await expect(staff.getByRole("link", { name: "ইমেইলের পছন্দ" })).toHaveCount(0);
   await staff.goto("/settings/notifications");
-  await expect(staff).toHaveURL(/\/more$/);
+  await expect(staff).toHaveURL(/localhost:\d+\/$/);
   await staff.context().close();
 });

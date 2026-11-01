@@ -5,31 +5,39 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod/mini";
+import { hasRole, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import { authOptionsQuery, meQuery, useMe } from "@/api/session";
 import { FormError, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
 import { useChangeLanguage } from "@/components/layout/LanguageToggle";
-import { BackToMore, PageHeader } from "@/components/layout/PageHeader";
 import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { name } from "@/features/auth/schemas";
 import { currentLanguage, type Language } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { ContactDialog, type ContactKind } from "./ContactDialog";
+import { LeaveBusiness } from "./LeaveBusiness";
+import { ProfileFrame } from "./ProfileFrame";
 
 export function AccountPage() {
-  const { t } = useTranslation();
+  const business = useBusiness();
   return (
-    <div className="flex max-w-lg flex-col gap-5">
-      <div>
-        <BackToMore />
-        <PageHeader title={t("account.title")} />
+    <ProfileFrame>
+      {/* Two columns from a laptop up; on phones the language comes last. */}
+      <div className="flex flex-col gap-3.5 lg:flex-row lg:items-start lg:gap-4">
+        <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:flex-col lg:gap-4">
+          <ProfileSection />
+          <div className="max-lg:order-last">
+            <LanguageSection />
+          </div>
+        </div>
+        <div className="lg:min-w-0 lg:flex-1">
+          <ContactSection />
+        </div>
       </div>
-      <ProfileSection />
-      <LanguageSection />
-      <ContactSection />
-    </div>
+      {!hasRole(business, "OWNER") && <LeaveBusiness />}
+    </ProfileFrame>
   );
 }
 
@@ -53,12 +61,6 @@ function ProfileSection() {
     <Section title={t("account.profile")}>
       <form noValidate className="flex flex-col gap-4" onSubmit={form.handleSubmit((values) => save.mutate(values))}>
         <FormError form={form} />
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[15px] leading-normal font-semibold">{t("auth.userId.label")}</p>
-          <p lang="en" className="wrap-anywhere">
-            {me.userId}
-          </p>
-        </div>
         <TextField form={form} name="name" label={t("account.name")} autoComplete="name" />
         <Button type="submit" className="self-start" disabled={save.isPending}>
           {t("account.save")}

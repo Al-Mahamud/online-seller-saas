@@ -1,26 +1,37 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Minus, Plus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, Minus, Plus, X } from "lucide-react";
+import { type ComponentProps, lazy, type ReactNode, Suspense, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { api, call, newIdempotencyKey } from "@/api/client";
 import { ApiError, errorAction } from "@/api/errors";
 import { AreaField, Field, SelectBox } from "@/components/form/Field";
-import { Section } from "@/components/layout/Section";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useCanWrite } from "@/features/billing/status";
 import { customerSearch } from "@/features/customers/api";
 import { PlacePicker, type PlaceValue } from "@/features/delivery/PlacePicker";
 import { latinDigits } from "@/lib/digits";
 import { useFormat } from "@/lib/format";
 import { parseCount, parseTaka, takaInput } from "@/lib/money";
+import { cn } from "@/lib/utils";
 import { type Order, orderChanged, orderErrorText, PAYMENT_METHODS, type PaymentMethod } from "./api";
-import { ItemPicker, type PickedItem } from "./ItemPicker";
+import type { PickedItem } from "./ItemsDialog";
+
+// Brings the dialog library, which the form otherwise doesn't need until items are added.
+const ItemsDialog = lazy(() => import("./ItemsDialog"));
 
 const MAX_QUANTITY = 10_000;
+
+const CARD = "flex flex-col gap-3 rounded-[14px] border bg-card p-3.5 md:px-5 md:py-4";
+const LINE_COLUMNS = "md:grid-cols-[minmax(0,1fr)_140px_104px_88px_44px] md:gap-x-3";
+const KNOWN_CUSTOMER =
+  "flex min-h-12 flex-wrap items-center gap-x-2.5 gap-y-0.5 rounded-[10px] border-[1.5px] border-ledger-outline px-3 py-2";
+const ON_DARK_FIELD =
+  "min-w-0 [&_input]:h-13 [&_input]:rounded-[10px] [&_input]:border-0 [&_input]:bg-card [&_input]:px-3.5 [&_input]:text-foreground md:[&_input]:h-12 [&_input:focus-visible]:outline-3 [&_input:focus-visible]:outline-offset-2 [&_input:focus-visible]:outline-marigold-text [&_label]:text-ledger-text [&_p]:font-semibold [&_p]:text-marigold-text";
 
 interface Line {
   variantId: string;
@@ -77,7 +88,16 @@ function useFocusProblem(errors: Errors) {
  * A new order, or changes to `order` (a draft, or a confirmed one, whose customer stays). Not a
  * <form>: the Enter key in the product search must never save an order.
  */
-export function OrderForm({ order, initialPhone }: { order?: Order; initialPhone?: string }) {
+export function OrderForm({
+  order,
+  initialPhone,
+  heading,
+}: {
+  order?: Order;
+  initialPhone?: string;
+  /** The way back and the title, which on phones share the dark header. */
+  heading: ReactNode;
+}) {
   const { t } = useTranslation();
   const format = useFormat();
   const queryClient = useQueryClient();
@@ -118,6 +138,7 @@ export function OrderForm({ order, initialPhone }: { order?: Order; initialPhone
   const [advanceMethod, setAdvanceMethod] = useState<PaymentMethod>("BKASH");
   const [advanceReference, setAdvanceReference] = useState("");
   const [note, setNote] = useState(order?.note ?? "");
+  const [adding, setAdding] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [problem, setProblem] = useState<string>();
   const box = useFocusProblem(errors);
@@ -163,25 +184,19 @@ export function OrderForm({ order, initialPhone }: { order?: Order; initialPhone
     }
   }, [quoted, chargeTouched]);
 
-  function addItem(item: PickedItem) {
-    setLines((current) => {
-      const existing = current.find((line) => line.variantId === item.variantId);
-      if (existing) {
-        const quantity = String((parseCount(existing.quantity) ?? 0) + 1);
-        return current.map((line) => (line === existing ? { ...line, quantity, available: item.available } : line));
-      }
-      return [
-        ...current,
-        {
-          variantId: item.variantId,
-          name: item.name,
-          label: item.label,
-          available: item.available,
-          quantity: "1",
-          price: takaInput(item.price),
-        },
-      ];
-    });
+  function addItems(items: PickedItem[]) {
+    setLines((current) => [
+      ...current,
+      ...items.map((item) => ({
+        variantId: item.variantId,
+        name: item.name,
+        label: item.label,
+        available: item.available,
+        quantity: "1",
+        price: takaInput(item.price),
+      })),
+    ]);
+    setAdding(false);
   }
 
   const changeLine = (variantId: string, change: Partial<Line>) =>
@@ -376,205 +391,310 @@ export function OrderForm({ order, initialPhone }: { order?: Order; initialPhone
     }
   }
 
+  const primaryConfirms = order?.status !== "CONFIRMED";
+  const primaryLabel = t(primaryConfirms ? "orders.saveConfirm" : "orders.saveChanges");
+  const codText = format.taka(Math.max(cod, 0));
   return (
-    <div ref={box} className="flex flex-col gap-4">
-      {!canWrite && (
-        <Alert variant="destructive">
-          <AlertDescription>{t("orders.readOnlyForm")}</AlertDescription>
-        </Alert>
-      )}
-      <Section title={t("orders.customer")}>
-        {customerFixed ? (
-          <p>
-            <span className="font-semibold">{order?.customer.name}</span> ·{" "}
-            {order && format.phone(order.customer.phone)}
-          </p>
-        ) : (
-          <>
-            <Field
-              label={t("customers.phone")}
-              type="tel"
-              autoComplete="off"
-              value={phone}
-              error={errors.phone}
-              onChange={(event) => {
-                setPhone(event.target.value);
-                if (order) {
-                  setName("");
-                }
-              }}
-            />
-            {found && (
-              <p role="status" className="rounded-lg bg-accent p-2 text-accent-foreground">
-                <span className="font-semibold">{found.name}</span> ·{" "}
-                {t("customers.orderCount", { count: format.number(found.orderCount) })}
-              </p>
-            )}
-            {!found && !lookup.isFetching && (
-              <Field
-                label={t("customers.name")}
-                autoComplete="off"
-                value={name}
-                maxLength={200}
-                error={errors.name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            )}
-          </>
-        )}
-      </Section>
-
-      <Section title={t("orders.deliverTo")}>
-        <AreaField
-          label={t("orders.address")}
-          value={address}
-          maxLength={500}
-          error={errors.address}
-          onChange={(event) => setAddress(event.target.value)}
-        />
-        <PlacePicker
-          value={place}
-          districtLabel={t("orders.district")}
-          districtError={errors.district}
-          onChange={(value) => {
-            setPlace(value);
-            setChargeTouched(false);
-          }}
-        />
-        <details open={recipientOpen || undefined}>
-          <summary className="flex min-h-11 cursor-pointer items-center text-primary">
-            {t("orders.otherRecipient")}
-          </summary>
-          <div className="flex flex-col gap-4 pt-2">
-            <Field
-              label={t("orders.recipientName")}
-              autoComplete="off"
-              value={recipientName}
-              error={errors.recipientName}
-              onChange={(event) => setRecipientName(event.target.value)}
-            />
-            <Field
-              label={t("orders.recipientPhone")}
-              type="tel"
-              autoComplete="off"
-              value={recipientPhone}
-              error={errors.recipientPhone}
-              onChange={(event) => setRecipientPhone(event.target.value)}
-            />
-          </div>
-        </details>
-      </Section>
-
-      <Section title={t("orders.items")}>
-        <ItemPicker onPick={addItem} />
-        {errors.items && (
-          <p data-problem tabIndex={-1} className="text-sm text-destructive outline-none">
-            {errors.items}
-          </p>
-        )}
-        {lines.length > 0 && (
-          <ul className="flex flex-col gap-3">
-            {lines.map((line) => (
-              <LineRow
-                key={line.variantId}
-                line={line}
-                errors={errors}
-                onChange={(change) => changeLine(line.variantId, change)}
-                onRemove={() => setLines(lines.filter((other) => other !== line))}
-              />
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title={t("orders.money")}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            label={t("orders.deliveryCharge")}
-            inputMode="decimal"
-            value={charge}
-            error={errors.charge}
-            hint={!chargeTouched && quote.data ? quote.data.zoneName : undefined}
-            onChange={(event) => {
-              setCharge(event.target.value);
-              setChargeTouched(true);
-            }}
-          />
-          <Field
-            label={t("orders.discount")}
-            inputMode="decimal"
-            value={discount}
-            error={errors.discount}
-            onChange={(event) => setDiscount(event.target.value)}
-          />
-          {!order && (
-            <Field
-              label={t("orders.advance")}
-              inputMode="decimal"
-              value={advance}
-              error={errors.advance}
-              onChange={(event) => setAdvance(event.target.value)}
-            />
+    <div ref={box} className="flex w-full flex-col gap-4">
+      {/* On phones the title and the customer share one dark header. */}
+      <div className="max-md:relative max-md:-mx-4 max-md:-mt-4 max-md:flex max-md:flex-col max-md:gap-2.5 max-md:bg-ledger max-md:pt-1 max-md:pr-4.5 max-md:pb-10.5 max-md:pl-6.5 max-md:text-white md:contents">
+        <div aria-hidden="true" className="absolute inset-y-0 left-2.5 w-0.5 bg-marigold md:hidden" />
+        <div className="max-md:[&_a]:text-marigold-text">{heading}</div>
+        <section
+          aria-labelledby="order-form-customer"
+          className="flex flex-col gap-2.5 md:relative md:overflow-hidden md:rounded-2xl md:bg-ledger md:pt-4.5 md:pr-6 md:pb-5 md:pl-14 md:text-white"
+        >
+          <div aria-hidden="true" className="absolute inset-y-0 left-7 hidden w-0.5 bg-marigold md:block" />
+          <h2 id="order-form-customer" className="text-[17px] font-bold md:text-[19px]">
+            {t("orders.customer")}
+          </h2>
+          {customerFixed && order ? (
+            <div className={KNOWN_CUSTOMER}>
+              <span className="text-[17px] font-bold">{order.customer.name}</span>
+              <span className="text-[15px] text-ledger-text">{format.phone(order.customer.phone)}</span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5 md:flex-row md:items-start md:gap-4">
+              <div className={cn(ON_DARK_FIELD, "md:flex-[1_1_0%] [&_input]:text-lg [&_input]:font-semibold")}>
+                <Field
+                  label={t("customers.phone")}
+                  type="tel"
+                  autoComplete="off"
+                  value={phone}
+                  error={errors.phone}
+                  onChange={(event) => {
+                    setPhone(event.target.value);
+                    if (order) {
+                      setName("");
+                    }
+                  }}
+                />
+              </div>
+              {found && (
+                <div role="status" className={cn(KNOWN_CUSTOMER, "md:mt-7.5 md:flex-[2_1_0%]")}>
+                  <Check aria-hidden="true" className="size-5 flex-none text-marigold-text" strokeWidth={2.5} />
+                  <span className="text-[17px] font-bold">{found.name}</span>
+                  <span className="text-[15px] text-ledger-text">
+                    {t("orders.form.returning")} ·{" "}
+                    {t("customers.orderCount", { count: format.number(found.orderCount) })}
+                  </span>
+                </div>
+              )}
+              {!found && !lookup.isFetching && (
+                <div className={cn(ON_DARK_FIELD, "md:flex-[2_1_0%] [&_input]:text-[17px]")}>
+                  <Field
+                    label={t("customers.name")}
+                    autoComplete="off"
+                    value={name}
+                    maxLength={200}
+                    error={errors.name}
+                    onChange={(event) => setName(event.target.value)}
+                  />
+                </div>
+              )}
+            </div>
           )}
-          {!order && (amountOf(advance) ?? 0) > 0 && (
-            <>
-              <SelectBox
-                label={t("orders.paidBy")}
-                value={advanceMethod}
-                onChange={(event) => setAdvanceMethod(event.target.value as PaymentMethod)}
-              >
-                {PAYMENT_METHODS.map((method) => (
-                  <option key={method} value={method}>
-                    {t(`paymentMethod.${method}`)}
-                  </option>
+        </section>
+      </div>
+
+      <div className="flex flex-col gap-3.5 max-md:relative max-md:-mx-4 max-md:-mt-7.5 max-md:rounded-t-3xl max-md:bg-background max-md:px-3.5 max-md:pt-3.5 md:gap-4">
+        {!canWrite && (
+          <Alert variant="destructive">
+            <AlertDescription>{t("orders.readOnlyForm")}</AlertDescription>
+          </Alert>
+        )}
+        {/* Two columns from a laptop up, where the money stays in view beside what it adds up. */}
+        <div className="flex flex-col gap-3.5 lg:flex-row lg:items-start lg:gap-4">
+          <div className="flex min-w-0 flex-col gap-3.5 lg:flex-[7_1_0%] lg:gap-4">
+            <section aria-labelledby="order-form-place" className={CARD}>
+              <h2 id="order-form-place" className="text-[19px] font-bold">
+                {t("orders.deliverTo")}
+              </h2>
+              <AreaField
+                label={t("orders.address")}
+                value={address}
+                maxLength={500}
+                error={errors.address}
+                onChange={(event) => setAddress(event.target.value)}
+              />
+              <PlacePicker
+                value={place}
+                districtLabel={t("orders.district")}
+                districtError={errors.district}
+                sideBySide
+                onChange={(value) => {
+                  setPlace(value);
+                  setChargeTouched(false);
+                }}
+              />
+              <details open={recipientOpen || undefined} className="group">
+                <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-1 text-[15px] font-semibold text-primary [&::-webkit-details-marker]:hidden">
+                  {t("orders.otherRecipient")}
+                  <ChevronDown aria-hidden="true" className="size-4.5 group-open:rotate-180" />
+                </summary>
+                <div className="grid gap-3 pt-2 md:grid-cols-2">
+                  <Field
+                    label={t("orders.recipientName")}
+                    autoComplete="off"
+                    value={recipientName}
+                    error={errors.recipientName}
+                    onChange={(event) => setRecipientName(event.target.value)}
+                  />
+                  <Field
+                    label={t("orders.recipientPhone")}
+                    type="tel"
+                    autoComplete="off"
+                    value={recipientPhone}
+                    error={errors.recipientPhone}
+                    onChange={(event) => setRecipientPhone(event.target.value)}
+                  />
+                </div>
+              </details>
+            </section>
+
+            <section aria-labelledby="order-form-items" className={CARD}>
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+                <h2 id="order-form-items" className="text-[19px] font-bold">
+                  {t("orders.items")}
+                </h2>
+                {lines.length > 0 && (
+                  <span className="text-[15px] text-muted-foreground">
+                    {t("orders.list.itemCount", { count: format.number(lines.length) })}
+                  </span>
+                )}
+                <Button
+                  variant="outline"
+                  className="ml-auto h-11 rounded-[10px] border-[1.5px] border-primary px-3 text-[15px] font-bold text-primary hover:text-primary md:px-3.5"
+                  onClick={() => setAdding(true)}
+                >
+                  <Plus aria-hidden="true" />
+                  {t("orders.picker.add")}
+                </Button>
+              </div>
+              {adding && (
+                <Suspense fallback={null}>
+                  <ItemsDialog
+                    taken={lines.map((line) => line.variantId)}
+                    onDone={addItems}
+                    onClose={() => setAdding(false)}
+                  />
+                </Suspense>
+              )}
+              {lines.length === 0 &&
+                (errors.items ? (
+                  <p
+                    data-problem
+                    tabIndex={-1}
+                    className="rounded-[10px] border-[1.5px] border-dashed border-destructive px-3.5 py-4 text-center text-[15px] font-semibold text-destructive outline-none"
+                  >
+                    {errors.items}
+                  </p>
+                ) : (
+                  <p className="rounded-[10px] border-[1.5px] border-dashed px-3.5 py-4 text-center text-[15px] text-muted-foreground">
+                    {t("orders.form.noLines")}
+                  </p>
                 ))}
-              </SelectBox>
-              <Field
-                label={t("orders.reference")}
-                autoComplete="off"
-                maxLength={100}
-                value={advanceReference}
-                onChange={(event) => setAdvanceReference(event.target.value)}
-              />
-            </>
-          )}
-        </div>
-        <dl className="flex flex-col gap-1">
-          <Amount label={t("orders.subtotal")} value={format.taka(subtotal)} />
-          <Amount label={t("orders.total")} value={format.taka(total)} />
-          {paid > 0 && <Amount label={t("orders.advancePaid")} value={format.taka(paid)} />}
-          <Amount label={t("orders.cod")} value={format.taka(Math.max(cod, 0))} strong />
-        </dl>
-        <AreaField
-          label={t("orders.note")}
-          hint={t("orders.noteHint")}
-          maxLength={1000}
-          value={note}
-          error={errors.note}
-          onChange={(event) => setNote(event.target.value)}
-        />
-      </Section>
+              {lines.length > 0 && (
+                <div>
+                  <div
+                    aria-hidden="true"
+                    className={cn(LINE_COLUMNS, "hidden pb-1.5 text-sm font-semibold text-muted-foreground md:grid")}
+                  >
+                    <span>{t("orders.items")}</span>
+                    <span>{t("orders.quantity")}</span>
+                    <span>{t("orders.unitPrice")}</span>
+                    <span className="text-right">{t("orders.total")}</span>
+                  </div>
+                  <ul className="flex flex-col">
+                    {lines.map((line) => (
+                      <LineRow
+                        key={line.variantId}
+                        line={line}
+                        errors={errors}
+                        onChange={(change) => changeLine(line.variantId, change)}
+                        onRemove={() => setLines(lines.filter((other) => other !== line))}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </section>
 
-      {problem && (
-        <Alert variant="destructive">
-          <AlertDescription>{problem}</AlertDescription>
-        </Alert>
-      )}
-      <div className="flex flex-col gap-2 sm:flex-row-reverse sm:justify-start">
-        {order?.status === "CONFIRMED" ? (
-          <Button disabled={save.isPending || !canWrite} onClick={() => submit(false)}>
-            {t("orders.saveChanges")}
-          </Button>
-        ) : (
-          <>
-            <Button disabled={save.isPending || !canWrite} onClick={() => submit(true)}>
-              {t("orders.saveConfirm")}
+            <section aria-label={t("orders.note")} className={CARD}>
+              <AreaField
+                label={t("orders.note")}
+                hint={t("orders.noteHint")}
+                maxLength={1000}
+                value={note}
+                error={errors.note}
+                onChange={(event) => setNote(event.target.value)}
+              />
+            </section>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-3.5 lg:sticky lg:top-8 lg:min-w-80 lg:flex-[4_1_0%] md:gap-2.5 md:rounded-[14px] md:border md:bg-card md:px-5 md:pt-4 md:pb-5">
+            <section
+              aria-labelledby="order-form-money"
+              className="flex flex-col gap-2.5 max-md:rounded-[14px] max-md:border max-md:bg-card max-md:p-3.5"
+            >
+              <h2 id="order-form-money" className="mb-0.5 text-[19px] font-bold">
+                {t("orders.money")}
+              </h2>
+              <Amount label={t("orders.subtotal")} value={format.taka(subtotal)} />
+              <MoneyField
+                label={t("orders.deliveryCharge")}
+                value={charge}
+                error={errors.charge}
+                hint={!chargeTouched && quote.data ? quote.data.zoneName : undefined}
+                onChange={(event) => {
+                  setCharge(event.target.value);
+                  setChargeTouched(true);
+                }}
+              />
+              <MoneyField
+                label={t("orders.discount")}
+                value={discount}
+                error={errors.discount}
+                onChange={(event) => setDiscount(event.target.value)}
+              />
+              <Amount label={t("orders.total")} value={format.taka(total)} strong />
+              {order && paid > 0 && <Amount label={t("orders.advancePaid")} value={format.taka(paid)} />}
+              {!order && (
+                <MoneyField
+                  label={t("orders.advance")}
+                  value={advance}
+                  error={errors.advance}
+                  onChange={(event) => setAdvance(event.target.value)}
+                />
+              )}
+              {!order && (amountOf(advance) ?? 0) > 0 && (
+                <div className="grid gap-2.5 rounded-[10px] bg-muted p-2.5 md:grid-cols-2">
+                  <SelectBox
+                    label={t("orders.paidBy")}
+                    value={advanceMethod}
+                    onChange={(event) => setAdvanceMethod(event.target.value as PaymentMethod)}
+                  >
+                    {PAYMENT_METHODS.map((method) => (
+                      <option key={method} value={method}>
+                        {t(`paymentMethod.${method}`)}
+                      </option>
+                    ))}
+                  </SelectBox>
+                  <Field
+                    label={t("orders.reference")}
+                    autoComplete="off"
+                    maxLength={100}
+                    value={advanceReference}
+                    onChange={(event) => setAdvanceReference(event.target.value)}
+                  />
+                </div>
+              )}
+              {/* On phones this is in the bar that stays on screen. */}
+              <div className="flex items-center justify-between gap-2.5 rounded-[10px] bg-accent p-3 text-accent-foreground max-md:hidden">
+                <span className="text-[17px] font-bold">{t("orders.cod")}</span>
+                <span className="text-2xl font-bold whitespace-nowrap">{codText}</span>
+              </div>
+            </section>
+            {problem && (
+              <Alert variant="destructive">
+                <AlertDescription>{problem}</AlertDescription>
+              </Alert>
+            )}
+            <Button
+              className="mt-1 h-13 rounded-[10px] text-lg font-bold max-md:hidden"
+              disabled={save.isPending || !canWrite}
+              onClick={() => submit(primaryConfirms)}
+            >
+              {primaryLabel}
             </Button>
-            <Button variant="outline" disabled={save.isPending || !canWrite} onClick={() => submit(false)}>
-              {t("orders.saveDraft")}
-            </Button>
-          </>
-        )}
+            {primaryConfirms && (
+              <Button
+                variant="outline"
+                className="h-12 rounded-[10px] border-[1.5px] text-base font-semibold md:h-11.5"
+                disabled={save.isPending || !canWrite}
+                onClick={() => submit(false)}
+              >
+                {t("orders.saveDraft")}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Above the app's menu. The phone's keyboard opens over both of them. */}
+      <div className="sticky bottom-[calc(68px+env(safe-area-inset-bottom))] z-10 -mx-4 -mb-11 flex flex-col gap-2 bg-ledger px-3.5 pt-2.5 pb-3 text-white md:hidden">
+        <p className="flex items-baseline justify-between gap-2.5">
+          <span className="text-[15px] font-semibold text-ledger-text">{t("orders.cod")}</span>
+          <span className="text-[22px] font-bold whitespace-nowrap text-marigold-text">{codText}</span>
+        </p>
+        <button
+          type="button"
+          className="min-h-12.5 cursor-pointer rounded-[10px] bg-marigold-text px-3 text-lg font-bold text-ledger hover:bg-marigold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-marigold-text disabled:opacity-60"
+          disabled={save.isPending || !canWrite}
+          onClick={() => submit(primaryConfirms)}
+        >
+          {primaryLabel}
+        </button>
       </div>
     </div>
   );
@@ -582,9 +702,46 @@ export function OrderForm({ order, initialPhone }: { order?: Order; initialPhone
 
 function Amount({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className={`flex justify-between gap-3 ${strong ? "border-t pt-2 text-lg font-bold" : ""}`}>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
+    <p className={cn("flex justify-between gap-3", strong && "border-t pt-2.5 text-[17px] font-bold")}>
+      <span>{label}</span>
+      <span className={cn(!strong && "font-semibold")}>{value}</span>
+    </p>
+  );
+}
+
+/** One line of the sum: what it is on the left, the amount to fill in on the right. */
+function MoneyField({
+  label,
+  hint,
+  error,
+  ...input
+}: { label: string; hint?: string; error?: string } & ComponentProps<typeof Input>) {
+  const id = useId();
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_112px] items-center gap-x-3 gap-y-1">
+      <span className="min-w-0">
+        <Label htmlFor={id} className="text-base leading-normal font-normal">
+          {label}
+        </Label>
+        {hint && (
+          <span id={`${id}-hint`} className="block text-sm text-muted-foreground">
+            {hint}
+          </span>
+        )}
+      </span>
+      <Input
+        id={id}
+        inputMode="decimal"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={[hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined}
+        className="text-right"
+        {...input}
+      />
+      {error && (
+        <p id={`${id}-error`} className="col-span-2 text-right text-sm text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -604,65 +761,63 @@ function LineRow({
   const format = useFormat();
   const lineName = [line.name, line.label].filter(Boolean).join(" · ");
   const quantity = parseCount(line.quantity) ?? 0;
+  const price = parseTaka(line.price) ?? 0;
   const quantityError = errors[`quantity:${line.variantId}`];
   const step = (by: number) => onChange({ quantity: String(Math.max(1, quantity + by)) });
   return (
     <li>
-      <fieldset aria-label={lineName} className="flex flex-col gap-2 rounded-lg border p-3">
-        <div className="flex items-start justify-between gap-2">
-          <span className="min-w-0">
-            <span className="block font-semibold break-words">{lineName}</span>
-            {line.available !== null && quantity > line.available && (
-              <span className="block text-sm font-semibold text-warning-foreground">
-                {line.available > 0
-                  ? t("orders.onlyAvailable", { count: format.number(line.available) })
-                  : t("orders.outOfStock")}
-              </span>
-            )}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t("orders.removeItem", { name: lineName })}
-            onClick={onRemove}
-          >
-            <X aria-hidden="true" />
-          </Button>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[15px] leading-normal font-semibold">{t("orders.quantity")}</span>
-            <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-12 flex-none md:size-11"
-                aria-label={t("orders.fewer")}
-                disabled={quantity <= 1}
-                onClick={() => step(-1)}
-              >
-                <Minus aria-hidden="true" />
-              </Button>
-              <Input
-                inputMode="numeric"
-                aria-label={t("orders.quantity")}
-                aria-invalid={quantityError ? true : undefined}
-                className="px-1 text-center"
-                value={line.quantity}
-                onChange={(event) => onChange({ quantity: event.target.value })}
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-12 flex-none md:size-11"
-                aria-label={t("orders.more")}
-                onClick={() => step(1)}
-              >
-                <Plus aria-hidden="true" />
-              </Button>
-            </div>
-            {quantityError && <p className="text-sm text-destructive">{quantityError}</p>}
+      <fieldset
+        aria-label={lineName}
+        className={cn(
+          LINE_COLUMNS,
+          "relative grid grid-cols-[auto_minmax(0,1fr)] items-end gap-x-2.5 gap-y-2 border-t py-3 md:items-center md:py-2.5",
+        )}
+      >
+        <span className="col-span-2 min-w-0 pr-10 md:col-span-1 md:pr-0">
+          <span className="block font-semibold break-words">{line.name}</span>
+          {line.label && <span className="block text-sm text-muted-foreground">{line.label}</span>}
+          {line.available !== null && quantity > line.available && (
+            <span className="block text-sm font-semibold text-warning-foreground">
+              {line.available > 0
+                ? t("orders.onlyAvailable", { count: format.number(line.available) })
+                : t("orders.outOfStock")}
+            </span>
+          )}
+        </span>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-semibold md:hidden">{t("orders.quantity")}</span>
+          <div className="flex gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-12 flex-none rounded-[10px] md:size-11"
+              aria-label={t("orders.fewer")}
+              disabled={quantity <= 1}
+              onClick={() => step(-1)}
+            >
+              <Minus aria-hidden="true" />
+            </Button>
+            <Input
+              inputMode="numeric"
+              aria-label={t("orders.quantity")}
+              aria-invalid={quantityError ? true : undefined}
+              className="h-12 w-11 flex-none px-0.5 text-center font-semibold md:h-11"
+              value={line.quantity}
+              onChange={(event) => onChange({ quantity: event.target.value })}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-12 flex-none rounded-[10px] md:size-11"
+              aria-label={t("orders.more")}
+              onClick={() => step(1)}
+            >
+              <Plus aria-hidden="true" />
+            </Button>
           </div>
+          {quantityError && <p className="text-sm text-destructive">{quantityError}</p>}
+        </div>
+        <div className="[&>div]:gap-1 max-md:[&_label]:text-sm md:[&_label]:sr-only">
           <Field
             label={t("orders.unitPrice")}
             inputMode="decimal"
@@ -671,6 +826,19 @@ function LineRow({
             onChange={(event) => onChange({ price: event.target.value })}
           />
         </div>
+        <p className="col-span-2 flex items-baseline justify-between gap-2.5 md:col-span-1 md:justify-end">
+          <span className="text-[15px] text-muted-foreground md:hidden">{t("orders.total")}</span>
+          <span className="font-bold">{format.taka(quantity * price)}</span>
+        </p>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-1.5 right-0 size-11 text-muted-foreground md:static"
+          aria-label={t("orders.removeItem", { name: lineName })}
+          onClick={onRemove}
+        >
+          <X aria-hidden="true" />
+        </Button>
       </fieldset>
     </li>
   );

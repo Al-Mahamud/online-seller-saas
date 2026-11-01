@@ -61,13 +61,66 @@ async function pick(page: Page, field: RegExp, search: string, name: string) {
 }
 
 async function addItem(page: Page, name: string) {
-  await page.getByRole("searchbox", { name: "পণ্য খুঁজুন" }).fill(name);
-  await page
+  await page.getByRole("button", { name: "পণ্য যোগ করুন" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("searchbox", { name: "পণ্য খুঁজুন" }).fill(name);
+  await dialog
     .getByRole("button", { name: new RegExp(name) })
     .first()
     .click();
+  await dialog.getByRole("checkbox").first().check();
+  await dialog.getByRole("button", { name: "ঠিক আছে" }).click();
   await expect(page.getByRole("group", { name })).toBeVisible();
 }
+
+test("adds items from the dialog: several variants of several products, together", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  await product(page.request, "ওয়ালেট", 5);
+  await post(page.request, "/api/v1/products", {
+    name: "সুতি কুর্তি",
+    variants: [
+      { name: "লাল", price: 140000, quantity: 5 },
+      { name: "নীল", price: 65000, quantity: 0 },
+    ],
+  });
+  await page.goto("/orders/new");
+  await expect(heading(page, "নতুন অর্ডার")).toBeVisible();
+  await page.getByRole("button", { name: "পণ্য যোগ করুন" }).click();
+  const dialog = page.getByRole("dialog");
+  const ok = dialog.getByRole("button", { name: "ঠিক আছে" });
+  await expect(dialog.getByRole("button", { name: /সুতি কুর্তি/ })).toBeVisible();
+  await expect(ok).toBeDisabled();
+  await expectAccessible(page);
+
+  await dialog.getByRole("button", { name: /সুতি কুর্তি/ }).click();
+  await dialog.getByRole("checkbox", { name: /লাল/ }).check();
+  await expect(dialog.getByText("স্টক নেই")).toBeVisible();
+  await expect(dialog.getByRole("status")).toHaveText("১টি বেছে নেওয়া হয়েছে");
+  await expectAccessible(page);
+
+  // Another product, on a phone by going back; what's ticked stays.
+  const back = dialog.getByRole("button", { name: "সব পণ্য" });
+  if (await back.isVisible()) {
+    await back.click();
+  }
+  await dialog.getByRole("button", { name: /ওয়ালেট/ }).click();
+  await dialog.getByRole("checkbox").first().check();
+  await expect(dialog.getByRole("status")).toHaveText("২টি বেছে নেওয়া হয়েছে");
+  await ok.click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("group", { name: /লাল/ })).toBeVisible();
+  await expect(page.getByRole("group", { name: /ওয়ালেট/ })).toBeVisible();
+
+  // What's on the order can't be added twice, and closing adds nothing.
+  await page.getByRole("button", { name: "পণ্য যোগ করুন" }).click();
+  await dialog.getByRole("button", { name: /সুতি কুর্তি/ }).click();
+  await expect(dialog.getByRole("checkbox", { name: /লাল/ })).toBeDisabled();
+  await expect(dialog.getByRole("checkbox", { name: /লাল/ })).toBeChecked();
+  await dialog.getByRole("checkbox", { name: /নীল/ }).check();
+  await dialog.getByRole("button", { name: "বন্ধ করুন" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("group", { name: /নীল/ })).toHaveCount(0);
+});
 
 test("takes a new order for a new customer through delivery with COD and a return", async ({ page }, info) => {
   await signUpWithBusiness(page.request);
@@ -81,6 +134,9 @@ test("takes a new order for a new customer through delivery with COD and a retur
   // are the point: nothing here needs more than a field or a tap. The seller sessions time real people.
   await page.getByRole("link", { name: "নতুন অর্ডার" }).click();
   await expect(heading(page, "নতুন অর্ডার")).toBeVisible();
+  await expect(page.getByText("এখনো কোনো পণ্য যোগ করা হয়নি", { exact: false })).toBeVisible();
+  // Saving is always in reach: beside the sum on a laptop, in the bar that stays on screen on a phone.
+  await expect(page.getByRole("button", { name: "সংরক্ষণ করে নিশ্চিত করুন" })).toBeInViewport();
   const started = Date.now();
   await label(page, "ফোন নম্বর").fill(phone);
   await label(page, "গ্রাহকের নাম").fill("রহিমা খাতুন");
@@ -89,7 +145,7 @@ test("takes a new order for a new customer through delivery with COD and a retur
   await addItem(page, "সুতি কুর্তি");
   await page.getByRole("button", { name: "একটি বাড়ান" }).click();
   await label(page, "অগ্রিম (৳)").fill("500");
-  await expect(page.getByText("৳২,৫৭০")).toBeVisible();
+  await expect(page.getByText("৳২,৫৭০").locator("visible=true")).toBeVisible();
   await expectAccessible(page);
   await page.getByRole("button", { name: "সংরক্ষণ করে নিশ্চিত করুন" }).click();
   await expect(heading(page, /১০০১/)).toBeVisible();
@@ -163,6 +219,7 @@ test("a known customer fills in by any way of writing the number, and the charge
   await label(page, "ফোন নম্বর").fill("০১৭১২-৩৪৫৬৭৮");
   await expect(page.getByRole("status").filter({ hasText: "নাসরিন" })).toBeVisible();
   await expect(label(page, "গ্রাহকের নাম")).toHaveCount(0);
+  await expect(page.getByRole("status").filter({ hasText: "পুরনো গ্রাহক" })).toBeVisible();
   await expect(label(page, "ঠিকানা")).toHaveValue("ফ্ল্যাট ৩বি");
   await expect(page.getByRole("button", { name: /^জেলা/ })).toContainText("ঢাকা");
   await expect(label(page, "ডেলিভারি চার্জ (৳)")).toHaveValue("70");
@@ -358,7 +415,7 @@ test("a parcel that came back goes on the shelf, and can be sent again", async (
   expect(await available(page.request, kurti.id)).toBe(4);
 });
 
-test("a payment lowers what the courier collects, and cancelling gives the stock back", async ({ page }) => {
+test("a payment lowers what the courier collects, and cancelling gives the stock back", async ({ page }, info) => {
   await signUpWithBusiness(page.request);
   const kurti = await product(page.request, "কুর্তি", 5);
   const order = await makeOrder(page.request, kurti.variantId);
@@ -379,6 +436,13 @@ test("a payment lowers what the courier collects, and cancelling gives the stock
   await expect(page.getByText(/TX1/)).toBeVisible();
   await expect(page.locator("dd").filter({ hasText: "৳১,০০০" })).toBeVisible();
 
+  // Easy to see: red, and darker under the mouse.
+  const cancelButton = page.getByRole("button", { name: "অর্ডার বাতিল করুন" });
+  await expect(cancelButton).toHaveCSS("background-color", "rgb(180, 35, 24)");
+  if (info.project.name === "laptop") {
+    await cancelButton.hover();
+    await expect(cancelButton).toHaveCSS("background-color", "rgb(143, 28, 19)");
+  }
   await page.getByRole("button", { name: "অর্ডার বাতিল করুন" }).click();
   const cancel = page.getByRole("dialog");
   await label(cancel, "কারণ").fill("গ্রাহক চান না");

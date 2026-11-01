@@ -306,12 +306,12 @@ test("someone signed in does not see the sign-in page", async ({ page }) => {
 
 test("when the session ends, the next request leads to sign-in", async ({ page }) => {
   await signUpWithBusiness(page.request);
-  await page.goto("/more");
+  await page.goto("/settings/account");
   await expect(page.getByRole("button", { name: "লগ আউট" })).toBeVisible();
 
   // The session goes away behind the app's back, as when it expires.
   await page.context().clearCookies({ name: "SESSION" });
-  await page.getByRole("button", { name: "English" }).click();
+  await page.getByRole("button", { name: "English" }).first().click();
 
-  await expect(page).toHaveURL(/\/sign-in\?redirect=%2Fmore$/);
+  await expect(page).toHaveURL(/\/sign-in\?redirect=%2Fsettings%2Faccount$/);
 });

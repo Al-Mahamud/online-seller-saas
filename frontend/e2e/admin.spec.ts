@@ -55,8 +55,9 @@ async function seller(browser: Browser, business: string) {
 
 test("without two-step sign-in, an admin sees the reminder and no data", async ({ page }) => {
   await adminWithoutTwoStep(page);
-  await page.goto("/more");
-  await page.getByRole("link", { name: "অ্যাডমিন" }).click();
+  await page.goto("/");
+  await page.getByRole("button", { name: /^ব্যবসা বদলান/ }).click();
+  await page.getByRole("menuitem", { name: "অ্যাডমিন", exact: true }).click();
 
   await expect(heading(page, "দুই ধাপের লগ ইন লাগবে")).toBeVisible();
   await expect(adminNav(page)).toHaveCount(0);
@@ -68,8 +69,10 @@ test("without two-step sign-in, an admin sees the reminder and no data", async (
 
 test("people who aren't admins never reach it, and have no way in", async ({ page }) => {
   await signUpWithBusiness(page.request);
-  await page.goto("/more");
-  await expect(page.getByRole("link", { name: "অ্যাডমিন" })).toHaveCount(0);
+  await page.goto("/");
+  await page.getByRole("button", { name: /^ব্যবসা বদলান/ }).click();
+  await expect(page.getByRole("menuitem", { name: "প্রোফাইল" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "অ্যাডমিন", exact: true })).toHaveCount(0);
   await page.goto("/admin");
   await expect(page).toHaveURL(/localhost:\d+\/$/);
   expect((await page.request.get("/api/v1/admin/businesses")).status()).toBe(403);

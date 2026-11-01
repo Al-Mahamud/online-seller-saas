@@ -213,7 +213,7 @@ test("reports: sales by day, product and category, profit, and over chosen days"
   await signUpWithBusiness(page.request);
   await seedDay(page.request);
   await page.goto("/more");
-  await page.getByRole("link", { name: "রিপোর্ট" }).click();
+  await page.getByRole("link", { name: "রিপোর্ট", exact: true }).click();
   await expect(heading(page, "রিপোর্ট")).toBeVisible();
 
   const sales = page.locator("section").filter({ has: page.getByRole("heading", { name: "বিক্রি" }) });

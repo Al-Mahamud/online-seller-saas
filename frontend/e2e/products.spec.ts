@@ -553,7 +553,7 @@ test("staff see no cost anywhere, can't edit, and can change stock", async ({ pa
   await expect(staff.getByRole("group", { name: "হাতে ৩ · আলাদা করা ০ · বিক্রয়যোগ্য ৩" })).toBeVisible();
 
   await staff.goto("/products/new");
-  await expect(staff).toHaveURL(/\/more$/);
+  await expect(staff).toHaveURL(/localhost:\d+\/$/);
   await staff.goto("/products");
   await expect(staff.getByRole("link", { name: "নতুন পণ্য" })).toBeHidden();
   await staff.context().close();
