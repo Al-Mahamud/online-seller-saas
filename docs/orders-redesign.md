@@ -65,6 +65,23 @@ Proposed by Claude. Change any of these by saying so:
 - **Clicking outside the modal** does nothing, so a stray click can't lose what's ticked. Close and বাতিল do close it, and add nothing.
 - **The phone bar while typing:** no code hides it. Browsers that open the keyboard over the page, the default in current Android Chrome and iPhone Safari, cover it along with the menu. An older Android browser that shrinks the page instead would keep the bar above the keyboard. Not yet tried on a real phone.
 
+## COD to settle
+
+Design: [Mojud COD to settle design](https://claude.ai/artifact/QYZqLLawfMnC4wK9dp63Ju). No backend change.
+
+Proposed by Claude. Change any of these by saying so:
+
+| Proposal | Detail |
+|---|---|
+| Totals on top | A dark band with what couriers owe, how many parcels, and what's still on the way. |
+| One card per courier | What it owes and what's on the way. A courier with only parcels on the way has a short card. |
+| Parcels | A table from a laptop up: order, tracking number, delivery date, amount collected. Rows on phones. |
+| Settling | Everything starts ticked, with a tick box for all of a courier's parcels. The button shows the amount, and the confirmation stays. |
+| Shortfall | A row says "আদায়ের কথা ছিল ৳…" when the courier collected less than expected. |
+| Staff | See the amounts, without ticks or the button, as before. |
+
+**Known limits:** a partly delivered order also shows the shortfall note, since less was collected than first expected. Past payouts aren't on this page, the same as before.
+
 ## Different from the drawing
 
 - **Phone header:** the app's white header stays above the dark area, as on Today.
@@ -88,3 +105,4 @@ In `frontend/src/i18n/bn.json` and `en.json` under `orders.list`, `orders.detail
 - **Nov 1, 2026:** new order designed and built, which also changes the page for changing an order.
 - **Nov 1, 2026:** the search on the products card replaced by the add items button and modal.
 - **Nov 1, 2026:** the cancel order button changed from small red text to a red button.
+- **Nov 1, 2026:** COD to settle designed and built.

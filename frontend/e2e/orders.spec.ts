@@ -560,7 +560,19 @@ test("COD to settle: what each courier owes, and marking its payout received", a
   await expect(pathao.getByText("পাওনা ৳৩,১২০, ২টি পার্সেল")).toBeVisible();
   await expect(redx.getByText("পাওনা ৳১,৫৬০, ১টি পার্সেল")).toBeVisible();
   await expect(redx.getByText("আরও ৳১,৫৬০ এখনো পথে")).toBeVisible();
+  const totals = page.getByRole("region", { name: "মোট হিসাব" });
+  await expect(totals.getByText("৳৪,৬৮০")).toBeVisible();
+  await expect(totals.getByText("৩টি পার্সেলের টাকা")).toBeVisible();
   await expectAccessible(page);
+
+  // Everything is ticked at first, and all of it can be unticked together.
+  const settleAll = pathao.getByRole("button", { name: "৳৩,১২০ বুঝে পেয়েছি" });
+  await expect(settleAll).toBeEnabled();
+  const all = pathao.getByRole("checkbox", { name: /সব বেছে নিন/ });
+  await all.uncheck();
+  await expect(pathao.getByRole("button", { name: /বুঝে পেয়েছি/ })).toBeDisabled();
+  await all.check();
+  await expect(settleAll).toBeEnabled();
 
   // This payout covers one of the two.
   await pathao.getByRole("checkbox", { name: `বেছে নিন: ${second.label}` }).uncheck();
@@ -572,4 +584,12 @@ test("COD to settle: what each courier owes, and marking its payout received", a
 
   await page.goto(`/orders/${first.id}`);
   await expect(page.getByText(/বুঝে পেয়েছেন/)).toBeVisible();
+
+  // A courier that collected less says so before anyone marks it received.
+  const short = await makeOrder(page.request, kurti.variantId);
+  await post(page.request, `/api/v1/orders/${short.id}/ship`, { courier: "Steadfast" });
+  await post(page.request, `/api/v1/orders/${short.id}/deliver`, { codCollected: 100000 });
+  await page.goto("/cod");
+  const steadfast = page.locator("section").filter({ has: page.getByRole("heading", { name: "Steadfast" }) });
+  await expect(steadfast.getByText("আদায়ের কথা ছিল ৳১,৫৬০").locator("visible=true")).toBeVisible();
 });

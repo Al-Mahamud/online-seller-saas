@@ -962,7 +962,16 @@
     "settle": "Received {{amount}}",
     "settleTitle": "Received the money from {{courier}}?",
     "settleDescription": "{{amount}} for {{count}} parcels will be marked as received. This can't be undone.",
-    "settled": "{{amount}} from {{courier}} marked as received."
+    "settled": "{{amount}} from {{courier}} marked as received.",
+    "totals": "Totals",
+    "parcels": "From {{count}} parcels",
+    "transitHint": "Added to what is owed once delivered",
+    "noneOwed": "Owes nothing now",
+    "expected": "Was to collect {{amount}}",
+    "selectAll": "{{courier}}: select all",
+    "trackingColumn": "Tracking number",
+    "deliveredColumn": "Delivered",
+    "collectedColumn": "Collected"
   },
   "paymentMethod": {
     "BKASH": "bKash",

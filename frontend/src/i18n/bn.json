@@ -962,7 +962,16 @@
     "settle": "{{amount}} বুঝে পেয়েছি",
     "settleTitle": "{{courier}} থেকে টাকা বুঝে পেয়েছেন?",
     "settleDescription": "{{count}}টি পার্সেলের {{amount}} বুঝে পাওয়া হিসেবে লেখা হবে। এটি ফিরিয়ে নেওয়া যাবে না।",
-    "settled": "{{courier}} থেকে {{amount}} বুঝে পাওয়া লেখা হয়েছে।"
+    "settled": "{{courier}} থেকে {{amount}} বুঝে পাওয়া লেখা হয়েছে।",
+    "totals": "মোট হিসাব",
+    "parcels": "{{count}}টি পার্সেলের টাকা",
+    "transitHint": "ডেলিভারি হলে পাওনায় যোগ হবে",
+    "noneOwed": "এখন পাওনা নেই",
+    "expected": "আদায়ের কথা ছিল {{amount}}",
+    "selectAll": "{{courier}}: সব বেছে নিন",
+    "trackingColumn": "ট্র্যাকিং নম্বর",
+    "deliveredColumn": "ডেলিভারি",
+    "collectedColumn": "আদায় করেছে"
   },
   "paymentMethod": {
     "BKASH": "বিকাশ",
