@@ -216,9 +216,22 @@ test("reports: sales by day, product and category, profit, and over chosen days"
   await page.getByRole("link", { name: "রিপোর্ট", exact: true }).click();
   await expect(heading(page, "রিপোর্ট")).toBeVisible();
 
-  const sales = page.locator("section").filter({ has: page.getByRole("heading", { name: "বিক্রি" }) });
+  const sales = page.locator("section").filter({ has: page.getByRole("heading", { name: "বিক্রি", exact: true }) });
   const total = sales.getByRole("row", { name: /^মোট/ });
   await expect(total).toContainText("৳৪,৫০০");
+  await expect(page.getByRole("region", { name: "কোন সময়ের হিসাব" })).toContainText("৳৪,৫০০");
+  // The chart is one control: the arrow keys go along it, and it says what each day stands for.
+  const chart = sales.getByRole("slider", { name: "সময় অনুযায়ী বিক্রি" });
+  await expect(chart).toHaveAttribute("aria-valuetext", /৳৪,৫০০/);
+  await chart.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(chart).toHaveAttribute("aria-valuetext", /৳০, ০টি অর্ডার/);
+  await page.keyboard.press("End");
+  await expect(chart).toHaveAttribute("aria-valuetext", /৳৪,৫০০/);
+  // And a tap or a pointer picks the column under it.
+  await chart.click({ position: { x: 2, y: 20 } });
+  await expect(chart).toHaveAttribute("aria-valuetext", /৳০, ০টি অর্ডার/);
+  await expect(chart).toHaveAttribute("aria-valuenow", "0");
   await expect(total).toContainText("৳১২০");
   await expect(sales.getByRole("row")).toHaveCount(3);
   await expectAccessible(page);
@@ -236,6 +249,9 @@ test("reports: sales by day, product and category, profit, and over chosen days"
   await expect(profit.getByText("ডেলিভারিতে লাভ").locator("..")).toContainText("৳৭০");
   await expect(profit.getByText("মোট মুনাফা").locator("..")).toContainText("৳১,৮৭০");
 
+  // Its pie: the two parts of the money with something in them, with no way to tell them by colour alone.
+  await expect(profit.getByRole("img")).toHaveAttribute("aria-label", /পণ্যের খরচ ৬০%.*পণ্যে মুনাফা ৪০%/);
+
   await page.getByLabel("তারিখ পর্যন্ত", { exact: true }).fill("2024-03-15");
   await page.getByLabel("তারিখ থেকে", { exact: true }).fill("2024-03-01");
   await expect(page.getByText("এই সময়ে কোনো বিক্রি নেই।")).toBeVisible();
@@ -245,6 +261,71 @@ test("reports: sales by day, product and category, profit, and over chosen days"
   // More than the reports span: the server's reason, on the page.
   await page.getByLabel("তারিখ থেকে", { exact: true }).fill("2020-01-01");
   await expect(sales.getByRole("alert")).toContainText("৩৬৬");
+});
+
+test("the sales pie: how sales split, up to five parts and the rest, and by category", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  const sell = async (name: string, price: number, categoryId?: string) => {
+    const made = await post(page.request, "/api/v1/products", { name, price, openingStock: 5, categoryId });
+    const variantId = (made.variants as unknown as { id: string }[])[0]?.id as string;
+    const id = await order(page.request, variantId, 1);
+    await post(page.request, `/api/v1/orders/${id}/confirm`);
+  };
+  await page.goto("/reports");
+  const share = page.getByRole("region", { name: "বিক্রির ভাগ" });
+  await expect(page.getByText("এই সময়ে কোনো বিক্রি নেই।")).toBeVisible();
+  await expect(share).toHaveCount(0);
+
+  // One product: a sentence, since a whole circle says nothing.
+  await sell("একটি", 100000);
+  await page.reload();
+  await expect(share.getByText("এই সময়ের সব বিক্রি একটি থেকে, ৳১,০০০।")).toBeVisible();
+  await expect(share.getByRole("img")).toHaveCount(0);
+
+  // Two: the pie, with the names and figures beside it.
+  await sell("দুই", 300000);
+  await page.reload();
+  await expect(share.getByText("সবচেয়ে বেশি: দুই, ৭৫%")).toBeVisible();
+  await expect(share.getByRole("img")).toHaveAttribute("aria-label", "বিক্রির ভাগ: দুই ৭৫%, একটি ২৫%");
+  await share.getByRole("button", { name: /একটি/ }).click();
+  await expect(share.getByText("একটি: ৳১,০০০, ২৫%")).toBeVisible();
+  await expectAccessible(page);
+
+  // Seven: five, and the rest together.
+  for (const [name, price] of [
+    ["তিন", 90000],
+    ["চার", 80000],
+    ["পাঁচ", 70000],
+    ["ছয়", 60000],
+    ["সাত", 50000],
+  ] as const) {
+    await sell(name, price);
+  }
+  await page.reload();
+  await expect(share.getByRole("listitem")).toHaveCount(6);
+  await expect(share.getByRole("button", { name: /অন্যান্য/ })).toContainText("৳১,১০০");
+
+  // The switch is kept in the address.
+  await share.getByRole("button", { name: "ক্যাটাগরি" }).click();
+  await expect(page).toHaveURL(/share=category/);
+  await expect(share.getByRole("button", { name: "ক্যাটাগরি" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("a report compares with the days before, and a plan that can't reach them says nothing", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  await seedDay(page.request);
+  await page.goto("/reports");
+  const period = page.getByRole("region", { name: "কোন সময়ের হিসাব" });
+  await expect(period.getByText("৩০ দিনের হিসাব")).toBeVisible();
+
+  const business = (await (await page.request.get("/api/v1/business")).json()) as { id: string };
+  expect((await page.request.post(`/dev/plan?businessId=${business.id}&code=STARTER`)).status()).toBe(204);
+  // Sixty days are within Starter's ninety; the sixty before them aren't.
+  const sixtyAgo = new Date(Date.now() - 59 * 24 * 60 * 60_000).toISOString().slice(0, 10);
+  await page.getByLabel("তারিখ থেকে", { exact: true }).fill(sixtyAgo);
+  await expect(period.getByText("৬০ দিনের হিসাব")).toBeVisible();
+  await expect(period).toContainText("৳৪,৫০০");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
 test("downloads: the orders of the chosen days, and the owner's whole copy", async ({ page }) => {

@@ -43,10 +43,13 @@ function showError(error: unknown) {
   }
 }
 
-/** A query or mutation that shows its own errors (a form with fields) sets `meta: { showsOwnErrors: true }`. */
+/**
+ * A query or mutation that shows its own errors (a form with fields) sets `meta: { showsOwnErrors: true }`.
+ * A query the page does well enough without sets `meta: { optional: true }`: its failure is nobody's concern.
+ */
 declare module "@tanstack/react-query" {
   interface Register {
-    queryMeta: { showsOwnErrors?: boolean };
+    queryMeta: { showsOwnErrors?: boolean; optional?: boolean };
     mutationMeta: { showsOwnErrors?: boolean };
   }
 }
@@ -93,7 +96,13 @@ export function createQueryClient({
     }
   };
   return new QueryClient({
-    queryCache: new QueryCache({ onError: (error, query) => handle(error, query.meta?.showsOwnErrors) }),
+    queryCache: new QueryCache({
+      onError: (error, query) => {
+        if (!query.meta?.optional) {
+          handle(error, query.meta?.showsOwnErrors);
+        }
+      },
+    }),
     mutationCache: new MutationCache({
       onError: (error, _variables, _context, mutation) => handle(error, mutation.meta?.showsOwnErrors),
     }),

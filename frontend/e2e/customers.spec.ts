@@ -92,7 +92,10 @@ test("adds a customer with a place, finds them by any phone format, and edits th
   const other = newPhone();
   await post(page.request, "/api/v1/customers", { name: "অন্য গ্রাহক", phone: other });
   await page.goto("/customers");
-  await page.getByRole("link", { name: /রহিমা খাতুন/ }).first().click();
+  await page
+    .getByRole("link", { name: /রহিমা খাতুন/ })
+    .first()
+    .click();
   await page.getByRole("button", { name: "তথ্য বদলান" }).click();
   await label(dialog, "ফোন নম্বর").fill(other);
   await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
