@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";
 
@@ -27,6 +27,19 @@ export const salesQuery = (from: string, to: string, groupBy: GroupBy) =>
     queryKey: ["sales", from, to, groupBy],
     queryFn: () => call(api.GET("/api/v1/reports/sales", { params: { query: { from, to, groupBy } } })),
     meta: { showsOwnErrors: true },
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+
+/**
+ * The period before, to compare with. Nobody asked for these days, and the plan may not reach them, so
+ * a refusal only leaves the comparison out: never the upgrade dialog.
+ */
+export const salesToCompareQuery = (from: string, to: string) =>
+  queryOptions({
+    queryKey: ["sales", from, to, "day", "compare"],
+    queryFn: () => call(api.GET("/api/v1/reports/sales", { params: { query: { from, to, groupBy: "day" } } })),
+    meta: { optional: true },
     retry: false,
   });
 
@@ -35,6 +48,7 @@ export const profitQuery = (from: string, to: string) =>
     queryKey: ["profit", from, to],
     queryFn: () => call(api.GET("/api/v1/reports/profit", { params: { query: { from, to } } })),
     meta: { showsOwnErrors: true },
+    placeholderData: keepPreviousData,
     retry: false,
   });
 
