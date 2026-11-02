@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { signUp, signUpWithBusiness } from "./support/accounts";
+import { joinAsStaff, signUp, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { png } from "./support/images";
 import { expect, test } from "./support/test";
@@ -28,25 +28,36 @@ test("someone new creates their first business and lands on Today", async ({ pag
   await expect(page.getByRole("heading", { level: 1, name: "আজ" })).toBeVisible();
 });
 
-test("switches between businesses, and creates another from the switcher", async ({ page }) => {
+test("an owner can't open a second business; staff can open their own and switch between the two", async ({
+  page,
+  browser,
+}) => {
   await signUpWithBusiness(page.request, { business: "প্রথম দোকান" });
   await page.goto("/");
-
   await switcher(page, "প্রথম দোকান").click();
   await expect(page.getByRole("menuitem", { name: /প্রথম দোকান/ })).toContainText("মালিক");
-  await expectAccessible(page);
-  await page.getByRole("menuitem", { name: "নতুন ব্যবসা" }).click();
-  const dialog = page.getByRole("dialog");
-  await label(dialog, "ব্যবসার নাম").fill("দ্বিতীয় দোকান");
+  await expect(page.getByRole("menuitem", { name: "নতুন ব্যবসা" })).toHaveCount(0);
+
+  const staff = await joinAsStaff(page, browser);
+  await staff.goto("/");
+  await switcher(staff, "প্রথম দোকান").click();
+  await expect(staff.getByRole("menuitem", { name: /প্রথম দোকান/ })).toContainText("স্টাফ");
+  await expectAccessible(staff);
+  await staff.getByRole("menuitem", { name: "নতুন ব্যবসা" }).click();
+  const dialog = staff.getByRole("dialog");
+  await label(dialog, "ব্যবসার নাম").fill("নিজের দোকান");
   await dialog.getByRole("button", { name: "ব্যবসা খুলুন" }).click();
-  await expect(switcher(page, "দ্বিতীয় দোকান")).toBeVisible();
+  await expect(switcher(staff, "নিজের দোকান")).toBeVisible();
 
-  await switcher(page, "দ্বিতীয় দোকান").click();
-  await page.getByRole("menuitem", { name: /প্রথম দোকান/ }).click();
-  await expect(switcher(page, "প্রথম দোকান")).toBeVisible();
+  await switcher(staff, "নিজের দোকান").click();
+  await expect(staff.getByRole("menuitem", { name: /নিজের দোকান/ })).toContainText("মালিক");
+  await expect(staff.getByRole("menuitem", { name: "নতুন ব্যবসা" })).toHaveCount(0);
+  await staff.getByRole("menuitem", { name: /প্রথম দোকান/ }).click();
+  await expect(switcher(staff, "প্রথম দোকান")).toBeVisible();
 
-  await page.reload();
-  await expect(switcher(page, "প্রথম দোকান")).toBeVisible();
+  await staff.reload();
+  await expect(switcher(staff, "প্রথম দোকান")).toBeVisible();
+  await staff.context().close();
 });
 
 test("edits the business's details and logo", async ({ page }) => {

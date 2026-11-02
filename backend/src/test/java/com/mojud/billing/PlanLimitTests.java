@@ -75,7 +75,10 @@ class PlanLimitTests {
     }
 
     @Test
-    void anOwnersSecondBusinessHasNoTrial() {
+    void anOwnerWhoStartsAgainGetsNoSecondTrial() {
+        // As if the first business had been deleted: the owner owns none, but has had the trial.
+        systemDatabase.jdbc().sql("update memberships set status = 'REMOVED' where business_id = ?").param(business).update();
+
         TestBusinesses.create(owner, "Second Shop");
 
         assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("READ_ONLY");

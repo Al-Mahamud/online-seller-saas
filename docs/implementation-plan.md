@@ -120,7 +120,7 @@ Phase 6 can be done any time after 2c. Everything else runs in order.
 
 **Checked by:** a user in two businesses sees each one's data only after switching; a non-member cannot switch to a business.
 
-**As built:** roles are enforced by `@RequiresRole` (a Spring MVC interceptor, so a missing business answers `business.not_selected` rather than a bare 403) instead of `@PreAuthorize`. The membership is re-read on every request, so removals and role changes count at once. Listing a user's businesses uses the system role (`tenancy.system.MembershipDirectory`), because row-level security shows one business at a time. `GET /businesses` (the switcher) was added; an account may own at most 5 businesses. Order numbering is left out of `business_settings`: the orders module will own its counter (7a).
+**As built:** roles are enforced by `@RequiresRole` (a Spring MVC interceptor, so a missing business answers `business.not_selected` rather than a bare 403) instead of `@PreAuthorize`. The membership is re-read on every request, so removals and role changes count at once. Listing a user's businesses uses the system role (`tenancy.system.MembershipDirectory`), because row-level security shows one business at a time. `GET /businesses` (the switcher) was added; an account may own one business (changed from 5 on Nov 2, 2026), and can still be a member of others; a suspended business, or one waiting to be deleted, still counts, and ownership can't be handed to someone who already owns one. Order numbering is left out of `business_settings`: the orders module will own its counter (7a).
 
 ### 2b: Staff and roles (1.5 days)
 

@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -47,17 +46,14 @@ class StaffService {
     private final AdvisoryLocks locks;
     private final AuditTrail audit;
     private final Clock clock;
-    private final int maxOwnedBusinesses;
 
     StaffService(MembershipRepository memberships, UserDirectory users, PasswordConfirmation passwordConfirmation,
             TransactionTemplate transactions, InviteRepository invites, MembershipDirectory directory,
-            AdvisoryLocks locks, AuditTrail audit, Clock clock,
-            @Value("${mojud.tenancy.max-owned-businesses}") int maxOwnedBusinesses) {
+            AdvisoryLocks locks, AuditTrail audit, Clock clock) {
         this.invites = invites;
         this.directory = directory;
         this.locks = locks;
         this.audit = audit;
-        this.maxOwnedBusinesses = maxOwnedBusinesses;
         this.memberships = memberships;
         this.users = users;
         this.passwordConfirmation = passwordConfirmation;
@@ -123,8 +119,9 @@ class StaffService {
     /**
      * Hands the business to another member, who becomes OWNER; the current owner becomes MANAGER.
      * Needs the owner's password. The caller's membership is locked and checked again inside the
-     * transaction, so a repeated or parallel transfer finds they are no longer the owner. The new
-     * owner's businesses are counted under the same lock as creating one, so the owner limit holds.
+     * transaction, so a repeated or parallel transfer finds they are no longer the owner. Someone who
+     * already owns a business can't receive another ({@link OwnedBusinesses}), checked under the
+     * same lock as creating one.
      */
     void transferOwnership(UUID newOwnerId, String password, String clientIp) {
         CurrentBusiness current = CurrentBusiness.require();
@@ -135,8 +132,8 @@ class StaffService {
                     .orElseThrow(() -> new ApiException(ErrorCode.FORBIDDEN));
             Membership newOwner = otherMember(newOwnerId);
             locks.lockForTransaction(OwnedBusinesses.lockKey(newOwnerId));
-            if (directory.ownedBusinessCount(newOwnerId) >= maxOwnedBusinesses) {
-                throw new ApiException(ErrorCode.STAFF_OWNER_LIMIT, maxOwnedBusinesses);
+            if (directory.ownedBusinessCount(newOwnerId) > 0) {
+                throw new ApiException(ErrorCode.STAFF_OWNER_LIMIT);
             }
             Instant now = clock.instant();
             // Demote first: the database allows one active owner per business at any moment.

@@ -357,12 +357,10 @@ class StaffTests {
     }
 
     @Test
-    void ownershipCannotBeHandedToSomeoneAtTheOwnerLimit() {
-        Owner owner = newBusiness("Too Many Shop");
+    void ownershipCannotBeHandedToSomeoneWhoAlreadyOwnsABusiness() {
+        Owner owner = newBusiness("Handover Shop");
         Member manager = join(owner, "MANAGER");
-        for (int i = 1; i <= 5; i++) {
-            TestBusinesses.create(manager.client, "Manager's Shop " + i);
-        }
+        TestBusinesses.create(manager.client, "Manager's Own Shop");
 
         owner.client.post("/api/v1/staff/" + manager.userId + "/make-owner",
                 Map.of("currentPassword", owner.account.password())).expectError(409, "staff.owner_limit");

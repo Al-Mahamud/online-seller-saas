@@ -20,7 +20,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,12 +42,10 @@ class BusinessService {
     private final AuditTrail audit;
     private final ApplicationEventPublisher events;
     private final Clock clock;
-    private final int maxOwnedBusinesses;
 
     BusinessService(BusinessRepository businesses, BusinessSettingsRepository settings,
             MembershipRepository memberships, MembershipDirectory directory, TransactionTemplate transactions,
-            AdvisoryLocks locks, AuditTrail audit, ApplicationEventPublisher events, Clock clock,
-            @Value("${mojud.tenancy.max-owned-businesses}") int maxOwnedBusinesses) {
+            AdvisoryLocks locks, AuditTrail audit, ApplicationEventPublisher events, Clock clock) {
         this.businesses = businesses;
         this.settings = settings;
         this.memberships = memberships;
@@ -58,21 +55,20 @@ class BusinessService {
         this.audit = audit;
         this.events = events;
         this.clock = clock;
-        this.maxOwnedBusinesses = maxOwnedBusinesses;
     }
 
     /**
-     * Creates a business with default settings and the caller as its owner. One user's creations
-     * take turns (a transaction-scoped advisory lock), so the owned-business count is always read
-     * after the previous creation committed and parallel requests cannot pass the limit together.
+     * Creates a business with default settings and the caller as its owner, unless they already
+     * own one ({@link OwnedBusinesses}). One user's creations take turns (a transaction-scoped
+     * advisory lock), so parallel requests cannot both create one.
      */
     BusinessResponse create(UUID userId, String name, String phone, String address) {
         PhoneNumber businessPhone = PhoneNumber.fromOptionalInput(phone, "phone");
         UUID businessId = Ids.newId();
         return TenantScope.call(businessId, () -> transactions.execute(status -> {
             locks.lockForTransaction(OwnedBusinesses.lockKey(userId));
-            if (directory.ownedBusinessCount(userId) >= maxOwnedBusinesses) {
-                throw new ApiException(ErrorCode.BUSINESS_LIMIT_REACHED, maxOwnedBusinesses);
+            if (directory.ownedBusinessCount(userId) > 0) {
+                throw new ApiException(ErrorCode.BUSINESS_LIMIT_REACHED);
             }
             Instant now = clock.instant();
             Business business = new Business(businessId, name, now);
