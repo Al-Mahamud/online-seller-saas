@@ -151,6 +151,16 @@ class BusinessController {
             @Size(max = 500) String invoiceFooter) {
     }
 
+    record SearchThemeRequest(@NotNull SearchTheme searchTheme) {
+    }
+
+    /** The search panel's colours on every list, for everyone in the business: the owner's choice. */
+    @PutMapping("/api/v1/business/search-theme")
+    @RequiresRole(BusinessRole.OWNER)
+    SettingsResponse changeSearchTheme(@Valid @RequestBody SearchThemeRequest body) {
+        return businesses.changeSearchTheme(body.searchTheme());
+    }
+
     /** Fields left out stay as they are. */
     @PatchMapping("/api/v1/business/settings")
     @RequiresRole(BusinessRole.MANAGER)

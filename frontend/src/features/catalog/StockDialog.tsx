@@ -79,6 +79,7 @@ export function StockDialog({ product, onClose }: { product: Product; onClose: (
       void queryClient.invalidateQueries({ queryKey: ["products"] });
       void queryClient.invalidateQueries({ queryKey: ["low-stock"] });
       void queryClient.invalidateQueries({ queryKey: ["movements"] });
+      void queryClient.invalidateQueries({ queryKey: ["damages"] });
       toast.success(t("stock.done"));
       onClose();
     },

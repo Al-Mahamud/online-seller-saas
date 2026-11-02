@@ -23,9 +23,9 @@ test("opens in Bangla with the four tabs", async ({ page }, info) => {
   const pages =
     info.project.name === "phone"
       ? ["আজ", "অর্ডার", "পণ্য", "আরও"]
-      : ["আজ", "অর্ডার", "পণ্য", "গ্রাহক", "COD হিসাব", "রিপোর্ট", "প্ল্যান ও পেমেন্ট", "সদস্য", "কার্যক্রমের তালিকা"];
+      : ["আজ", "অর্ডার", "পণ্য", "নষ্ট পণ্য", "গ্রাহক", "COD হিসাব", "রিপোর্ট", "প্ল্যান ও পেমেন্ট", "সদস্য", "কার্যক্রমের তালিকা"];
   for (const name of pages) {
-    await expect(navigation.getByRole("link", { name })).toBeVisible();
+    await expect(navigation.getByRole("link", { name, exact: true })).toBeVisible();
   }
   await expectAccessible(page);
 });
@@ -34,11 +34,11 @@ test("moves between tabs and marks the open one", async ({ page }) => {
   await page.goto("/");
   const navigation = mainNavigation(page);
 
-  await navigation.getByRole("link", { name: "পণ্য" }).click();
+  await navigation.getByRole("link", { name: "পণ্য", exact: true }).click();
 
   await expect(page).toHaveURL(/\/products$/);
   await expect(page.getByRole("heading", { level: 1, name: "পণ্য" })).toBeVisible();
-  await expect(navigation.getByRole("link", { name: "পণ্য" })).toHaveAttribute("aria-current", "page");
+  await expect(navigation.getByRole("link", { name: "পণ্য", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(navigation.getByRole("link", { name: "আজ" })).not.toHaveAttribute("aria-current", "page");
 });
 

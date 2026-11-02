@@ -40,6 +40,10 @@
   --marigold-text: #f0b94f;
   --danger-soft: #fbeae8;
   --danger-ink: #8f1c13;
+  /* The search panel's soft mint look (business setting), on --accent. */
+  --mint-line: #cfe5da;
+  --mint-chip: #b7d8c8;
+  --mint-sub: #3e5c50;
 }
 
 @theme inline {
@@ -78,6 +82,9 @@
   --color-marigold-text: var(--marigold-text);
   --color-danger-soft: var(--danger-soft);
   --color-danger-ink: var(--danger-ink);
+  --color-mint-line: var(--mint-line);
+  --color-mint-chip: var(--mint-chip);
+  --color-mint-sub: var(--mint-sub);
 }
 
 @layer base {

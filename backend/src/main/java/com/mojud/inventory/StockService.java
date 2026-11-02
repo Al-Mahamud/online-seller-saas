@@ -44,15 +44,19 @@ public class StockService {
     public record Line(UUID variantId, int quantity) {
     }
 
-    /** What caused a change, for reading the history later. */
     /**
      * What caused a change, and who: {@code actorId} names the user when no member is signed in
      * (an import running in the background); null means the signed-in member, if any.
+     * {@code reason} is kept for damage only.
      */
-    public record Reference(String type, UUID id, String note, UUID actorId) {
+    public record Reference(String type, UUID id, String note, UUID actorId, DamageReason reason) {
 
         public Reference(String type, UUID id, String note) {
-            this(type, id, note, null);
+            this(type, id, note, null, null);
+        }
+
+        public Reference(String type, UUID id, String note, UUID actorId) {
+            this(type, id, note, actorId, null);
         }
 
         /** No cause to point at, such as opening stock entered with a new product. */
@@ -62,6 +66,10 @@ public class StockService {
 
         public static Reference adjustment(UUID batchId, String note) {
             return new Reference("ADJUSTMENT", batchId, note);
+        }
+
+        public static Reference adjustment(UUID batchId, String note, DamageReason reason) {
+            return new Reference("ADJUSTMENT", batchId, note, null, reason);
         }
 
         public static Reference order(UUID orderId) {
@@ -257,12 +265,13 @@ public class StockService {
                     .update();
             jdbc.sql("""
                             insert into stock_movements (id, business_id, variant_id, type, on_hand_delta, reserved_delta,
-                                on_hand_after, reserved_after, reference_type, reference_id, note, user_id, created_at)
-                            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                on_hand_after, reserved_after, reference_type, reference_id, note, reason, user_id, created_at)
+                            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """)
                     .params(Ids.newId(), business, variantId, type.name(), delta.onHand(), delta.reserved(),
-                            next.onHand(), next.reserved(), reference.type(), reference.id(), reference.note(), user,
-                            Timestamp.from(now))
+                            next.onHand(), next.reserved(), reference.type(), reference.id(), reference.note(),
+                            type == MovementType.DAMAGE && reference.reason() != null ? reference.reason().name() : null,
+                            user, Timestamp.from(now))
                     .update();
             after.add(next);
             changes.add(new StockChanged.Change(variantId, level.available(), next.available()));

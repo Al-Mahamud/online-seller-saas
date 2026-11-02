@@ -134,6 +134,27 @@ class BusinessTests {
     }
 
     @Test
+    void onlyTheOwnerChoosesTheSearchColoursEveryoneSees() {
+        ApiClient owner = signedIn();
+        UUID business = TestBusinesses.create(owner, "Colour Shop");
+        ApiClient manager = signedIn();
+        ApiClient staff = signedIn();
+        TestBusinesses.addMember(memberships, transactions, business, TestBusinesses.userId(manager), BusinessRole.MANAGER);
+        TestBusinesses.addMember(memberships, transactions, business, TestBusinesses.userId(staff), BusinessRole.STAFF);
+        assertThat(staff.get("/api/v1/business/settings").<String>json("$.searchTheme")).isEqualTo("LEDGER");
+
+        manager.put("/api/v1/business/search-theme", Map.of("searchTheme", "MINT")).expectError(403, "access.denied");
+        owner.put("/api/v1/business/search-theme", Map.of("searchTheme", "PURPLE")).expectStatus(400);
+        assertThat(owner.put("/api/v1/business/search-theme", Map.of("searchTheme", "MINT")).expectStatus(200)
+                .<String>json("$.searchTheme")).isEqualTo("MINT");
+
+        assertThat(staff.get("/api/v1/business/settings").<String>json("$.searchTheme")).isEqualTo("MINT");
+        // Other settings leave it alone.
+        manager.patch("/api/v1/business/settings", Map.of("lowStockDefault", 3)).expectStatus(200);
+        assertThat(staff.get("/api/v1/business/settings").<String>json("$.searchTheme")).isEqualTo("MINT");
+    }
+
+    @Test
     void aRemovedMemberLosesTheBusinessOnTheNextRequest() {
         UUID business = TestBusinesses.create(signedIn(), "Strict Shop");
         ApiClient staff = signedIn();

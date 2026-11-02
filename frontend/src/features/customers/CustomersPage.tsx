@@ -5,7 +5,7 @@ import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BackToMore } from "@/components/layout/PageHeader";
 import { AddressPagination } from "@/components/layout/Pagination";
-import { SearchChips, TextSearchPanel } from "@/components/layout/SearchPanel";
+import { ListSearch } from "@/components/search/ListSearch";
 import { Button } from "@/components/ui/button";
 import { usePlaceName } from "@/features/delivery/geo";
 import { useFormat } from "@/lib/format";
@@ -55,17 +55,16 @@ export function CustomersPage() {
             )}
           </div>
         </div>
-        <TextSearchPanel
-          value={q ?? ""}
+        <ListSearch
+          list="customers"
           label={t("customers.search")}
           hint={t("customers.searchHint")}
-          className="md:relative md:overflow-hidden md:rounded-2xl md:bg-ledger md:py-4.5 md:pr-6 md:pl-14 md:before:absolute md:before:inset-y-0 md:before:left-7 md:before:w-0.5 md:before:bg-marigold"
-          onSearch={search}
+          value={{ q }}
+          onChange={(value) => search(value.q)}
           onReset={() => search()}
         />
       </div>
       <div className="flex flex-col gap-3.5 max-md:relative max-md:-mx-4 max-md:-mt-7.5 max-md:rounded-t-3xl max-md:bg-background max-md:px-3.5 max-md:pt-3.5">
-        <SearchChips value={{ q }} onRemove={() => search()} />
         {customers.isSuccess && items.length === 0 && (
           <div className="flex flex-col items-center gap-2.5 rounded-[14px] border bg-card px-4 py-8 text-center">
             <p className="text-[17px] font-bold">{q ? t("customers.noMatch") : t("customers.none")}</p>

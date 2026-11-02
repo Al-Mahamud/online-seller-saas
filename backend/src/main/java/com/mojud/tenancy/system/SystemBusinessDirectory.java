@@ -1,5 +1,6 @@
 package com.mojud.tenancy.system;
 
+import com.mojud.shared.text.Text;
 import com.mojud.identity.UserDirectory;
 import com.mojud.shared.db.system.SystemDatabase;
 import com.mojud.shared.email.EmailAddress;
@@ -12,7 +13,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -65,7 +65,7 @@ class SystemBusinessDirectory implements BusinessDirectory {
             total = database.jdbc().sql("select count(*) from businesses b " + where)
                     .params(owner.get()).query(Long.class).single();
         } else {
-            String pattern = "%" + query.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+            String pattern = Text.containsPattern(query);
             String where = "where lower(b.name) like ? ";
             rows = database.jdbc().sql(SELECT + where + "order by b.created_at desc, b.id desc limit ? offset ?")
                     .params(pattern, paging.limit(), paging.offset()).query(this::row).list();

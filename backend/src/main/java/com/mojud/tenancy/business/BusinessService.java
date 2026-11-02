@@ -180,6 +180,21 @@ class BusinessService {
         return after;
     }
 
+    /** The search panel's colours, for everyone in the business. */
+    @Transactional
+    SettingsResponse changeSearchTheme(SearchTheme theme) {
+        BusinessSettings current = loadSettings();
+        SearchTheme before = current.getSearchTheme();
+        current.changeSearchTheme(theme, clock.instant());
+        SettingsResponse after = SettingsResponse.of(settings.saveAndFlush(current));
+        if (before != theme) {
+            CurrentBusiness business = CurrentBusiness.require();
+            audit.record(business.businessId(), business.userId(), "business.settings_changed", "business",
+                    business.businessId(), "changes", new Changes().field("searchTheme", before, theme).asMap());
+        }
+        return after;
+    }
+
     private Business load(UUID businessId) {
         return businesses.findById(businessId).orElseThrow(ApiException::notFound);
     }

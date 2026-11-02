@@ -141,8 +141,7 @@ class ProductService {
     PagedResult<ProductViews.Summary> list(ProductStatus status, UUID categoryId, UUID tagId, String q, PageQuery paging) {
         if (q != null && !q.isBlank()) {
             String query = Text.cleanName(q, "q", 100);
-            // A LIKE pattern for "contains", with LIKE's own characters (backslash, %, _) escaped.
-            String pattern = "%" + query.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+            String pattern = Text.containsPattern(query);
             return PagedResult.of(products.search(CurrentBusiness.require().businessId(), status.name(),
                     categoryId, tagId, query, pattern, paging.pageable()), paging).mapItems(this::summaries);
         }

@@ -1,5 +1,6 @@
 package com.mojud.orders;
 
+import com.mojud.shared.text.Text;
 import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.time.DhakaTime;
 import com.mojud.shared.error.ApiException;
@@ -88,7 +89,7 @@ class CodSettlements {
         }
 
         String pattern() {
-            return "%" + text().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+            return Text.containsPattern(text());
         }
     }
 

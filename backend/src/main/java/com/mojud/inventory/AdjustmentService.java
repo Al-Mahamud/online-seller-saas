@@ -32,7 +32,8 @@ class AdjustmentService {
     record LineRequest(UUID variantId, Kind kind, int quantity) {
     }
 
-    record Request(List<LineRequest> lines, String note) {
+    /** {@code reason} is kept on the damage lines only. */
+    record Request(List<LineRequest> lines, String note, DamageReason reason) {
     }
 
     record LineResult(UUID variantId, Kind kind, int quantity, int onHand, int reserved, int available) {
@@ -62,7 +63,7 @@ class AdjustmentService {
         }
         return idempotency.run(idempotencyKey, request, Result.class, () -> {
             UUID batch = Ids.newId();
-            StockService.Reference reference = StockService.Reference.adjustment(batch, request.note());
+            StockService.Reference reference = StockService.Reference.adjustment(batch, request.note(), request.reason());
             List<LineResult> results = new ArrayList<>();
             for (LineRequest line : request.lines()) {
                 List<StockService.Line> one = List.of(new StockService.Line(line.variantId(), line.quantity()));
@@ -77,6 +78,7 @@ class AdjustmentService {
             CurrentBusiness business = CurrentBusiness.require();
             audit.record(business.businessId(), business.userId(), "stock.adjusted", "adjustment", batch,
                     "note", request.note(),
+                    "reason", request.reason(),
                     "lines", results.stream().map(r -> Map.of("variantId", r.variantId().toString(), "kind", r.kind().name(),
                             "quantity", r.quantity(), "onHandAfter", r.onHand())).toList());
             return new Result(batch, results);

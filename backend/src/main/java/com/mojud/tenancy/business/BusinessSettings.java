@@ -25,6 +25,9 @@ class BusinessSettings {
 
     private String invoiceFooter;
 
+    @Enumerated(EnumType.STRING)
+    private SearchTheme searchTheme;
+
     private Instant updatedAt;
 
     @Version
@@ -41,6 +44,7 @@ class BusinessSettings {
         settings.lowStockDefault = 5;
         settings.orderNumberPrefix = "";
         settings.invoiceFooter = "";
+        settings.searchTheme = SearchTheme.LEDGER;
         settings.updatedAt = now;
         return settings;
     }
@@ -60,6 +64,15 @@ class BusinessSettings {
             invoiceFooter = footer.strip();
         }
         updatedAt = now;
+    }
+
+    void changeSearchTheme(SearchTheme theme, Instant now) {
+        searchTheme = theme;
+        updatedAt = now;
+    }
+
+    SearchTheme getSearchTheme() {
+        return searchTheme;
     }
 
     StockCommitPoint getStockCommitPoint() {

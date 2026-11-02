@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Report figures from orders (implementation-plan.md 9a), for the reporting module, in the
@@ -78,4 +79,16 @@ public interface OrderReports {
     List<VariantSales> salesByVariant(LocalDate from, LocalDate to);
 
     ProfitReport profit(LocalDate from, LocalDate to);
+
+    /**
+     * Goods that came back damaged and were written off (one per variant of a return).
+     * {@code unitCost}: the order's cost price for them, null when it had none; {@code reason}: the
+     * return's reason, as typed; {@code userId}: who recorded the return.
+     */
+    record ReturnWriteOff(UUID returnId, Instant at, UUID variantId, int quantity, @Nullable Long unitCost,
+            UUID orderId, String orderNumber, String reason, @Nullable UUID userId) {
+    }
+
+    /** Written off from returns recorded from {@code from} up to {@code to}, newest first. */
+    List<ReturnWriteOff> writeOffs(Instant from, Instant to);
 }

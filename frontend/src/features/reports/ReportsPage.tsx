@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { hasRole, useBusiness } from "@/api/business";
 import { errorMessages } from "@/api/query";
+import { Choice } from "@/components/form/Choice";
 import { Field } from "@/components/form/Field";
 import { BackToMore } from "@/components/layout/PageHeader";
 import { addDays, dhakaToday } from "@/lib/dates";
@@ -30,24 +31,6 @@ const SHARES: ShareBy[] = ["product", "category"];
 const CARD = "rounded-[14px] border bg-card";
 
 const signed = (amount: number, taka: (amount: number) => string) => (amount < 0 ? `−${taka(-amount)}` : taka(amount));
-
-function Choice({ on, onClick, children }: { on: boolean; onClick: () => void; children: string }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      className={cn(
-        "h-11 flex-none cursor-pointer rounded-[10px] border-[1.5px] px-3.5 text-[15px] font-semibold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring",
-        on
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-input bg-card text-foreground hover:bg-muted",
-      )}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
 
 /** Sales over any days the plan reaches: how they split, by day, product or category; profit for managers and owners. */
 export function ReportsPage() {

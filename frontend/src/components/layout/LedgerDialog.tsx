@@ -15,6 +15,7 @@ export function LedgerDialog({
   description,
   problem,
   summary,
+  figures,
   action,
   pending,
   cancelOnPhone = true,
@@ -27,6 +28,8 @@ export function LedgerDialog({
   problem?: string;
   /** What saving will do, when there's more to say than the button does. */
   summary?: string;
+  /** Running totals of what's being entered, under the title. */
+  figures?: { label: string; value: string }[];
   action: string;
   pending: boolean;
   /** A screen with little to lose can leave closing to the × on phones, and give the action the whole row. */
@@ -56,6 +59,18 @@ export function LedgerDialog({
           <div className="min-w-0">
             <DialogTitle className="text-2xl leading-snug font-bold">{title}</DialogTitle>
             <DialogDescription className="text-[15px] break-words text-ledger-text">{description}</DialogDescription>
+            {figures && figures.length > 0 && (
+              <dl className="mt-2.5 flex flex-wrap gap-x-7 gap-y-1.5 border-t border-ledger-outline pt-2.5">
+                {figures.map((figure, index) => (
+                  <div key={figure.label}>
+                    <dt className="text-sm font-semibold text-ledger-text">{figure.label}</dt>
+                    <dd className={cn("text-[22px] leading-tight font-bold", index === 0 && "text-marigold-text")}>
+                      {figure.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </div>
           <DialogClose asChild>
             <Button

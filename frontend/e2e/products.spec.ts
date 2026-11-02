@@ -2,6 +2,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { joinAsStaff, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { png } from "./support/images";
+import { pickChoice } from "./support/search";
 import { expect, test } from "./support/test";
 
 const label = (scope: Page | ReturnType<Page["getByRole"]>, name: string) => scope.getByLabel(name, { exact: true });
@@ -268,7 +269,7 @@ test("edits a variant, adds another, and archives and restores", async ({ page }
   await expect(page.getByRole("button", { name: "আবার চালু করুন" })).toBeVisible();
   await page.goto("/products");
   await expect(page.getByText("এখনো কোনো পণ্য নেই।")).toBeVisible();
-  await page.getByRole("button", { name: "আর্কাইভ" }).click();
+  await pickChoice(page, "পণ্যের অবস্থা", "আর্কাইভ");
   await expect(page.getByRole("link", { name: /পাঞ্জাবি/ })).toBeVisible();
 });
 
@@ -385,13 +386,8 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   await expect(panjabiLink).toBeVisible();
   await expectAccessible(page);
 
-  // Nothing changes until the search button: picking only waits in the panel.
-  const category = label(page, "ক্যাটাগরি");
-  // The top category and its subcategory, once the list has loaded.
-  await expect(category.locator("option", { hasText: "মহিলা" })).toHaveCount(2);
-  await category.selectOption({ label: "মহিলা" });
-  await expect(panjabiLink).toBeVisible();
-  await search.click();
+  // A filter picked applies at once: the top category takes in its subcategory.
+  await pickChoice(page, "ক্যাটাগরি", "মহিলা");
   await expect(panjabiLink).toBeHidden();
   await expect(kurtiLink).toBeVisible();
   await expect(page).toHaveURL(/categoryId=/);
@@ -400,20 +396,18 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   // A chip takes one filter off.
   await page.getByRole("button", { name: "মহিলা মুছুন" }).click();
   await expect(panjabiLink).toBeVisible();
-  await expect(category).toHaveValue("");
+  await expect(page).not.toHaveURL(/categoryId=/);
 
   // Tag and category work together, and stay through a reload.
-  await label(page, "ট্যাগ").selectOption({ label: "ঈদ" });
-  await search.click();
+  await pickChoice(page, "ট্যাগ", "ঈদ");
   await expect(kurtiLink).toBeHidden();
   await expect(panjabiLink).toBeVisible();
   await expect(page).toHaveURL(/tagId=/);
   await page.reload();
   await expect(panjabiLink).toBeVisible();
   await expect(kurtiLink).toBeHidden();
-  await expect(label(page, "ট্যাগ")).not.toHaveValue("");
-  await category.selectOption({ label: "মহিলা" });
-  await search.click();
+  await expect(page.getByRole("button", { name: "ঈদ মুছুন" })).toBeVisible();
+  await pickChoice(page, "ক্যাটাগরি", "মহিলা");
   await expect(page.getByText("এই খোঁজে কোনো পণ্য পাওয়া যায়নি।")).toBeVisible();
 
   // Reset clears everything.
@@ -421,9 +415,8 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   await expect(kurtiLink).toBeVisible();
   await expect(panjabiLink).toBeVisible();
   await expect(page).not.toHaveURL(/categoryId|tagId/);
-  await expect(category).toHaveValue("");
 
-  // Typing waits too, and Enter searches.
+  // Typing waits for the button or Enter.
   const box = page.getByRole("searchbox", { name: "পণ্য খুঁজুন" });
   await box.fill("কুর্তি");
   await expect(panjabiLink).toBeVisible();
@@ -434,6 +427,12 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   await page.getByRole("button", { name: '"কুর্তি" মুছুন' }).click();
   await expect(panjabiLink).toBeVisible();
   await expect(box).toHaveValue("");
+
+  // What was searched before is offered again.
+  await box.focus();
+  await page.getByRole("button", { name: "কুর্তি", exact: true }).click();
+  await expect(panjabiLink).toBeHidden();
+  await expect(box).toHaveValue("কুর্তি");
 
   await box.fill("কিছুই নেই এমন");
   await search.click();

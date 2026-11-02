@@ -15,6 +15,7 @@ import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { latinDigits } from "@/lib/digits";
+import { SearchColourSection } from "./SearchColourSection";
 import { businessFields } from "./schemas";
 
 export function BusinessPage({ children }: { children?: React.ReactNode }) {
@@ -28,6 +29,7 @@ export function BusinessPage({ children }: { children?: React.ReactNode }) {
       <ProfileSection />
       <LogoSection />
       <SettingsSection />
+      <SearchColourSection />
       {children}
     </div>
   );

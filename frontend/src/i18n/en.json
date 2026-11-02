@@ -166,8 +166,6 @@
     "address": "Address",
     "readOnlyForm": "The shop is read-only, so new orders can't be taken.",
     "list": {
-      "fromChip": "From {{date}}",
-      "toChip": "To {{date}}",
       "tableLabel": "Order list",
       "paid": "Paid",
       "codShort": "COD {{amount}}",
@@ -659,12 +657,12 @@
       "reservedColumn": "Set aside"
     },
     "list": {
-      "searchButton": "Search",
       "reset": "Reset",
       "allCategories": "All categories",
       "allTags": "All tags",
-      "removeFilter": "Remove {{name}}",
-      "tableLabel": "Product list"
+      "tableLabel": "Product list",
+      "found_one": "{{total}} product",
+      "found_other": "{{total}} products"
     }
   },
   "stock": {
@@ -1189,5 +1187,121 @@
     "next": "Next",
     "page": "Page {{page}}",
     "ofPages": "Page {{page}} of {{last}}"
+  },
+  "damages": {
+    "title": "Damaged goods",
+    "record": "Record damaged goods",
+    "recordShort": "Record",
+    "period": "Which days, which goods",
+    "search": "Search damaged goods",
+    "searchHint": "Product name or SKU",
+    "damaged": "Damaged",
+    "items": "{{count}} items",
+    "count": "{{count}}",
+    "loss": "Loss (at cost)",
+    "compareMore": "{{count}} more than the {{days}} days before",
+    "compareLess": "{{count}} fewer than the {{days}} days before",
+    "compareSame": "The same as the {{days}} days before",
+    "daysOnly": "Over {{days}} days",
+    "listTitle": "What was damaged",
+    "sourceGroup": "Where from",
+    "source": {
+      "ALL": "All",
+      "SHELF": "From the shelf",
+      "RETURN": "Came back damaged"
+    },
+    "column": {
+      "date": "Date",
+      "product": "Product",
+      "source": "Where from",
+      "reason": "Reason",
+      "quantity": "Quantity",
+      "loss": "Loss"
+    },
+    "reason": {
+      "BROKEN": "Broken or torn",
+      "STAIN": "Stained or faded",
+      "LOST": "Lost",
+      "EXPIRED": "Expired",
+      "OTHER": "Something else"
+    },
+    "noReason": "No reason given",
+    "order": "Order {{number}}",
+    "noCost": "No cost price",
+    "none": "Nothing was damaged in these days.",
+    "noMatch": "No damaged goods match this search.",
+    "showAll": "Show all",
+    "topTitle": "Where the most was lost",
+    "topHint": "In these days, at cost",
+    "topItems": "{{count}} damaged",
+    "profitNote": "Goods that came back damaged are also taken off profit in Reports. Goods damaged on the shelf show only here.",
+    "withoutCost": "{{count}} products have no cost price, so the real loss is more than this.",
+    "dialog": {
+      "description": "What was damaged or lost comes off the stock.",
+      "which": "Which product?",
+      "whichHint": "Type a name or SKU",
+      "found": "Products found",
+      "noProduct": "No product has this name.",
+      "add": "Add",
+      "added": "Added",
+      "inStock": "{{count}} in stock",
+      "howMany": "How many were damaged",
+      "empty": "Find a product above and add it. You can record several at once.",
+      "less": "One fewer",
+      "more": "One more",
+      "quantityOf": "{{name}}: how many damaged",
+      "remove": "Remove {{name}}",
+      "badNumber": "Type a number, 1 or more.",
+      "tooMany": "Only {{count}} can be sold. Goods held for orders can't be recorded as damaged here.",
+      "left": "{{count}} will be left",
+      "lineLoss": "Loss {{amount}}",
+      "what": "What happened?",
+      "pickReason": "Choose what happened.",
+      "note": "Note (optional)",
+      "noteHint": "For example: got wet in the rain",
+      "costNote": "Loss is counted at each product's cost price now. A product without a cost price shows no loss.",
+      "save": "Record {{count}} damaged",
+      "saveEmpty": "Save",
+      "nothing": "Add at least one product.",
+      "done": "Damaged goods recorded.",
+      "figureItems": "Items"
+    }
+  },
+  "search": {
+    "button": "Search",
+    "reset": "Reset",
+    "clearText": "Clear text",
+    "anyTime": "Any time",
+    "when": "Which days",
+    "from": "From",
+    "to": "To",
+    "apply": "Apply",
+    "preset": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7": "Last 7 days",
+      "last30": "Last 30 days",
+      "thisMonth": "This month",
+      "lastMonth": "Last month"
+    },
+    "since": "From {{date}}",
+    "until": "Up to {{date}}",
+    "range": "{{from}} – {{to}}",
+    "recent": "Recent searches",
+    "filters": "Filters",
+    "filtersOn": "Filters, {{count}} on",
+    "showResults": "Show results",
+    "remove": "Remove {{name}}",
+    "close": "Close",
+    "theme": {
+      "title": "Search panel colours",
+      "hint": "The search panel on every list, for everyone in the team.",
+      "ownerOnly": "Only the owner can change this.",
+      "saved": "Search panel colours changed.",
+      "LEDGER": "Ledger green",
+      "LEDGERHint": "Dark green, yellow button",
+      "MINT": "Soft mint",
+      "MINTHint": "Light green, dark green button"
+    }
   }
 }

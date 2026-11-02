@@ -30,6 +30,7 @@ import { Route as AppBillingReturnRouteImport } from './routes/_app/billing/retu
 import { Route as AppCodIndexRouteImport } from './routes/_app/cod/index'
 import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCustomersCustomerIdRouteImport } from './routes/_app/customers/$customerId'
+import { Route as AppDamagesIndexRouteImport } from './routes/_app/damages/index'
 import { Route as AppNotificationsIndexRouteImport } from './routes/_app/notifications/index'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
@@ -153,6 +154,11 @@ const AppCustomersIndexRoute = AppCustomersIndexRouteImport.update({
 const AppCustomersCustomerIdRoute = AppCustomersCustomerIdRouteImport.update({
   id: '/customers/$customerId',
   path: '/customers/$customerId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDamagesIndexRoute = AppDamagesIndexRouteImport.update({
+  id: '/damages/',
+  path: '/damages/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsIndexRoute = AppNotificationsIndexRouteImport.update({
@@ -298,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/billing/': typeof AppBillingIndexRoute
   '/cod/': typeof AppCodIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
+  '/damages/': typeof AppDamagesIndexRoute
   '/notifications/': typeof AppNotificationsIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
   '/products/': typeof AppProductsIndexRoute
@@ -339,6 +346,7 @@ export interface FileRoutesByTo {
   '/billing': typeof AppBillingIndexRoute
   '/cod': typeof AppCodIndexRoute
   '/customers': typeof AppCustomersIndexRoute
+  '/damages': typeof AppDamagesIndexRoute
   '/notifications': typeof AppNotificationsIndexRoute
   '/orders': typeof AppOrdersIndexRoute
   '/products': typeof AppProductsIndexRoute
@@ -384,6 +392,7 @@ export interface FileRoutesById {
   '/_app/billing/': typeof AppBillingIndexRoute
   '/_app/cod/': typeof AppCodIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
+  '/_app/damages/': typeof AppDamagesIndexRoute
   '/_app/notifications/': typeof AppNotificationsIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/products/': typeof AppProductsIndexRoute
@@ -428,6 +437,7 @@ export interface FileRouteTypes {
     | '/billing/'
     | '/cod/'
     | '/customers/'
+    | '/damages/'
     | '/notifications/'
     | '/orders/'
     | '/products/'
@@ -469,6 +479,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/cod'
     | '/customers'
+    | '/damages'
     | '/notifications'
     | '/orders'
     | '/products'
@@ -513,6 +524,7 @@ export interface FileRouteTypes {
     | '/_app/billing/'
     | '/_app/cod/'
     | '/_app/customers/'
+    | '/_app/damages/'
     | '/_app/notifications/'
     | '/_app/orders/'
     | '/_app/products/'
@@ -677,6 +689,13 @@ declare module '@tanstack/react-router' {
       path: '/customers/$customerId'
       fullPath: '/customers/$customerId'
       preLoaderRoute: typeof AppCustomersCustomerIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/damages/': {
+      id: '/_app/damages/'
+      path: '/damages'
+      fullPath: '/damages/'
+      preLoaderRoute: typeof AppDamagesIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notifications/': {
@@ -850,6 +869,7 @@ interface AppRouteChildren {
   AppBillingIndexRoute: typeof AppBillingIndexRoute
   AppCodIndexRoute: typeof AppCodIndexRoute
   AppCustomersIndexRoute: typeof AppCustomersIndexRoute
+  AppDamagesIndexRoute: typeof AppDamagesIndexRoute
   AppNotificationsIndexRoute: typeof AppNotificationsIndexRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
   AppProductsIndexRoute: typeof AppProductsIndexRoute
@@ -880,6 +900,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBillingIndexRoute: AppBillingIndexRoute,
   AppCodIndexRoute: AppCodIndexRoute,
   AppCustomersIndexRoute: AppCustomersIndexRoute,
+  AppDamagesIndexRoute: AppDamagesIndexRoute,
   AppNotificationsIndexRoute: AppNotificationsIndexRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
   AppProductsIndexRoute: AppProductsIndexRoute,

@@ -86,6 +86,10 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/business", (a, b) -> expectNoLeak(b.owner().get("/api/v1/business"), a));
         CASES.put("PATCH /api/v1/business", (a, b) -> expectNoLeak(b.owner().patch("/api/v1/business", Map.of()), a));
         CASES.put("GET /api/v1/business/settings", (a, b) -> expectNoLeak(b.owner().get("/api/v1/business/settings"), a));
+        CASES.put("PUT /api/v1/business/search-theme", (a, b) -> {
+            expectNoLeak(b.owner().put("/api/v1/business/search-theme", Map.of("searchTheme", "MINT")), a);
+            assertThat(a.owner().get("/api/v1/business/settings").<String>json("$.searchTheme")).isEqualTo("LEDGER");
+        });
         CASES.put("PATCH /api/v1/business/settings",
                 (a, b) -> expectNoLeak(b.owner().patch("/api/v1/business/settings", Map.of()), a));
         CASES.put("GET /api/v1/business/audit-log", (a, b) -> expectNoLeak(b.owner().get("/api/v1/business/audit-log"), a));
@@ -347,6 +351,12 @@ class CrossTenantTests {
             expectNoLeak(b.owner().get("/api/v1/reports/sales?groupBy=category"), a);
         });
         CASES.put("GET /api/v1/reports/profit", (a, b) -> expectNoLeak(b.owner().get("/api/v1/reports/profit"), a));
+        CASES.put("GET /api/v1/damages", (a, b) -> {
+            expectNoLeak(b.owner().get("/api/v1/damages"), a);
+            expectNoLeak(b.owner().get("/api/v1/damages?q="
+                    + java.net.URLEncoder.encode(a.productName(), java.nio.charset.StandardCharsets.UTF_8)), a);
+        });
+        CASES.put("GET /api/v1/damages/summary", (a, b) -> expectNoLeak(b.owner().get("/api/v1/damages/summary"), a));
         CASES.put("GET /api/v1/exports/orders.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/orders.csv"), a));
         CASES.put("GET /api/v1/exports/products.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/products.csv"), a));
         CASES.put("GET /api/v1/exports/customers.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/customers.csv"), a));

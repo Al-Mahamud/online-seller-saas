@@ -111,3 +111,29 @@ test("changes the order and stock settings", async ({ page }) => {
   await page.getByRole("button", { name: "সংরক্ষণ করুন" }).last().click();
   await expect(label(page, "কম স্টকের সীমা")).toHaveAttribute("aria-invalid", "true");
 });
+
+test("the owner picks the search panel's colours for every list", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  await page.goto("/orders");
+  const button = page.getByRole("search", { name: "অর্ডার খুঁজুন" }).getByRole("button", { name: "খুঁজুন" });
+  await expect(button).toHaveCSS("background-color", "rgb(240, 185, 79)");
+
+  await page.goto("/settings/business");
+  const colours = page.getByRole("group", { name: /প্রতিটি তালিকার খোঁজার প্যানেল/ });
+  await expect(colours.getByRole("radio", { name: /লেজার সবুজ/ })).toBeChecked();
+  await expectAccessible(page);
+  await colours.getByRole("radio", { name: /পুদিনা সবুজ/ }).check();
+  await expect(page.getByText("খোঁজার প্যানেলের রং বদলানো হয়েছে।")).toBeVisible();
+
+  await page.goto("/customers");
+  await expect(page.getByRole("search", { name: "গ্রাহক খুঁজুন" }).getByRole("button", { name: "খুঁজুন" })).toHaveCSS(
+    "background-color",
+    "rgb(7, 57, 43)",
+  );
+  await expectAccessible(page);
+  await page.reload();
+  await expect(page.getByRole("search", { name: "গ্রাহক খুঁজুন" }).getByRole("button", { name: "খুঁজুন" })).toHaveCSS(
+    "background-color",
+    "rgb(7, 57, 43)",
+  );
+});

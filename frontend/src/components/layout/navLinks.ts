@@ -6,6 +6,7 @@ import {
   House,
   type LucideIcon,
   Package,
+  PackageX,
   ReceiptText,
   ScrollText,
   Store,
@@ -20,6 +21,7 @@ export type NavLabel =
   | "nav.today"
   | "nav.orders"
   | "nav.products"
+  | "damages.title"
   | "customers.title"
   | "cod.title"
   | "reports.title"
@@ -47,6 +49,7 @@ export const TAB_LINKS: NavLink[] = [
 ];
 
 export const WORK_LINKS: NavLink[] = [
+  { to: "/damages", label: "damages.title", icon: PackageX },
   { to: "/customers", label: "customers.title", icon: Users },
   { to: "/cod", label: "cod.title", icon: Banknote },
   { to: "/reports", label: "reports.title", icon: ChartColumn },

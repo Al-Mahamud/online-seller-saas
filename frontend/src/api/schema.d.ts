@@ -555,7 +555,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -607,6 +607,22 @@ export interface paths {
         put: operations["changeLogo"];
         post?: never;
         delete: operations["removeLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/business/search-theme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["changeSearchTheme"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -738,6 +754,38 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["update_4"];
+        trace?: never;
+    };
+    "/api/v1/damages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_9"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/damages/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/dashboard/overview": {
@@ -2428,6 +2476,10 @@ export interface components {
             /** @enum {string} */
             role: "OWNER" | "MANAGER" | "STAFF";
         };
+        BusinessSearchThemeRequest: {
+            /** @enum {string} */
+            searchTheme: "LEDGER" | "MINT";
+        };
         BusinessSettingsRequest: {
             invoiceFooter?: string;
             /** Format: int32 */
@@ -2589,6 +2641,60 @@ export interface components {
             updatedAt: string;
             /** Format: int64 */
             version: number;
+        };
+        DamageReportsDamage: {
+            /** Format: date-time */
+            at: string;
+            id: string;
+            /** Format: int64 */
+            loss: number | null;
+            note: string | null;
+            /** Format: uuid */
+            orderId: string | null;
+            orderNumber: string | null;
+            /** Format: uuid */
+            productId: string;
+            productName: string;
+            /** Format: int32 */
+            quantity: number;
+            /** @enum {string|null} */
+            reason: "BROKEN" | "STAIN" | "LOST" | "EXPIRED" | "OTHER" | null;
+            recordedBy: string | null;
+            /** @enum {string} */
+            source: "SHELF" | "RETURN";
+            /** Format: int64 */
+            unitCost: number | null;
+            /** Format: uuid */
+            variantId: string;
+            variantLabel: string;
+        };
+        DamageReportsSummary: {
+            /** Format: date */
+            from: string;
+            /** Format: int64 */
+            loss: number | null;
+            /** Format: int32 */
+            quantity: number;
+            /** Format: int32 */
+            quantityBefore: number | null;
+            /** Format: int32 */
+            returnQuantity: number;
+            /** Format: int32 */
+            shelfQuantity: number;
+            /** Format: date */
+            to: string;
+            top: components["schemas"]["DamageReportsTopProduct"][] | null;
+            /** Format: int32 */
+            withoutCost: number | null;
+        };
+        DamageReportsTopProduct: {
+            /** Format: int64 */
+            loss: number;
+            name: string;
+            /** Format: uuid */
+            productId: string;
+            /** Format: int32 */
+            quantity: number;
         };
         DashboardCod: {
             /** Format: int64 */
@@ -3378,6 +3484,17 @@ export interface components {
             /** Format: int32 */
             totalPages: number;
         };
+        PagedResultDamageReportsDamage: {
+            items: components["schemas"]["DamageReportsDamage"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** Format: int32 */
+            totalPages: number;
+        };
         PagedResultInvoicesInvoiceView: {
             items: components["schemas"]["InvoicesInvoiceView"][];
             /** Format: int32 */
@@ -3657,6 +3774,8 @@ export interface components {
             lowStockDefault: number;
             orderNumberPrefix: string;
             /** @enum {string} */
+            searchTheme: "LEDGER" | "MINT";
+            /** @enum {string} */
             stockCommitPoint: "SHIP" | "CONFIRM";
         };
         ShipmentSettleMatchingRequest: {
@@ -3702,6 +3821,8 @@ export interface components {
         StockAdjustmentRequest: {
             lines: components["schemas"]["StockLineRequest"][];
             note?: string;
+            /** @enum {string} */
+            reason?: "BROKEN" | "STAIN" | "LOST" | "EXPIRED" | "OTHER";
         };
         StockLineRequest: {
             /** @enum {string} */
@@ -4569,7 +4690,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: {
                 page?: number | null;
@@ -4692,6 +4813,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BusinessResponse"];
+                };
+            };
+        };
+    };
+    changeSearchTheme: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusinessSearchThemeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
                 };
             };
         };
@@ -5035,6 +5180,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerView"];
+                };
+            };
+        };
+    };
+    list_9: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                source?: string;
+                q?: string;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedResultDamageReportsDamage"];
+                };
+            };
+        };
+    };
+    summary: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DamageReportsSummary"];
                 };
             };
         };

@@ -1032,6 +1032,16 @@
         "required" : [ "address", "deletionDueAt", "id", "logo", "name", "phone", "role" ],
         "type" : "object"
       },
+      "BusinessSearchThemeRequest" : {
+        "properties" : {
+          "searchTheme" : {
+            "enum" : [ "LEDGER", "MINT" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "searchTheme" ],
+        "type" : "object"
+      },
       "BusinessSettingsRequest" : {
         "properties" : {
           "invoiceFooter" : {
@@ -1479,6 +1489,131 @@
           }
         },
         "required" : [ "address", "altPhone", "area", "createdAt", "district", "id", "lastOrderAt", "name", "note", "orderCount", "phone", "updatedAt", "version" ],
+        "type" : "object"
+      },
+      "DamageReportsDamage" : {
+        "properties" : {
+          "at" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "loss" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "note" : {
+            "type" : [ "string", "null" ]
+          },
+          "orderId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "orderNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "reason" : {
+            "enum" : [ "BROKEN", "STAIN", "LOST", "EXPIRED", "OTHER" ],
+            "type" : [ "string", "null" ]
+          },
+          "recordedBy" : {
+            "type" : [ "string", "null" ]
+          },
+          "source" : {
+            "enum" : [ "SHELF", "RETURN" ],
+            "type" : "string"
+          },
+          "unitCost" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "variantId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "variantLabel" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "at", "id", "loss", "note", "orderId", "orderNumber", "productId", "productName", "quantity", "reason", "recordedBy", "source", "unitCost", "variantId", "variantLabel" ],
+        "type" : "object"
+      },
+      "DamageReportsSummary" : {
+        "properties" : {
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "loss" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "quantityBefore" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "returnQuantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "shelfQuantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "top" : {
+            "items" : {
+              "$ref" : "#/components/schemas/DamageReportsTopProduct"
+            },
+            "type" : [ "array", "null" ]
+          },
+          "withoutCost" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "from", "loss", "quantity", "quantityBefore", "returnQuantity", "shelfQuantity", "to", "top", "withoutCost" ],
+        "type" : "object"
+      },
+      "DamageReportsTopProduct" : {
+        "properties" : {
+          "loss" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "loss", "name", "productId", "quantity" ],
         "type" : "object"
       },
       "DashboardCod" : {
@@ -3568,6 +3703,34 @@
         "required" : [ "items", "page", "size", "totalItems", "totalPages" ],
         "type" : "object"
       },
+      "PagedResultDamageReportsDamage" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/DamageReportsDamage"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalItems" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "items", "page", "size", "totalItems", "totalPages" ],
+        "type" : "object"
+      },
       "PagedResultInvoicesInvoiceView" : {
         "properties" : {
           "items" : {
@@ -4317,12 +4480,16 @@
           "orderNumberPrefix" : {
             "type" : "string"
           },
+          "searchTheme" : {
+            "enum" : [ "LEDGER", "MINT" ],
+            "type" : "string"
+          },
           "stockCommitPoint" : {
             "enum" : [ "SHIP", "CONFIRM" ],
             "type" : "string"
           }
         },
-        "required" : [ "invoiceFooter", "lowStockDefault", "orderNumberPrefix", "stockCommitPoint" ],
+        "required" : [ "invoiceFooter", "lowStockDefault", "orderNumberPrefix", "searchTheme", "stockCommitPoint" ],
         "type" : "object"
       },
       "ShipmentSettleMatchingRequest" : {
@@ -4458,6 +4625,10 @@
           "note" : {
             "maxLength" : 500,
             "minLength" : 0,
+            "type" : "string"
+          },
+          "reason" : {
+            "enum" : [ "BROKEN", "STAIN", "LOST", "EXPIRED", "OTHER" ],
             "type" : "string"
           }
         },
@@ -5614,7 +5785,7 @@
     },
     "/api/v1/business/audit-log" : {
       "get" : {
-        "operationId" : "list_9",
+        "operationId" : "list_10",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -5730,6 +5901,34 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/BusinessResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "business-controller" ]
+      }
+    },
+    "/api/v1/business/search-theme" : {
+      "put" : {
+        "operationId" : "changeSearchTheme",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BusinessSearchThemeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SettingsResponse"
                 }
               }
             },
@@ -6143,6 +6342,113 @@
           }
         },
         "tags" : [ "customer-controller" ]
+      }
+    },
+    "/api/v1/damages" : {
+      "get" : {
+        "operationId" : "list_9",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "source",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedResultDamageReportsDamage"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "damage-controller" ]
+      }
+    },
+    "/api/v1/damages/summary" : {
+      "get" : {
+        "operationId" : "summary",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DamageReportsSummary"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "damage-controller" ]
       }
     },
     "/api/v1/dashboard/overview" : {
