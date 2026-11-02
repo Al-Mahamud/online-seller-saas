@@ -22,7 +22,6 @@ Proposed by Claude. Change any of these by saying so:
 ## Different from the drawing
 
 - **The chart's columns:** the drawing had one button per column. Thirty columns are too thin to tap one by one and fail the 24 px minimum, so the whole chart is one slider: point, tap or use the arrow keys, and a screen reader hears each day's figures.
-- **The chart's top figure:** above the chart, not over it, where a tall first column would hide it.
 - **A note under the pie:** only when it adds up to more than the sales, since an order's discount isn't split across its items.
 
 ## Known limits
@@ -44,3 +43,4 @@ In `frontend/src/i18n/bn.json` and `en.json` under `reports`, and in `docs/bangl
 ## Change log
 
 - **Nov 2, 2026:** designed and built, with pie charts at Al Mahamud's request.
+- **Nov 2, 2026:** brought back in line with the drawing at Al Mahamud's request: the best day sits beside the sales heading, the chart's top figure is inside the chart (drawn over the columns so a tall one can't hide it), the sales pie is 220 px on a laptop and 200 px on a phone, and returned-and-damaged goods always show in the profit card, at ৳০ when there are none.
