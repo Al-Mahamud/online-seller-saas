@@ -61,7 +61,7 @@ class BillingFlowTests {
         owner = new ApiClient(port);
         sslcommerz = new ApiClient(port);
         TestAccounts.signUp(owner, messages);
-        business = TestBusinesses.create(owner, "Billing Shop");
+        business = TestBusinesses.createOnFree(owner, "Billing Shop");
     }
 
     @AfterEach
@@ -80,11 +80,11 @@ class BillingFlowTests {
         ApiResponse upgrade = owner.post("/api/v1/billing/upgrade", Map.of("planCode", "PRO")).expectStatus(201);
         assertThat(owner.get("/api/v1/billing/quote?planCode=PRO").<Integer>json("$.amount")).isEqualTo(upgrade.<Integer>json("$.amount"));
 
-        // ৳2,000 × 20 ÷ 30 = ৳1,333.33, rounded up to ৳1,334.
-        assertThat(upgrade.<Integer>json("$.amount")).isEqualTo(133400);
+        // ৳400 × 20 ÷ 30 = ৳266.67, rounded up to ৳267.
+        assertThat(upgrade.<Integer>json("$.amount")).isEqualTo(26700);
         String invoice = upgrade.json("$.invoiceId");
         assertThat(gateway.session(gateway.tranIdOf(invoice))).containsEntry("product_name", "Mojud Pro upgrade");
-        pay(invoice, "1334.00");
+        pay(invoice, "267.00");
 
         ApiResponse billing = owner.get("/api/v1/billing");
         assertThat(billing.<String>json("$.plan.code")).isEqualTo("PRO");
@@ -117,7 +117,7 @@ class BillingFlowTests {
         assertThat(billing.<Object>json("$.pendingPlanCode")).isNull();
         String invoice = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201)
                 .json("$.invoiceId");
-        pay(invoice, "990.00");
+        pay(invoice, "499.00");
         assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("ACTIVE");
     }
 
@@ -128,7 +128,7 @@ class BillingFlowTests {
         String invoice = checkout.json("$.invoiceId");
         assertThat(checkout.<Object>json("$.gatewayUrl")).isNull();
         assertThat(checkout.<String>json("$.bankTransfer")).contains("Reference: " + checkout.json("$.number"));
-        assertThat(checkout.<Integer>json("$.amount")).isEqualTo(1794000);
+        assertThat(checkout.<Integer>json("$.amount")).isEqualTo(539400);
         // Whoever comes back to the invoice can still read how to pay.
         assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.bankTransfer")).isEqualTo(checkout.<String>json("$.bankTransfer"));
 
@@ -152,7 +152,7 @@ class BillingFlowTests {
     void theLedgerHoldsExactlyThePaidInvoices() {
         String card = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201)
                 .json("$.invoiceId");
-        pay(card, "990.00");
+        pay(card, "499.00");
         String bank = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 12,
                 "payBy", "BANK_TRANSFER")).expectStatus(201).json("$.invoiceId");
         owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201);
@@ -162,13 +162,13 @@ class BillingFlowTests {
                 .param(business).query(Long.class).single();
         long paid = systemDatabase.jdbc().sql("select sum(amount) from invoices where business_id = ? and status = 'PAID'")
                 .param(business).query(Long.class).single();
-        assertThat(ledger).isEqualTo(paid).isEqualTo(99000 + 990000);
+        assertThat(ledger).isEqualTo(paid).isEqualTo(49900 + 499000);
 
         String csv = new String(admin().download("/api/v1/admin/billing/ledger.csv").body(), StandardCharsets.UTF_8);
         List<String> mine = csv.lines().filter(line -> line.contains(business.toString())).toList();
         assertThat(mine).hasSize(2);
-        assertThat(mine).anyMatch(line -> line.contains(",SSLCOMMERZ,") && line.endsWith(",990.00,0.00"));
-        assertThat(mine).anyMatch(line -> line.contains(",BANK_TRANSFER,BRAC-1,9900.00,0.00"));
+        assertThat(mine).anyMatch(line -> line.contains(",SSLCOMMERZ,") && line.endsWith(",499.00,0.00"));
+        assertThat(mine).anyMatch(line -> line.contains(",BANK_TRANSFER,BRAC-1,4990.00,0.00"));
         assertThat(csv.lines().findFirst().orElseThrow()).isEqualTo("﻿Date,Invoice,Business,Type,Method,Reference,Amount,VAT");
     }
 
@@ -176,7 +176,7 @@ class BillingFlowTests {
     void invoicesAreListedAndPrintInBothLanguages() {
         String invoice = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201)
                 .json("$.invoiceId");
-        pay(invoice, "990.00");
+        pay(invoice, "499.00");
         owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201);
 
         assertThat(owner.get("/api/v1/billing/invoices").<List<String>>json("$.items[*].status")).containsExactly("OPEN", "PAID");
@@ -185,9 +185,9 @@ class BillingFlowTests {
         assertThat(page.headers().firstValue("Content-Security-Policy")).hasValue(InvoicePages.CONTENT_SECURITY_POLICY);
         String en = new String(page.body(), StandardCharsets.UTF_8);
         assertThat(en).contains("<h2>Invoice</h2>", "Billing Shop", "Mojud Starter, 1 month", "<p class=\"status paid\">Paid</p>",
-                "<tr class=\"total\"><th>Total</th><td class=\"n\">৳990</td></tr>", "Paid on ");
+                "<tr class=\"total\"><th>Total</th><td class=\"n\">৳499</td></tr>", "Paid on ");
         String bn = new String(owner.download("/api/v1/billing/invoices/" + invoice + "/print?lang=bn").body(), StandardCharsets.UTF_8);
-        assertThat(bn).contains("<h2>ইনভয়েস</h2>", "মজুদ স্টার্টার, ১ মাস", "পরিশোধিত", "৳৯৯০");
+        assertThat(bn).contains("<h2>ইনভয়েস</h2>", "মজুদ স্টার্টার, ১ মাস", "পরিশোধিত", "৳৪৯৯");
     }
 
     /** The gateway's IPN for the invoice's attempt, paid in full. */

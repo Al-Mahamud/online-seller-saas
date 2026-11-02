@@ -56,7 +56,7 @@ class AdminTests {
     void setUp() {
         owner = new ApiClient(port);
         ownerAccount = TestAccounts.signUp(owner, messages);
-        business = TestBusinesses.create(owner, "Admin Test Shop " + UUID.randomUUID().toString().substring(0, 6));
+        business = TestBusinesses.createOnFree(owner, "Admin Test Shop " + UUID.randomUUID().toString().substring(0, 6));
         admin = admin();
     }
 
@@ -90,12 +90,12 @@ class AdminTests {
 
         ApiResponse row = admin.get("/api/v1/admin/businesses?q=" + ownerAccount.email());
         assertThat(row.<String>json("$.items[0].business.owner.email")).isEqualTo(ownerAccount.email());
-        assertThat(row.<String>json("$.items[0].subscription.status")).isEqualTo("TRIALING");
+        assertThat(row.<String>json("$.items[0].subscription.status")).isEqualTo("ACTIVE");
 
         ApiResponse detail = admin.get("/api/v1/admin/businesses/" + business).expectStatus(200);
         assertThat(detail.<Integer>json("$.business.members")).isEqualTo(1);
-        assertThat(detail.<String>json("$.billing.planCode")).isEqualTo("TRIAL");
-        assertThat(detail.<Integer>json("$.billing.usage.variants.limit")).isEqualTo(5000);
+        assertThat(detail.<String>json("$.billing.planCode")).isEqualTo("FREE");
+        assertThat(detail.<Integer>json("$.billing.usage.variants.limit")).isEqualTo(50);
         admin.get("/api/v1/admin/businesses/" + UUID.randomUUID()).expectError(404, "resource.not_found");
     }
 
@@ -109,7 +109,7 @@ class AdminTests {
 
         ApiResponse back = admin.post("/api/v1/admin/businesses/" + business + "/unsuspend", null).expectStatus(200);
 
-        assertThat(back.<String>json("$.billing.status")).isEqualTo("TRIALING");
+        assertThat(back.<String>json("$.billing.status")).isEqualTo("ACTIVE");
         owner.get("/api/v1/products").expectStatus(200);
         assertThat(actions()).containsSequence("business.unsuspended", "business.suspended");
         assertThat(admin.get("/api/v1/admin/audit?businessId=" + business).<String>json("$.items[1].details.reason"))
@@ -118,7 +118,11 @@ class AdminTests {
 
     @Test
     void trialsAreExtendedAndPlansSet() {
-        Instant trialEnd = Instant.parse(owner.get("/api/v1/billing").json("$.trialEndsAt"));
+        // Nobody starts on a trial now; one from before can still be extended.
+        admin.post("/api/v1/admin/businesses/" + business + "/extend-trial", Map.of("days", 5)).expectError(409, "billing.not_on_trial");
+        Instant trialEnd = Instant.now().plus(Duration.ofDays(3)).truncatedTo(ChronoUnit.SECONDS);
+        systemDatabase.jdbc().sql("update subscriptions set plan_code = 'TRIAL', status = 'TRIALING', trial_ends_at = ? where business_id = ?")
+                .params(java.sql.Timestamp.from(trialEnd), business).update();
 
         admin.post("/api/v1/admin/businesses/" + business + "/extend-trial", Map.of("days", 30)).expectStatus(200);
         assertThat(Instant.parse(owner.get("/api/v1/billing").json("$.trialEndsAt")))
@@ -160,7 +164,7 @@ class AdminTests {
             admin.put("/api/v1/admin/plans/NOPE", Map.of("priceMonthly", 1, "isPublic", true, "exports", true))
                     .expectError(404, "resource.not_found");
         } finally {
-            admin.put("/api/v1/admin/plans/STARTER", Map.of("nameEn", "Starter", "priceMonthly", 99000, "isPublic", true,
+            admin.put("/api/v1/admin/plans/STARTER", Map.of("nameEn", "Starter", "priceMonthly", 49900, "isPublic", true,
                     "limits", limits, "exports", false)).expectStatus(200);
             admin.put("/api/v1/admin/plans/TRIAL", Map.of("priceMonthly", 0, "isPublic", false, "exports", true)).expectStatus(200);
         }

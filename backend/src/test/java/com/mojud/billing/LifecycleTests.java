@@ -56,7 +56,7 @@ class LifecycleTests {
     void business() {
         owner = new ApiClient(port);
         TestAccounts.signUp(owner, messages);
-        business = TestBusinesses.create(owner, "Lifecycle Shop");
+        business = TestBusinesses.createOnFree(owner, "Lifecycle Shop");
         owner.post("/api/v1/products", Map.of("name", "Kurti", "price", 100)).expectStatus(201);
     }
 
@@ -66,37 +66,35 @@ class LifecycleTests {
     }
 
     @Test
-    void aTrialRemindsThenTurnsReadOnly() {
+    void anOldTrialRemindsThenEndsOnFree() {
+        // No business gets a trial now; one an administrator gave, or one from before, still ends.
+        systemDatabase.jdbc().sql("update subscriptions set plan_code = 'TRIAL', status = 'TRIALING', trial_ends_at = ? where business_id = ?")
+                .params(Timestamp.from(clock.instant().plus(Duration.ofDays(14))), business).update();
         day(7);
-        assertThat(billingNotices()).containsExactly("Your free trial ends in 7 days. Choose a plan to keep selling.");
+        assertThat(billingNotices()).containsExactly("Your free trial ends in 7 days. After it, the shop is on the Free plan.");
         advancer.advance(business);
         assertThat(billingNotices()).as("a second run the same day sends nothing new").hasSize(1);
-        day(4);
-        day(2);
-        assertThat(billingNotices()).startsWith("Your free trial ends in 1 day. Choose a plan to keep selling.",
-                "Your free trial ends in 3 days. Choose a plan to keep selling.");
-        canWrite(true);
 
-        clock.advance(Duration.ofDays(1).plusMinutes(5));
+        clock.advance(Duration.ofDays(7).plusMinutes(5));
         advancer.advance(business);
 
-        assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("READ_ONLY");
-        assertThat(billingNotices().get(0)).startsWith("Your free trial has ended.");
-        canWrite(false);
-        // Reading, exporting, the profile, billing and notifications stay open.
-        owner.get("/api/v1/products").expectStatus(200);
-        owner.get("/api/v1/dashboard/today").expectStatus(200);
-        assertThat(owner.download("/api/v1/exports/products.csv").statusCode()).isEqualTo(200);
-        owner.patch("/api/v1/me", Map.of("name", "Still Me")).expectStatus(200);
-        owner.post("/api/v1/notifications/read", Map.of("all", true)).expectStatus(204);
-        owner.put("/api/v1/billing/plan", Map.of("planCode", "STARTER")).expectError(409, "billing.payment_needed");
+        ApiResponse billing = owner.get("/api/v1/billing");
+        assertThat(billing.<String>json("$.plan.code")).isEqualTo("FREE");
+        assertThat(billing.<String>json("$.status")).isEqualTo("ACTIVE");
+        assertThat(billing.<Object>json("$.trialEndsAt")).isNull();
+        assertThat(billingNotices().get(0)).isEqualTo("Your free trial has ended. The shop is on the Free plan now.");
+        canWrite(true);
         assertThat(owner.get("/api/v1/business/audit-log").<String>json("$.items[0].action")).isEqualTo("subscription.changed");
     }
 
     @Test
     void readOnlyWarnsBeforeDeletion() {
-        clock.advance(Duration.ofDays(14).plusMinutes(5));
-        advancer.advance(business);
+        systemDatabase.jdbc().sql("""
+                        update subscriptions set plan_code = 'STARTER', status = 'READ_ONLY', read_only_since = ?
+                        where business_id = ?
+                        """)
+                .params(Timestamp.from(clock.instant()), business).update();
+        canWrite(false);
 
         day(60);
         assertThat(billingNotices().get(0)).isEqualTo(
@@ -107,6 +105,46 @@ class LifecycleTests {
         day(6);
         assertThat(jobs.dataDeletion()).as("listed, not deleted: the job ships disabled").contains(business);
         owner.get("/api/v1/products").expectStatus(200);
+    }
+
+    @Test
+    void aLapsedPlanCanGoToFreeAtOnce() {
+        systemDatabase.jdbc().sql("""
+                        update subscriptions set plan_code = 'STARTER', status = 'READ_ONLY', read_only_since = ?
+                        where business_id = ?
+                        """)
+                .params(Timestamp.from(clock.instant()), business).update();
+        canWrite(false);
+        owner.put("/api/v1/billing/plan", Map.of("planCode", "STARTER")).expectError(409, "billing.payment_needed");
+
+        ApiResponse free = owner.put("/api/v1/billing/plan", Map.of("planCode", "FREE")).expectStatus(200);
+
+        assertThat(free.<String>json("$.plan.code")).isEqualTo("FREE");
+        assertThat(free.<String>json("$.status")).isEqualTo("ACTIVE");
+        canWrite(true);
+    }
+
+    @Test
+    void aMoveToFreeWaitsForTheRenewalAndNeedsNoGrace() {
+        systemDatabase.jdbc().sql("""
+                        update subscriptions set plan_code = 'PRO', status = 'ACTIVE', current_period_start = ?, current_period_end = ?
+                        where business_id = ?
+                        """)
+                .params(Timestamp.from(clock.instant()), Timestamp.from(clock.instant().plus(Duration.ofDays(10))), business)
+                .update();
+        ApiResponse scheduled = owner.put("/api/v1/billing/plan", Map.of("planCode", "FREE")).expectStatus(200);
+        assertThat(scheduled.<String>json("$.plan.code")).isEqualTo("PRO");
+        assertThat(scheduled.<String>json("$.pendingPlanCode")).isEqualTo("FREE");
+
+        clock.advance(Duration.ofDays(10).plusMinutes(5));
+        advancer.advance(business);
+
+        ApiResponse billing = owner.get("/api/v1/billing");
+        assertThat(billing.<String>json("$.plan.code")).isEqualTo("FREE");
+        assertThat(billing.<String>json("$.status")).isEqualTo("ACTIVE");
+        assertThat(billing.<Object>json("$.currentPeriodEnd")).isNull();
+        assertThat(billing.<Object>json("$.pendingPlanCode")).isNull();
+        canWrite(true);
     }
 
     @Test
@@ -171,7 +209,7 @@ class LifecycleTests {
     @Test
     void theDailyJobGoesThroughEveryBusiness() {
         assertThat(jobs.lifecycle()).isGreaterThanOrEqualTo(1);
-        assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("TRIALING");
+        assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("ACTIVE");
     }
 
     /** Moves the clock {@code days} ahead and runs the day's lifecycle. */

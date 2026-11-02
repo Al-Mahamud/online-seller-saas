@@ -80,7 +80,7 @@ test("marks all as read, and the titles follow the language", async ({ page }) =
 
 test("a payment's notice leads to its invoice", async ({ page }) => {
   await signUpWithBusiness(page.request);
-  const checkout = await post(page.request, "/api/v1/billing/checkout", { planCode: "STARTER", months: 1 });
+  const checkout = await post(page.request, "/api/v1/billing/checkout", { planCode: "PRO", months: 1 });
   await page.goto(checkout.gatewayUrl as unknown as string);
   await page.getByRole("link", { name: "Pay", exact: true }).click();
   await expect(page.getByText("পেমেন্ট পাওয়া গেছে।", { exact: false }).first()).toBeVisible();

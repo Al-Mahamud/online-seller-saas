@@ -243,7 +243,8 @@ function PlanDialog({ id, onClose }: { id: string; onClose: () => void }) {
   const text = useAdminTexts();
   const today = dhakaToday();
   const { data: plans } = useQuery(plansQuery);
-  const choices = plans?.filter((plan) => plan.code !== "TRIAL") ?? [];
+  // A paid plan until a date; Free has no period, so the owner moves to it, not an admin.
+  const choices = plans?.filter((plan) => plan.priceMonthly > 0) ?? [];
   const [planCode, setPlanCode] = useState<string>();
   const [until, setUntil] = useState(addDays(today, 30));
   const chosen = planCode ?? choices[0]?.code;

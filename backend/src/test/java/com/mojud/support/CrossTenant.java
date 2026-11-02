@@ -55,6 +55,8 @@ public final class CrossTenant {
         String phone = "+88" + TestAccounts.newPhone();
         UUID businessId = UUID.fromString(owner.post("/api/v1/businesses",
                 Map.of("name", name, "phone", phone, "address", "Road " + marker)).expectStatus(201).json("$.id"));
+        // Pro, so a team and every feature can be set up: the cross-business checks aren't about plans.
+        owner.post("/dev/subscription?businessId=" + businessId + "&status=ACTIVE&plan=PRO&days=365", null).expectStatus(204);
         String prefix = randomPrefix();
         owner.patch("/api/v1/business/settings", Map.of("orderNumberPrefix", prefix)).expectStatus(200);
 
@@ -135,7 +137,7 @@ public final class CrossTenant {
                 "reference", "TX-" + marker)).expectStatus(201);
         UUID shipmentId = UUID.fromString(owner.get("/api/v1/orders/" + shippedOrderId).json("$.shipments[0].id"));
         // A checkout started and not paid: an open invoice and a pending payment.
-        ApiResponse checkout = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1))
+        ApiResponse checkout = owner.post("/api/v1/billing/checkout", Map.of("planCode", "PRO", "months", 1))
                 .expectStatus(201);
         UUID invoiceId = UUID.fromString(checkout.json("$.invoiceId"));
         // The fake gateway's page URL ends with the tran_id (support/FakeSslCommerz).

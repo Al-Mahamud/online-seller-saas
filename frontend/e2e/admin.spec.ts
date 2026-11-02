@@ -41,7 +41,7 @@ async function admin(page: Page) {
 }
 
 /** A seller, in a browser of their own. */
-async function seller(browser: Browser, business: string) {
+async function seller(browser: Browser, business: string, plan: "FREE" | "PRO" = "PRO") {
   const context = await browser.newContext({
     baseURL: test.info().project.use.baseURL,
     locale: "bn-BD",
@@ -49,7 +49,7 @@ async function seller(browser: Browser, business: string) {
     viewport: test.info().project.use.viewport,
   });
   const page = await context.newPage();
-  const account = await signUpWithBusiness(page.request, { business });
+  const account = await signUpWithBusiness(page.request, { business, plan });
   return { page, account };
 }
 
@@ -94,7 +94,7 @@ test("finds a business, and suspending it shows that business the banner", async
   await search.fill(shop.slice(-6));
   await page.getByRole("link", { name: new RegExp(shop) }).click();
   await expect(heading(page, shop)).toBeVisible();
-  await expect(page.getByText("ফ্রি ট্রায়াল")).toBeVisible();
+  await expect(page.getByText("চালু", { exact: true }).first()).toBeVisible();
   // As people write it, in the language on screen.
   const shown = `${account.phone.slice(0, 5)}-${account.phone.slice(5)}`.replace(
     /\d/g,
@@ -126,7 +126,10 @@ test("finds a business, and suspending it shows that business the banner", async
 
 test("extends a trial and sets a plan", async ({ page, browser }) => {
   const shop = `ট্রায়ালের দোকান ${Math.random().toString(36).slice(2, 8)}`;
-  const { page: owner } = await seller(browser, shop);
+  const { page: owner } = await seller(browser, shop, "FREE");
+  // Nobody starts on a trial now; one from before can still be extended.
+  const id = ((await (await owner.request.get("/api/v1/business")).json()) as { id: string }).id;
+  expect((await owner.request.post(`/dev/subscription?businessId=${id}&status=TRIALING&days=14`)).status()).toBe(204);
   const before = (await (await owner.request.get("/api/v1/billing")).json()) as { trialEndsAt: string };
   await admin(page);
   await page.goto(`/admin?q=${encodeURIComponent(shop)}`);
@@ -153,7 +156,7 @@ test("extends a trial and sets a plan", async ({ page, browser }) => {
 
 test("marks a bank transfer paid, and the plan starts", async ({ page, browser }) => {
   const shop = `ব্যাংকের দোকান ${Math.random().toString(36).slice(2, 8)}`;
-  const { page: owner } = await seller(browser, shop);
+  const { page: owner } = await seller(browser, shop, "FREE");
   const opened = await post(owner.request, "/api/v1/billing/checkout", {
     planCode: "STARTER",
     months: 1,

@@ -54,7 +54,7 @@ async function seed(request: APIRequestContext) {
   await post(request, `/api/v1/orders/${shipped.id}/ship`, { courier: "Pathao" });
   await post(request, `/api/v1/orders/${shipped.id}/deliver`);
   const invoice = await post(request, "/api/v1/billing/checkout", {
-    planCode: "STARTER",
+    planCode: "PRO",
     months: 1,
     payBy: "BANK_TRANSFER",
   });

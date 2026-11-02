@@ -143,7 +143,7 @@ class BillingAdmin implements BillingAdministration {
 
     @Override
     public void setPlan(UUID businessId, String planCode, Instant periodEnd) {
-        Plans.Plan plan = plans.all().stream().filter(p -> p.code().equals(planCode) && !p.code().equals("TRIAL")).findFirst()
+        Plans.Plan plan = plans.all().stream().filter(p -> p.code().equals(planCode) && p.priceMonthly() > 0).findFirst()
                 .orElseThrow(() -> ApiException.invalidField("planCode", "field.invalid_value"));
         if (periodEnd == null || !periodEnd.isAfter(clock.instant()) || periodEnd.isAfter(clock.instant().plus(Duration.ofDays(800)))) {
             throw ApiException.invalidField("periodEnd", "field.invalid_value");

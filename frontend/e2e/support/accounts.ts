@@ -82,9 +82,19 @@ export async function signUp(request: APIRequestContext, { name = "Test Seller",
 }
 
 /** An account with a business, signed in: what most tests start from. */
+/**
+ * Someone new with a business of their own. It starts on Free, as every business does; unless `plan`
+ * says "FREE", it's then put on Pro for a year (test-only endpoint), as most tests aren't about plans
+ * and Free's limits (no team, 60 orders a month) would get in their way.
+ */
 export async function signUpWithBusiness(
   request: APIRequestContext,
-  { name = "Test Seller", language = "bn", business = "রহিমার কুর্তি হাউস" } = {},
+  {
+    name = "Test Seller",
+    language = "bn",
+    business = "রহিমার কুর্তি হাউস",
+    plan = "PRO",
+  }: { name?: string; language?: string; business?: string; plan?: "FREE" | "PRO" } = {},
 ) {
   const account = await signUp(request, { name, language });
   const created = await request.post("/api/v1/businesses", {
@@ -92,6 +102,11 @@ export async function signUpWithBusiness(
     data: { name: business },
   });
   expect(created.status()).toBe(201);
+  if (plan === "PRO") {
+    const { id } = (await created.json()) as { id: string };
+    const paid = await request.post(`/dev/subscription?businessId=${id}&status=ACTIVE&plan=PRO&days=365`);
+    expect(paid.status()).toBe(204);
+  }
   return account;
 }
 

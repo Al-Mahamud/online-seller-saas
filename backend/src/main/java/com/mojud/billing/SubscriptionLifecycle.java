@@ -28,8 +28,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * The subscription lifecycle (implementation-plan.md 10b, backend-plan.md §8), one business at a
  * time, as that business:
  * <ul>
- * <li>TRIALING: at the trial's end, READ_ONLY (no grace: nothing was paid);
- * <li>ACTIVE: at the period's end unpaid, GRACE for 7 days, with a reminder each day;
+ * <li>TRIALING (old trials only): at the trial's end, Free;
+ * <li>ACTIVE: at the period's end unpaid, GRACE for 7 days, with a reminder each day; or Free, when
+ * the owner chose it for the renewal; Free itself has no period and never ends;
  * <li>GRACE: at its end, READ_ONLY;
  * <li>reminders 7, 3 and 1 day before a trial or a period ends; warnings 60 and 85 days into
  * READ_ONLY, before data deletion at 90.
@@ -45,7 +46,8 @@ class SubscriptionLifecycle implements SubscriptionAdvancer {
     static final Set<Long> WARNING_DAYS = Set.of(60L, 85L);
     static final long DELETION_DAYS = 90;
 
-    private record Row(String status, Instant trialEndsAt, Instant periodEnd, Instant graceEndsAt, Instant readOnlySince) {
+    private record Row(String status, Instant trialEndsAt, Instant periodEnd, Instant graceEndsAt, Instant readOnlySince,
+            String pendingPlanCode) {
     }
 
     private final JdbcClient jdbc;
@@ -53,10 +55,12 @@ class SubscriptionLifecycle implements SubscriptionAdvancer {
     private final Notifier notifier;
     private final BillingEmails emails;
     private final AuditTrail audit;
+    private final Subscriptions subscriptions;
     private final Clock clock;
 
     SubscriptionLifecycle(DataSource dataSource, PlatformTransactionManager transactionManager, Notifier notifier,
-            BillingEmails emails, AuditTrail audit, Clock clock) {
+            BillingEmails emails, AuditTrail audit, Subscriptions subscriptions, Clock clock) {
+        this.subscriptions = subscriptions;
         this.emails = emails;
         this.jdbc = JdbcClient.create(dataSource);
         this.transactions = new TransactionTemplate(transactionManager);
@@ -73,12 +77,12 @@ class SubscriptionLifecycle implements SubscriptionAdvancer {
 
     private void step(UUID business) {
         Row row = jdbc.sql("""
-                        select status, trial_ends_at, current_period_end, grace_ends_at, read_only_since
+                        select status, trial_ends_at, current_period_end, grace_ends_at, read_only_since, pending_plan_code
                         from subscriptions where business_id = ? for update
                         """)
                 .param(business)
                 .query((rs, n) -> new Row(rs.getString(1), instant(rs.getTimestamp(2)), instant(rs.getTimestamp(3)),
-                        instant(rs.getTimestamp(4)), instant(rs.getTimestamp(5))))
+                        instant(rs.getTimestamp(4)), instant(rs.getTimestamp(5)), rs.getString(6)))
                 .optional().orElse(null);
         if (row == null) {
             return;
@@ -88,14 +92,18 @@ class SubscriptionLifecycle implements SubscriptionAdvancer {
         switch (row.status()) {
             case "TRIALING" -> {
                 if (row.trialEndsAt() != null && !now.isBefore(row.trialEndsAt())) {
-                    readOnly(business, "TRIALING", now);
+                    // An old trial (or one an administrator extended) ends on Free.
+                    subscriptions.toFree(business, "TRIALING", null);
                     notify("billing.trial_ended", List.of(), "billing.trial_ended:" + today);
                 } else if (row.trialEndsAt() != null) {
                     remind("billing.trial_ending", row.trialEndsAt(), today);
                 }
             }
             case "ACTIVE" -> {
-                if (row.periodEnd() != null && !now.isBefore(row.periodEnd())) {
+                if (row.periodEnd() != null && !now.isBefore(row.periodEnd()) && Subscriptions.FREE.equals(row.pendingPlanCode())) {
+                    // A move to Free waiting for the renewal: nothing to pay, so no grace.
+                    subscriptions.toFree(business, "ACTIVE", null);
+                } else if (row.periodEnd() != null && !now.isBefore(row.periodEnd())) {
                     Instant graceEnds = row.periodEnd().plus(GRACE);
                     // A downgrade waiting for the renewal takes effect now: the renewal is for that plan.
                     jdbc.sql("""

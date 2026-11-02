@@ -42,12 +42,12 @@ public class BillingSystemQueries {
     public long[] metrics(Instant now) {
         return database.jdbc().sql("""
                         select count(*) filter (where s.status = 'TRIALING'),
-                               count(*) filter (where s.status in ('ACTIVE', 'GRACE') and s.plan_code <> 'TRIAL'),
+                               count(*) filter (where s.status in ('ACTIVE', 'GRACE') and p.price_monthly > 0),
                                count(*) filter (where s.status = 'READ_ONLY'),
                                count(*) filter (where s.status = 'SUSPENDED'),
                                count(*) filter (where s.trial_ends_at <= ? or s.plan_code <> 'TRIAL'),
                                (select count(distinct business_id) from invoices where status = 'PAID'),
-                               coalesce(sum(p.price_monthly) filter (where s.status in ('ACTIVE', 'GRACE') and s.plan_code <> 'TRIAL'), 0)
+                               coalesce(sum(p.price_monthly) filter (where s.status in ('ACTIVE', 'GRACE') and p.price_monthly > 0), 0)
                         from subscriptions s join plans p on p.code = s.plan_code
                         """)
                 .param(Timestamp.from(now))

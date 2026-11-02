@@ -61,7 +61,7 @@ class CheckoutTests {
         owner = new ApiClient(port);
         sslcommerz = new ApiClient(port);
         TestAccounts.signUp(owner, messages);
-        business = TestBusinesses.create(owner, "Paying Shop");
+        business = TestBusinesses.createOnFree(owner, "Paying Shop");
     }
 
     @AfterEach
@@ -71,21 +71,21 @@ class CheckoutTests {
 
     @Test
     void aValidPaymentExtendsThePeriodOnce() {
-        Instant trialEnds = Instant.parse(owner.get("/api/v1/billing").json("$.trialEndsAt"));
+        Instant paidAt = clock.instant();
         ApiResponse checkout = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201);
         String invoice = checkout.json("$.invoiceId");
         assertThat(checkout.<String>json("$.number")).startsWith("MJ-");
-        assertThat(checkout.<Integer>json("$.amount")).isEqualTo(99000);
+        assertThat(checkout.<Integer>json("$.amount")).isEqualTo(49900);
         assertThat(checkout.<String>json("$.gatewayUrl")).contains("/fake-sslcommerz/checkout/");
         String tranId = gateway.tranIdOf(invoice);
         Map<String, String> session = gateway.session(tranId);
-        assertThat(session).containsEntry("total_amount", "990.00").containsEntry("currency", "BDT")
+        assertThat(session).containsEntry("total_amount", "499.00").containsEntry("currency", "BDT")
                 .containsEntry("store_id", "test-store").containsEntry("product_profile", "non-physical-goods");
         assertThat(session.get("ipn_url")).endsWith("/api/v1/public/gateway/sslcommerz/ipn");
         assertThat(session.get("success_url")).endsWith("/return/success?invoice=" + invoice);
         assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.status")).isEqualTo("OPEN");
 
-        Map<String, String> ipn = ipn(tranId, gateway.pay(tranId, "990.00", "BDT", "VALID"), "990.00");
+        Map<String, String> ipn = ipn(tranId, gateway.pay(tranId, "499.00", "BDT", "VALID"), "499.00");
         sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn", ipn).expectStatus(200);
 
         ApiResponse paid = owner.get("/api/v1/billing/invoices/" + invoice);
@@ -93,9 +93,10 @@ class CheckoutTests {
         ApiResponse billing = owner.get("/api/v1/billing");
         assertThat(billing.<String>json("$.status")).isEqualTo("ACTIVE");
         assertThat(billing.<String>json("$.plan.code")).isEqualTo("STARTER");
-        // Paid during the trial: the month starts when the trial ends, so no trial day is lost.
+        // From Free: the month starts when it's paid.
         Instant end = Instant.parse(billing.json("$.currentPeriodEnd"));
-        assertThat(end).isEqualTo(trialEnds.atZone(ZoneId.of("Asia/Dhaka")).plusMonths(1).toInstant());
+        assertThat(end).isBetween(paidAt.atZone(ZoneId.of("Asia/Dhaka")).plusMonths(1).toInstant(),
+                paidAt.atZone(ZoneId.of("Asia/Dhaka")).plusMonths(1).plusMinutes(5).toInstant());
         assertThat(owner.get("/api/v1/notifications").<String>json("$.items[0].title")).startsWith("Payment received. You are on Starter until");
 
         // The same IPN again (gateways retry): nothing changes.
@@ -108,7 +109,7 @@ class CheckoutTests {
     void theQuoteIsWhatCheckoutCharges() {
         ApiResponse quote = owner.get("/api/v1/billing/quote?planCode=STARTER&months=6").expectStatus(200);
         ApiResponse checkout = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 6)).expectStatus(201);
-        assertThat(quote.<Integer>json("$.amount")).isEqualTo(checkout.<Integer>json("$.amount")).isEqualTo(594000);
+        assertThat(quote.<Integer>json("$.amount")).isEqualTo(checkout.<Integer>json("$.amount")).isEqualTo(299400);
         owner.get("/api/v1/billing/quote?planCode=STARTER&months=2").expectError(400, "validation.failed");
         // No running period to upgrade yet.
         owner.get("/api/v1/billing/quote?planCode=PRO").expectError(409, "billing.payment_needed");
@@ -123,7 +124,7 @@ class CheckoutTests {
                 .param(business).update();
 
         sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn",
-                ipn(tranId, gateway.pay(tranId, "990.00", "BDT", "VALID"), "990.00")).expectStatus(200);
+                ipn(tranId, gateway.pay(tranId, "499.00", "BDT", "VALID"), "499.00")).expectStatus(200);
 
         assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.status")).isEqualTo("PAID");
         ApiResponse billing = owner.get("/api/v1/billing");
@@ -138,7 +139,7 @@ class CheckoutTests {
         ApiResponse checkout = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201);
         String invoice = checkout.json("$.invoiceId");
         String page = checkout.json("$.gatewayUrl");
-        assertThat(new String(sslcommerz.download(page.substring(page.indexOf("/api/v1/"))).body(), StandardCharsets.UTF_8)).contains("990.00");
+        assertThat(new String(sslcommerz.download(page.substring(page.indexOf("/api/v1/"))).body(), StandardCharsets.UTF_8)).contains("499.00");
 
         assertThat(sslcommerz.download(page.substring(page.indexOf("/api/v1/")) + "/pay").statusCode()).isEqualTo(303);
 
@@ -153,17 +154,17 @@ class CheckoutTests {
         String tranId = gateway.tranIdOf(invoice);
 
         sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn",
-                ipn(tranId, gateway.pay(tranId, "10.00", "BDT", "VALID"), "990.00")).expectStatus(200);
+                ipn(tranId, gateway.pay(tranId, "10.00", "BDT", "VALID"), "499.00")).expectStatus(200);
 
         assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.status")).isEqualTo("OPEN");
-        assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("TRIALING");
+        assertThat(owner.get("/api/v1/billing").<String>json("$.plan.code")).isEqualTo("FREE");
         assertThat(attemptStatus(tranId)).isEqualTo("INVALID");
 
         String other = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201)
                 .json("$.invoiceId");
         String otherTran = gateway.tranIdOf(other);
         sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn",
-                ipn(otherTran, gateway.pay(otherTran, "990.00", "USD", "VALID"), "990.00")).expectStatus(200);
+                ipn(otherTran, gateway.pay(otherTran, "499.00", "USD", "VALID"), "499.00")).expectStatus(200);
         assertThat(attemptStatus(otherTran)).isEqualTo("INVALID");
     }
 
@@ -174,7 +175,7 @@ class CheckoutTests {
         String tranId = gateway.tranIdOf(invoice);
 
         // "VALID", the right amount, but a val_id the gateway never issued.
-        sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn", ipn(tranId, "MADE-UP", "2990.00")).expectStatus(200);
+        sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn", ipn(tranId, "MADE-UP", "899.00")).expectStatus(200);
 
         assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.status")).isEqualTo("OPEN");
         assertThat(attemptStatus(tranId)).isEqualTo("INVALID");
@@ -201,7 +202,7 @@ class CheckoutTests {
         String invoice = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 6)).expectStatus(201)
                 .json("$.invoiceId");
         String tranId = gateway.tranIdOf(invoice);
-        gateway.pay(tranId, "5940.00", "BDT", "VALID");
+        gateway.pay(tranId, "2994.00", "BDT", "VALID");
 
         pendingPayments.run();
         assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.status")).as("not yet: 30 minutes").isEqualTo("OPEN");
@@ -236,9 +237,9 @@ class CheckoutTests {
                 .json("$.invoiceId");
         String tranId = gateway.tranIdOf(invoice);
         // A year costs ten months.
-        assertThat(gateway.session(tranId)).containsEntry("total_amount", "29900.00");
+        assertThat(gateway.session(tranId)).containsEntry("total_amount", "8990.00");
         sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn",
-                ipn(tranId, gateway.pay(tranId, "29900.00", "BDT", "VALID"), "29900.00")).expectStatus(200);
+                ipn(tranId, gateway.pay(tranId, "8990.00", "BDT", "VALID"), "8990.00")).expectStatus(200);
 
         ApiResponse billing = owner.get("/api/v1/billing");
         assertThat(billing.<String>json("$.status")).isEqualTo("ACTIVE");
@@ -262,7 +263,7 @@ class CheckoutTests {
                 .json("$.invoiceId");
         String tranId = gateway.tranIdOf(invoice);
         sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn",
-                ipn(tranId, gateway.pay(tranId, "990.00", "BDT", "VALID"), "990.00")).expectStatus(200);
+                ipn(tranId, gateway.pay(tranId, "499.00", "BDT", "VALID"), "499.00")).expectStatus(200);
 
         ApiResponse paid = owner.get("/api/v1/billing/invoices/" + invoice);
         assertThat(Instant.parse(paid.json("$.periodStart"))).isEqualTo(end);
@@ -275,6 +276,8 @@ class CheckoutTests {
                 .expectError(502, "billing.gateway_error");
         assertThat(refused.<String>json("$.reason")).isEqualTo("Store is de-active");
 
+        // A team needs a paid plan (Free is the owner alone).
+        systemDatabase.jdbc().sql("update subscriptions set plan_code = 'PRO' where business_id = ?").param(business).update();
         ApiClient staff = new ApiClient(port);
         TestAccounts.Account account = TestAccounts.signUp(staff, messages);
         owner.post("/api/v1/staff/invites", Map.of("to", account.email(), "role", "MANAGER")).expectStatus(201);
@@ -291,7 +294,7 @@ class CheckoutTests {
         String tranId = gateway.tranIdOf(invoice);
 
         ApiResponse back = sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/return/success?invoice=" + invoice,
-                Map.of("status", "VALID", "tran_id", tranId, "val_id", "whatever", "amount", "990.00"));
+                Map.of("status", "VALID", "tran_id", tranId, "val_id", "whatever", "amount", "499.00"));
 
         assertThat(back.status()).isEqualTo(303);
         assertThat(back.headers().firstValue("Location")).hasValue("http://localhost:5173/billing/return?result=success&invoice=" + invoice);
