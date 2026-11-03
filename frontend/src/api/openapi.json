@@ -1139,9 +1139,13 @@
           "position" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "productCount" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "children", "id", "name", "position" ],
+        "required" : [ "children", "id", "name", "position", "productCount" ],
         "type" : "object"
       },
       "CategoryOrderRequest" : {
@@ -4674,9 +4678,13 @@
           },
           "name" : {
             "type" : "string"
+          },
+          "productCount" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "id", "name" ],
+        "required" : [ "id", "name", "productCount" ],
         "type" : "object"
       },
       "TwoFactorCodeBody" : {

@@ -2514,6 +2514,8 @@ export interface components {
             name: string;
             /** Format: int32 */
             position: number;
+            /** Format: int32 */
+            productCount: number;
         };
         CategoryOrderRequest: {
             ids: string[];
@@ -3839,6 +3841,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            /** Format: int32 */
+            productCount: number;
         };
         TwoFactorCodeBody: {
             code: string;

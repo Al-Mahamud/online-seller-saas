@@ -10,6 +10,7 @@ import com.mojud.tenancy.CurrentBusiness;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,7 +42,8 @@ class CategoryService {
             // Products still in the category.
             "fk_products_category", ErrorCode.CATEGORY_NOT_EMPTY);
 
-    record CategoryNode(UUID id, String name, int position, List<CategoryNode> children) {
+    /** {@code productCount}: the products directly in it, archived ones too; a top-level one's subcategories count their own. */
+    record CategoryNode(UUID id, String name, int position, int productCount, List<CategoryNode> children) {
     }
 
     private final CategoryRepository categories;
@@ -60,14 +62,20 @@ class CategoryService {
     @Transactional(readOnly = true)
     List<CategoryNode> tree() {
         List<Category> all = categories.findAllInOrder();
+        Map<UUID, Integer> counts = new HashMap<>();
+        for (Object[] row : categories.productCounts(CurrentBusiness.require().businessId())) {
+            counts.put((UUID) row[0], ((Number) row[1]).intValue());
+        }
         Map<UUID, List<CategoryNode>> children = new LinkedHashMap<>();
         for (Category category : all) {
             if (!category.isTopLevel()) {
-                children.computeIfAbsent(category.getParentId(), parent -> new ArrayList<>()).add(node(category));
+                children.computeIfAbsent(category.getParentId(), parent -> new ArrayList<>())
+                        .add(node(category, counts.getOrDefault(category.getId(), 0)));
             }
         }
         return all.stream().filter(Category::isTopLevel)
                 .map(top -> new CategoryNode(top.getId(), top.getName(), top.getPosition(),
+                        counts.getOrDefault(top.getId(), 0),
                         List.copyOf(children.getOrDefault(top.getId(), List.of()))))
                 .toList();
     }
@@ -79,8 +87,9 @@ class CategoryService {
             if (parentId != null) {
                 requireTopLevel(find(parentId));
             }
-            return node(categories.saveAndFlush(
-                    new Category(parentId, cleaned, categories.nextPosition(parentId), clock.instant())));
+            Category created = categories.saveAndFlush(
+                    new Category(parentId, cleaned, categories.nextPosition(parentId), clock.instant()));
+            return node(created, 0);
         });
     }
 
@@ -90,7 +99,7 @@ class CategoryService {
         return Constraints.translating(transactions, CONSTRAINT_ERRORS, () -> {
             Category category = find(id);
             category.rename(cleaned, clock.instant());
-            return node(categories.saveAndFlush(category));
+            return counted(categories.saveAndFlush(category));
         });
     }
 
@@ -103,7 +112,7 @@ class CategoryService {
         return changingTree(() -> {
             Category category = find(id);
             if (java.util.Objects.equals(category.getParentId(), parentId)) {
-                return node(category);
+                return counted(category);
             }
             if (parentId != null) {
                 if (parentId.equals(id)) {
@@ -115,7 +124,7 @@ class CategoryService {
                 }
             }
             category.moveTo(parentId, categories.nextPosition(parentId), clock.instant());
-            return node(categories.saveAndFlush(category));
+            return counted(categories.saveAndFlush(category));
         });
     }
 
@@ -174,7 +183,11 @@ class CategoryService {
         }
     }
 
-    private static CategoryNode node(Category category) {
-        return new CategoryNode(category.getId(), category.getName(), category.getPosition(), List.of());
+    private CategoryNode counted(Category category) {
+        return node(category, categories.countProducts(CurrentBusiness.require().businessId(), category.getId()));
+    }
+
+    private static CategoryNode node(Category category, int productCount) {
+        return new CategoryNode(category.getId(), category.getName(), category.getPosition(), productCount, List.of());
     }
 }

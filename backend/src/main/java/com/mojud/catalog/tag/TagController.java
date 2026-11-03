@@ -5,11 +5,13 @@ import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.shared.text.Text;
 import com.mojud.tenancy.BusinessRole;
+import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.RequiresRole;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.Clock;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -38,10 +40,11 @@ class TagController {
 
     static final int MAX_NAME = 50;
 
-    record TagResponse(UUID id, String name) {
+    /** {@code productCount}: the products carrying it. */
+    record TagResponse(UUID id, String name, int productCount) {
 
-        static TagResponse of(Tag tag) {
-            return new TagResponse(tag.getId(), tag.getName());
+        static TagResponse of(Tag tag, int productCount) {
+            return new TagResponse(tag.getId(), tag.getName(), productCount);
         }
     }
 
@@ -62,14 +65,18 @@ class TagController {
     @RequiresRole(BusinessRole.STAFF)
     @Transactional(readOnly = true)
     public List<TagResponse> list() {
-        return tags.findAllInOrder().stream().map(TagResponse::of).toList();
+        Map<UUID, Integer> counts = new HashMap<>();
+        for (Object[] row : tags.productCounts(CurrentBusiness.require().businessId())) {
+            counts.put((UUID) row[0], ((Number) row[1]).intValue());
+        }
+        return tags.findAllInOrder().stream().map(tag -> TagResponse.of(tag, counts.getOrDefault(tag.getId(), 0))).toList();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public TagResponse create(@Valid @RequestBody NameRequest body) {
         String name = Text.cleanName(body.name(), "name", MAX_NAME);
-        return saving(() -> TagResponse.of(tags.saveAndFlush(new Tag(name, clock.instant()))));
+        return saving(() -> TagResponse.of(tags.saveAndFlush(new Tag(name, clock.instant())), 0));
     }
 
     @PatchMapping("/{id}")
@@ -78,7 +85,7 @@ class TagController {
         return saving(() -> {
             Tag tag = tags.findById(id).orElseThrow(ApiException::notFound);
             tag.rename(name, clock.instant());
-            return TagResponse.of(tags.saveAndFlush(tag));
+            return TagResponse.of(tags.saveAndFlush(tag), tags.countProducts(CurrentBusiness.require().businessId(), id));
         });
     }
 
