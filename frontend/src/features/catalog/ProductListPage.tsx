@@ -10,6 +10,7 @@ import { useCanWrite } from "@/features/billing/status";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { categoriesQuery, flatCategories, lowStockQuery, type ProductSummary, productsQuery, tagsQuery } from "./api";
+import { LowStockLink } from "./LowStockWindow";
 import { Thumbnail } from "./Thumbnail";
 
 const route = getRouteApi("/_app/products/");
@@ -142,13 +143,10 @@ function SearchPanel() {
       }
       aside={
         !!lowStock?.totalItems && (
-          <Link
-            to="/products/low-stock"
-            className="flex min-h-9 items-center gap-1.5 rounded-full bg-warning px-3 text-sm font-semibold text-warning-foreground no-underline hover:text-warning-foreground"
-          >
+          <LowStockLink className="flex min-h-9 items-center gap-1.5 rounded-full bg-warning px-3 text-sm font-semibold text-warning-foreground no-underline hover:text-warning-foreground">
             <TriangleAlert aria-hidden="true" className="size-4" />
             {t("products.lowStockCount", { count: format.number(lowStock.totalItems) })}
-          </Link>
+          </LowStockLink>
         )
       }
       onChange={(value) =>

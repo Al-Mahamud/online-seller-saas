@@ -441,21 +441,54 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   await expect(kurtiLink).toBeVisible();
 });
 
-test("the low-stock list shows what's running low, and links to it", async ({ page }) => {
+test("running low opens as a window: stock that arrived, and a shopping list", async ({ page }) => {
   await signUpWithBusiness(page.request);
   await makeProduct(page.request, { name: "শেষের পথে", price: 10000, openingStock: 1 });
   await makeProduct(page.request, { name: "অনেক আছে", price: 10000, openingStock: 500 });
   await page.goto("/products");
 
   await expect(page.getByRole("link", { name: /শেষের পথে/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /অনেক আছে/ })).toBeVisible();
-  await expect(page.getByText("স্টক কম", { exact: true }).filter({ visible: true })).toHaveCount(1);
   await page.getByRole("link", { name: "স্টক কম: ১টি" }).click();
-
-  await expect(heading(page, "যে পণ্যের স্টক কম")).toBeVisible();
+  const window = page.getByRole("dialog", { name: "স্টক কম" });
+  await expect(window).toBeVisible();
+  await expect(page).toHaveURL(/lowStock=true/);
+  await expect(window.getByRole("link", { name: /শেষের পথে/ })).toBeVisible();
+  await expect(window.getByRole("link", { name: /অনেক আছে/ })).toBeHidden();
   await expectAccessible(page);
-  await page.getByRole("link", { name: /শেষের পথে/ }).click();
+
+  // A shopping list for the ticked one, ready to send.
+  await window.getByRole("checkbox", { name: "বেছে নিন: শেষের পথে" }).check();
+  await expect(window.getByText("১টি বাছা হয়েছে")).toBeVisible();
+  await window.getByRole("button", { name: "কেনার তালিকা" }).click();
+  await expect(page.getByRole("dialog", { name: "কেনার তালিকা" })).toBeVisible();
+  await expect(page.getByText(/• শেষের পথে \(.+\): ৯টি/)).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("button", { name: "তালিকায় ফিরুন" }).click();
+
+  // Stock arrived: written in place, and the list empties.
+  await window.getByRole("button", { name: "মাল এসেছে: শেষের পথে" }).click();
+  const arrived = page.getByRole("dialog", { name: "মাল এসেছে" });
+  await arrived.getByLabel("শেষের পথে").fill("12");
+  await expect(arrived.getByText("এরপর থাকবে ১৩টি")).toBeVisible();
+  await expectAccessible(page);
+  await arrived.getByRole("button", { name: "১২টি স্টকে যোগ করুন" }).click();
+  await expect(page.getByText("স্টকে যোগ হয়েছে।")).toBeVisible();
+  await expect(page.getByText("সব পণ্যের স্টক ঠিক আছে")).toBeVisible();
+
+  await page.getByRole("button", { name: "বন্ধ করুন" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(page).not.toHaveURL(/lowStock/);
+});
+
+test("the low-stock email's old address opens the running-low window", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  await makeProduct(page.request, { name: "শেষের পথে", price: 10000, openingStock: 1 });
+  await page.goto("/products/low-stock");
+  await expect(page).toHaveURL(/\/products\?lowStock=true/);
+  const window = page.getByRole("dialog", { name: "স্টক কম" });
+  await window.getByRole("link", { name: /শেষের পথে/ }).click();
   await expect(heading(page, "শেষের পথে")).toBeVisible();
+  await expect(page.getByRole("dialog")).toBeHidden();
 });
 
 test("manages categories and tags", async ({ page }) => {

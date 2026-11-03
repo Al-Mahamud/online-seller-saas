@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { BackToProducts } from "./LowStockPage";
+import { BackToProducts } from "./BackToProducts";
 
 type Job = components["schemas"]["ImportJob"];
 type Column = components["schemas"]["ImportColumnView"];

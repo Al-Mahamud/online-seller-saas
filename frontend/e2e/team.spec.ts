@@ -76,8 +76,9 @@ test("an owner invites a manager, who joins from the link; the manager can't rea
   await manager.goto("/settings/audit-log");
   await expect(manager).toHaveURL(/localhost:\d+\/$/);
   await manager.goto("/settings/business");
-  await expect(manager.getByRole("heading", { level: 1, name: "ব্যবসা" })).toBeVisible();
+  await expect(manager.getByRole("heading", { level: 1, name: /দলের দোকান/ })).toBeVisible();
   await expect(manager.getByRole("button", { name: "ব্যবসা মুছে ফেলুন" })).toBeHidden();
+  await expect(manager.getByText("শুধু মালিক বদলাতে পারেন।")).toBeVisible();
 
   // The owner sees them join, and the invite is gone.
   await page.reload();
@@ -191,12 +192,15 @@ test("deleting a business needs the password, shows the date, and can be undone"
   await page.goto("/settings/business");
 
   await page.getByRole("button", { name: "ব্যবসা মুছে ফেলুন" }).click();
-  const dialog = page.getByRole("dialog");
-  await label(dialog, "পাসওয়ার্ড").fill("not-the-password");
-  await dialog.getByRole("button", { name: "ব্যবসা মুছে ফেলুন" }).click();
-  await expect(label(dialog, "পাসওয়ার্ড")).toHaveAttribute("aria-invalid", "true");
-  await label(dialog, "পাসওয়ার্ড").fill(PASSWORD);
-  await dialog.getByRole("button", { name: "ব্যবসা মুছে ফেলুন" }).click();
+  const dialog = page.getByRole("dialog", { name: '"মোছার দোকান" মুছে ফেলবেন?' });
+  await expect(dialog).toContainText("০টি পণ্য, ০টি অর্ডার, ০ জন ক্রেতা");
+  await expectAccessible(page);
+  const password = label(dialog, "নিশ্চিত করতে পাসওয়ার্ড দিন");
+  await password.fill("not-the-password");
+  await dialog.getByRole("button", { name: "মুছে ফেলুন", exact: true }).click();
+  await expect(password).toHaveAttribute("aria-invalid", "true");
+  await password.fill(PASSWORD);
+  await dialog.getByRole("button", { name: "মুছে ফেলুন", exact: true }).click();
 
   // On every page until undone.
   const banner = page.getByRole("status").filter({ hasText: "মোছার দোকান" });

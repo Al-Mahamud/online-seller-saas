@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { categoriesQuery, flatCategories, type Product, productChanged, productQuery, type Variant } from "./api";
-import { BackToProducts } from "./LowStockPage";
+import { BackToProducts } from "./BackToProducts";
 import { ProductImages } from "./ProductImages";
 import { StockDialog } from "./StockDialog";
 import { TagPicker } from "./TagPicker";

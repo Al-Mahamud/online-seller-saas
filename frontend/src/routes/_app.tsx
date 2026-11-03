@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { businessQuery } from "@/api/business";
 import { accountLanguage, meQuery } from "@/api/session";
 import { AppShell } from "@/components/layout/AppShell";
+import { LowStockWindow, lowStockSearch } from "@/features/catalog/LowStockWindow";
 import { currentLanguage, setLanguage } from "@/i18n";
 
 const SIGNED_IN = "mojud.signedIn";
@@ -28,6 +29,7 @@ function rememberSignedIn(signedIn: boolean) {
 
 /** Everything behind signing in. Signed out, to sign-in, and back here afterwards. */
 export const Route = createFileRoute("/_app")({
+  validateSearch: lowStockSearch,
   beforeLoad: async ({ context, location }) => {
     // Someone who was signed in last time very likely still is: asking for their business alongside
     // saves a round of waiting. If not, this is just another request told the session has ended.
@@ -51,6 +53,7 @@ export const Route = createFileRoute("/_app")({
   component: () => (
     <AppShell>
       <Outlet />
+      <LowStockWindow />
     </AppShell>
   ),
 });

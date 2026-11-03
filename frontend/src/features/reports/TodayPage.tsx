@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useCanWrite } from "@/features/billing/status";
 import { lowStockQuery } from "@/features/catalog/api";
+import { LowStockLink } from "@/features/catalog/LowStockWindow";
 import type { OrderStatus } from "@/features/orders/search";
 import { dhakaToday } from "@/lib/dates";
 import { useFormat } from "@/lib/format";
@@ -328,7 +329,7 @@ function Attention({ data, overview }: { data: Today; overview: Overview }) {
           ))}
           {data.lowStock > 0 && (
             <Problem
-              link={{ to: "/products/low-stock" }}
+              link={{ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, lowStock: true }) } as LinkProps}
               tone="warning"
               icon={<Package />}
               title={t("today.lowStockItems", { count: data.lowStock, shown: format.number(data.lowStock) })}
@@ -581,9 +582,7 @@ function Products({ data, isToday }: { data: Today; isToday: boolean }) {
           ))}
         </ul>
         {lowStock && lowStock.totalItems > SHOWN && (
-          <Link to="/products/low-stock" className="flex min-h-11 w-fit items-center">
-            {t("today.seeAll")}
-          </Link>
+          <LowStockLink className="flex min-h-11 w-fit items-center">{t("today.seeAll")}</LowStockLink>
         )}
       </div>
     </section>

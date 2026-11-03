@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { LowStockPage } from "@/features/catalog/LowStockPage";
-import { pagingSearch } from "@/lib/paging";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+/** The old address, which the low-stock emails link to: the product list with the running-low window open. */
 export const Route = createFileRoute("/_app/products/low-stock")({
-  validateSearch: pagingSearch,
-  component: LowStockPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/products", search: { lowStock: true }, replace: true });
+  },
 });
