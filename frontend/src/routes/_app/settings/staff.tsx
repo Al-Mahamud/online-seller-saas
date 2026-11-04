@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireRole } from "@/api/business";
+import { requirePermission } from "@/api/business";
 import { StaffPage } from "@/features/staff/StaffPage";
+import { loadPageTexts } from "@/i18n/pages";
 
 export const Route = createFileRoute("/_app/settings/staff")({
-  beforeLoad: ({ context }) => requireRole(context.business, "MANAGER"),
+  beforeLoad: ({ context }) => requirePermission(context.business, "TEAM"),
+  loader: () => loadPageTexts("team"),
   component: StaffPage,
 });

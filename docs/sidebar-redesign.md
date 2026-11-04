@@ -43,3 +43,11 @@ In `frontend/src/i18n/bn.json` and `en.json`: `nav.manage`, `nav.work`, `account
 ## Change log
 
 - **Nov 1, 2026:** designed and built.
+
+## Notifications and language left out of the sidebar (for now, Nov 2026)
+
+The laptop sidebar's notification link and language switch are commented out in `AppShell.tsx`
+(the import of `NotificationLink` too); the phone's top bar still has both. On a laptop the
+language is changed on the account page, and notifications are at `/notifications`. Tests check
+the bell and the switch on the phone (`e2e/support/shell.ts`). To bring them back, uncomment the
+block and the import, and drop the phone-only guards in those tests.

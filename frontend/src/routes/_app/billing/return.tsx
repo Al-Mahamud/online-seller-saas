@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireRole } from "@/api/business";
+import { requirePermission } from "@/api/business";
 import { PaymentReturnPage } from "@/features/billing/PaymentReturnPage";
 
 export const Route = createFileRoute("/_app/billing/return")({
@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_app/billing/return")({
     result: typeof search.result === "string" ? search.result : undefined,
     invoice: typeof search.invoice === "string" ? search.invoice : undefined,
   }),
-  beforeLoad: ({ context }) => requireRole(context.business, "MANAGER"),
+  beforeLoad: ({ context }) => requirePermission(context.business, "SETTINGS"),
   component: PaymentReturnPage,
 });

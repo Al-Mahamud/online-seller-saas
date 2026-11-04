@@ -3,6 +3,8 @@ package com.mojud.catalog.category;
 import com.mojud.shared.error.ApiException;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,7 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 /** Everyone in the business reads categories; managers and owners change them (backend-plan.md §7). */
 @RestController
 @RequestMapping("/api/v1/categories")
-@RequiresRole(BusinessRole.MANAGER)
+@RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.PRODUCTS)
 class CategoryController {
 
     private final CategoryService categories;

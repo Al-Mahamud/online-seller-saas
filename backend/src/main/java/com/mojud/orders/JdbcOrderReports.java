@@ -280,6 +280,29 @@ class JdbcOrderReports implements OrderReports {
                 .single();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReturnWriteOff> writeOffs(Instant from, Instant to) {
+        return jdbc.sql("""
+                        select r.id, r.created_at, i.variant_id, sum(ri.quantity), i.unit_cost, o.id, o.number_label,
+                               r.reason, r.created_by
+                        from returns r
+                        join return_items ri on ri.return_id = r.id and ri.disposition = 'WRITE_OFF'
+                        join order_items i on i.id = ri.order_item_id
+                        join orders o on o.id = r.order_id
+                        where r.business_id = :business and r.created_at >= :from and r.created_at < :to
+                        group by r.id, r.created_at, i.variant_id, i.unit_cost, o.id, o.number_label, r.reason, r.created_by
+                        order by r.created_at desc, r.id desc, i.variant_id
+                        """)
+                .param("business", TenantScope.current().orElseThrow())
+                .param("from", Timestamp.from(from))
+                .param("to", Timestamp.from(to))
+                .query((rs, n) -> new ReturnWriteOff(rs.getObject(1, UUID.class), rs.getTimestamp(2).toInstant(),
+                        rs.getObject(3, UUID.class), rs.getInt(4), rs.getObject(5, Long.class), rs.getObject(6, UUID.class),
+                        rs.getString(7), rs.getString(8), rs.getObject(9, UUID.class)))
+                .list();
+    }
+
     private static Timestamp start(LocalDate day) {
         return Timestamp.from(DhakaTime.startOf(day));
     }

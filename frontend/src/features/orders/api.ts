@@ -3,7 +3,7 @@ import { api, call } from "@/api/client";
 import { ApiError } from "@/api/errors";
 import { errorMessages } from "@/api/query";
 import type { components } from "@/api/schema";
-import type { DatedSearchValue } from "@/components/layout/SearchPanel";
+import type { ListSearchValue as DatedSearchValue } from "@/components/search/ListSearch";
 import i18n from "@/i18n";
 import { latinDigits } from "@/lib/digits";
 import { formatNumber } from "@/lib/format";

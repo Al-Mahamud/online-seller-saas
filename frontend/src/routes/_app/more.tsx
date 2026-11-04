@@ -1,8 +1,8 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { hasRole, useBusiness } from "@/api/business";
-import { MANAGE_LINKS, type NavLink, WORK_LINKS } from "@/components/layout/navLinks";
+import { useBusiness } from "@/api/business";
+import { linkAllowed, MANAGE_LINKS, type NavLink, WORK_LINKS } from "@/components/layout/navLinks";
 
 export const Route = createFileRoute("/_app/more")({
   // For phones: from a laptop up, all of this is in the sidebar.
@@ -18,7 +18,8 @@ export const Route = createFileRoute("/_app/more")({
 function More() {
   const { t } = useTranslation();
   const business = useBusiness();
-  const manage = MANAGE_LINKS.filter((link) => !link.role || hasRole(business, link.role));
+  const manage = MANAGE_LINKS.filter((link) => linkAllowed(link, business));
+  const work = WORK_LINKS.filter((link) => linkAllowed(link, business));
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="relative -mx-4 -mt-4 bg-ledger pt-3 pr-4.5 pb-10.5 pl-6.5 text-white">
@@ -26,7 +27,7 @@ function More() {
         <h1 className="text-[28px] leading-tight font-bold">{t("nav.more")}</h1>
       </div>
       <div className="relative -mx-4 -mt-11.5 flex flex-col gap-3 rounded-t-3xl bg-background px-3.5 pt-3.5">
-        <MoreLinks label={t("nav.work")} links={WORK_LINKS} />
+        <MoreLinks label={t("nav.work")} links={work} />
         {manage.length > 0 && (
           <>
             <h2 className="mt-0.5 -mb-1.5 ml-1 text-sm font-semibold text-muted-foreground">{t("nav.manage")}</h2>

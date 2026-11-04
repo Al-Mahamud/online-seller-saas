@@ -115,6 +115,7 @@ class InviteService {
         if (role == BusinessRole.OWNER) {
             throw ApiException.invalidField("role", "field.invalid_value");
         }
+        StaffService.requireMayManage(business, role);
         boolean isEmail = to.contains("@");
         String destination = isEmail
                 ? EmailAddress.tryParse(to).orElseThrow(() -> ApiException.invalidField("to", "field.login_invalid")).value()

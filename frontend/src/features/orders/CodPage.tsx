@@ -10,7 +10,7 @@ import { errorText } from "@/api/query";
 import { ConfirmDialog } from "@/components/form/ConfirmDialog";
 import { BackToMore } from "@/components/layout/PageHeader";
 import { Pagination } from "@/components/layout/Pagination";
-import { DatedSearchPanel, SearchChips } from "@/components/layout/SearchPanel";
+import { ListSearch } from "@/components/search/ListSearch";
 import { Button } from "@/components/ui/button";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -75,15 +75,19 @@ export function CodPage() {
             </dl>
           )}
           {canSearch && (
-            <DatedSearchPanel
+            <ListSearch
+              list="cod"
+              surface="inset"
               value={search}
               label={t("cod.search")}
               hint={t("cod.searchHint")}
-              fromLabel={t("cod.from")}
-              toLabel={t("orders.to")}
+              dates={{}}
               className="mt-3.5 border-t border-ledger-outline pt-3.5"
-              onSearch={(value) =>
-                void navigate({ search: { ...value, courier: filters.courier, size: filters.size }, replace: true })
+              onChange={(value) =>
+                void navigate({
+                  search: { q: value.q, from: value.from, to: value.to, courier: filters.courier, size: filters.size },
+                  replace: true,
+                })
               }
               onReset={resetSearch}
             />
@@ -91,12 +95,6 @@ export function CodPage() {
         </section>
       </div>
       <div className="flex flex-col gap-3.5 max-md:relative max-md:-mx-4 max-md:-mt-7.5 max-md:rounded-t-3xl max-md:bg-background max-md:px-3.5 max-md:pt-3.5">
-        <SearchChips
-          value={search}
-          onRemove={(key) =>
-            void navigate({ search: (previous) => ({ ...previous, [key]: undefined, page: undefined }), replace: true })
-          }
-        />
         {summary.isSuccess && filtered && couriers.length === 0 && (
           <div className="flex flex-col items-center gap-2.5 rounded-[14px] border bg-card px-4 py-8 text-center">
             <p className="text-[17px] font-bold">{t("cod.noMatch")}</p>

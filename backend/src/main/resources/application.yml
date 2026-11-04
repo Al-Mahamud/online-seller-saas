@@ -94,8 +94,6 @@ mojud:
       otp-per-destination-and-ip: { max: 5, window: 1h }
       otp-per-destination: { max: 10, window: 1h }
   tenancy:
-    # Stops one account from creating businesses in bulk; staff memberships are not counted.
-    max-owned-businesses: 5
     invites:
       ttl: 7d
       # Each invite is a message we pay for (SMS) or that could be spam.

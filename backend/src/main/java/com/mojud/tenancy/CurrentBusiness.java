@@ -2,6 +2,7 @@ package com.mojud.tenancy;
 
 import com.mojud.shared.tenant.TenantScope;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -15,7 +16,16 @@ import org.springframework.web.context.request.RequestContextHolder;
  * business's {@code TenantScope} (creating a business, switching) sees none, rather than a role
  * that belongs to a different business.
  */
-public record CurrentBusiness(UUID businessId, UUID userId, BusinessRole role) {
+public record CurrentBusiness(UUID businessId, UUID userId, BusinessRole role, Set<Permission> permissions) {
+
+    public CurrentBusiness {
+        permissions = role == BusinessRole.OWNER ? Permission.all() : Set.copyOf(permissions);
+    }
+
+    /** With the role's default permissions, as before a business changes them. */
+    public CurrentBusiness(UUID businessId, UUID userId, BusinessRole role) {
+        this(businessId, userId, role, Permission.defaults(role));
+    }
 
     /** Empty outside a request, before sign-in, or when no business is selected. */
     public static Optional<CurrentBusiness> get() {
@@ -39,5 +49,10 @@ public record CurrentBusiness(UUID businessId, UUID userId, BusinessRole role) {
 
     public boolean isAtLeast(BusinessRole required) {
         return role.atLeast(required);
+    }
+
+    /** The owner always; others as this business allows their role. */
+    public boolean can(Permission permission) {
+        return permissions.contains(permission);
     }
 }

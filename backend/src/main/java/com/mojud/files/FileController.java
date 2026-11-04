@@ -2,6 +2,8 @@ package com.mojud.files;
 
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import org.springframework.util.unit.DataSize;
@@ -38,7 +40,8 @@ class FileController {
 
     /** Multipart form with one part named {@code file}: JPEG, PNG or WebP, up to 8 MB. */
     @PostMapping(path = "/api/v1/uploads", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission({Permission.PRODUCTS, Permission.SETTINGS})
     @ResponseStatus(HttpStatus.CREATED)
     FileService.Uploaded upload(@RequestParam("file") MultipartFile file) {
         if (file.getSize() > MAX_IMAGE.toBytes()) {

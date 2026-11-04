@@ -2,6 +2,7 @@ package com.mojud.billing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.mojud.billing.system.SubscriptionAdvancer;
 import com.mojud.shared.db.system.SystemDatabase;
 import com.mojud.support.ApiClient;
 import com.mojud.support.ApiResponse;
@@ -47,6 +48,9 @@ class PlanLimitTests {
     @Autowired
     SystemDatabase systemDatabase;
 
+    @Autowired
+    SubscriptionAdvancer advancer;
+
     ApiClient owner;
     UUID business;
 
@@ -54,31 +58,64 @@ class PlanLimitTests {
     void business() {
         owner = new ApiClient(port);
         TestAccounts.signUp(owner, messages);
-        business = TestBusinesses.create(owner, "Plan Shop");
+        business = TestBusinesses.createOnFree(owner, "Plan Shop");
     }
 
     @Test
-    void aNewBusinessIsOnAFourteenDayProTrial() {
+    void aNewBusinessStartsOnFreeWhichNeverEnds() {
         ApiResponse billing = owner.get("/api/v1/billing").expectStatus(200);
 
-        assertThat(billing.<String>json("$.plan.code")).isEqualTo("TRIAL");
-        assertThat(billing.<String>json("$.status")).isEqualTo("TRIALING");
-        Instant ends = Instant.parse(billing.json("$.trialEndsAt"));
-        assertThat(Duration.between(Instant.now(), ends)).isBetween(Duration.ofDays(14).minusMinutes(5), Duration.ofDays(14));
-        assertThat(billing.<Map<String, Object>>json("$.usage.variants")).isEqualTo(Map.of("used", 0, "limit", 5000));
-        assertThat(billing.<Object>json("$.usage.orders_per_month.limit")).isNull();
-        assertThat(billing.<Integer>json("$.usage.staff_seats.limit")).isEqualTo(10);
+        assertThat(billing.<String>json("$.plan.code")).isEqualTo("FREE");
+        assertThat(billing.<String>json("$.status")).isEqualTo("ACTIVE");
+        assertThat(billing.<Object>json("$.trialEndsAt")).isNull();
+        assertThat(billing.<Object>json("$.currentPeriodEnd")).isNull();
+        assertThat(billing.<Map<String, Object>>json("$.usage.variants")).isEqualTo(Map.of("used", 0, "limit", 50));
+        assertThat(billing.<Integer>json("$.usage.orders_per_month.limit")).isEqualTo(60);
+        assertThat(billing.<Integer>json("$.usage.staff_seats.limit")).isZero();
 
         ApiResponse plans = owner.get("/api/v1/plans").expectStatus(200);
-        assertThat(plans.<List<String>>json("$[*].code")).containsExactly("STARTER", "PRO");
-        assertThat(plans.<List<Integer>>json("$[*].priceMonthly")).containsExactly(99000, 299000);
+        assertThat(plans.<List<String>>json("$[*].code")).containsExactly("FREE", "STARTER", "PRO");
+        assertThat(plans.<List<Integer>>json("$[*].priceMonthly")).containsExactly(0, 49900, 89900);
+        assertThat(plans.<Integer>json("$[1].limits.staff_seats")).isEqualTo(10);
+        assertThat(plans.<Integer>json("$[1].limits.report_days")).isEqualTo(365);
+        assertThat(plans.<Object>json("$[2].limits.staff_seats")).isNull();
+
+        // The daily job leaves it alone: there is no period to end.
+        advancer.advance(business);
+        assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("ACTIVE");
     }
 
     @Test
-    void anOwnersSecondBusinessHasNoTrial() {
-        TestBusinesses.create(owner, "Second Shop");
+    void freeIsTheOwnerAloneSixtyOrdersAMonthAndThirtyDaysOfReports() {
+        ApiResponse refused = owner.post("/api/v1/staff/invites", Map.of("to", "staff@example.com", "role", "STAFF"))
+                .expectError(402, "plan.limit_reached");
+        assertThat(refused.<String>json("$.metric")).isEqualTo("staff_seats");
 
-        assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("READ_ONLY");
+        String variant = owner.post("/api/v1/products", Map.of("name", "Kurti", "price", 100)).expectStatus(201)
+                .json("$.variants[0].id");
+        String customer = owner.post("/api/v1/customers", Map.of("name", "Rahima", "phone", "01712345678"))
+                .expectStatus(201).json("$.id");
+        Map<String, Object> order = Map.of("customerId", customer, "items", List.of(Map.of("variantId", variant, "quantity", 1)));
+        setOrdersUsed(59);
+        owner.post("/api/v1/orders", order).expectStatus(201);
+        owner.post("/api/v1/orders", order).expectError(402, "plan.limit_reached");
+
+        String today = owner.get("/api/v1/dashboard/today").json("$.date");
+        owner.get("/api/v1/reports/sales?from=" + LocalDate.parse(today).minusDays(29)).expectStatus(200);
+        assertThat(owner.get("/api/v1/reports/sales?from=" + LocalDate.parse(today).minusDays(30))
+                .expectError(402, "plan.limit_reached").<Integer>json("$.limit")).isEqualTo(30);
+        owner.get("/api/v1/exports/orders.csv").expectError(402, "plan.limit_reached");
+    }
+
+    @Test
+    void anOwnerWhoStartsAgainIsOnFreeToo() {
+        // As if the first business had been deleted: the owner owns none.
+        systemDatabase.jdbc().sql("update memberships set status = 'REMOVED' where business_id = ?").param(business).update();
+
+        TestBusinesses.createOnFree(owner, "Second Shop");
+
+        assertThat(owner.get("/api/v1/billing").<String>json("$.plan.code")).isEqualTo("FREE");
+        assertThat(owner.get("/api/v1/billing").<String>json("$.status")).isEqualTo("ACTIVE");
     }
 
     @Test
@@ -186,35 +223,37 @@ class PlanLimitTests {
     @Test
     void staffSeatsCountOpenInvites() {
         starter();
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 10; i++) {
             owner.post("/api/v1/staff/invites", Map.of("to", "staff" + i + "@example.com", "role", "STAFF")).expectStatus(201);
         }
-        assertThat(owner.get("/api/v1/billing").<Integer>json("$.usage.staff_seats.used")).isEqualTo(3);
+        assertThat(owner.get("/api/v1/billing").<Integer>json("$.usage.staff_seats.used")).isEqualTo(10);
 
-        ApiResponse refused = owner.post("/api/v1/staff/invites", Map.of("to", "staff3@example.com", "role", "STAFF"))
+        ApiResponse refused = owner.post("/api/v1/staff/invites", Map.of("to", "staff10@example.com", "role", "STAFF"))
                 .expectError(402, "plan.limit_reached");
         assertThat(refused.<String>json("$.metric")).isEqualTo("staff_seats");
         // Inviting an address again replaces its invite: no new seat.
         owner.post("/api/v1/staff/invites", Map.of("to", "staff0@example.com", "role", "MANAGER")).expectStatus(201);
         String invite = owner.get("/api/v1/staff/invites").json("$[0].id");
         owner.delete("/api/v1/staff/invites/" + invite).expectStatus(204);
-        owner.post("/api/v1/staff/invites", Map.of("to", "staff3@example.com", "role", "STAFF")).expectStatus(201);
+        owner.post("/api/v1/staff/invites", Map.of("to", "staff10@example.com", "role", "STAFF")).expectStatus(201);
     }
 
     @Test
-    void starterReportsReachNinetyDaysAndDoNotExport() {
+    void starterReportsReachAYearAndDoNotExport() {
+        systemDatabase.jdbc().sql("update subscriptions set plan_code = 'PRO' where business_id = ?").param(business).update();
         String today = owner.get("/api/v1/dashboard/today").json("$.date");
-        String longAgo = LocalDate.parse(today).minusDays(200).toString();
-        owner.get("/api/v1/reports/sales?from=" + longAgo).expectStatus(200);
+        String longAgo = LocalDate.parse(today).minusDays(366 * 2).toString();
+        owner.get("/api/v1/reports/sales?from=" + longAgo + "&to=" + LocalDate.parse(longAgo).plusDays(30)).expectStatus(200);
         assertThat(owner.download("/api/v1/exports/customers.csv").statusCode()).isEqualTo(200);
 
         starter();
 
-        String edge = LocalDate.parse(today).minusDays(89).toString();
-        String beyond = LocalDate.parse(today).minusDays(90).toString();
+        String edge = LocalDate.parse(today).minusDays(364).toString();
+        String beyond = LocalDate.parse(today).minusDays(365).toString();
         owner.get("/api/v1/reports/sales?from=" + edge).expectStatus(200);
-        ApiResponse refused = owner.get("/api/v1/reports/sales?from=" + beyond).expectError(402, "plan.limit_reached");
-        assertThat(refused.<Integer>json("$.limit")).isEqualTo(90);
+        ApiResponse refused = owner.get("/api/v1/reports/sales?from=" + beyond + "&to=" + LocalDate.parse(beyond).plusDays(5))
+                .expectError(402, "plan.limit_reached");
+        assertThat(refused.<Integer>json("$.limit")).isEqualTo(365);
         owner.get("/api/v1/dashboard/today?date=" + beyond).expectError(402, "plan.limit_reached");
         for (String export : List.of("orders", "products", "customers")) {
             ApiResponse noExport = owner.get("/api/v1/exports/" + export + ".csv").expectError(402, "plan.limit_reached");

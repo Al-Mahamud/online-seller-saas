@@ -143,7 +143,7 @@ Every business-owned table carries `business_id`, and PostgreSQL row-level secur
 | Area | Table | Key columns | Notes |
 | --- | --- | --- | --- |
 | Tenancy | businesses | id, name, slug, currency, timezone, plan\_id, status | One row per seller |
-| Tenancy | users | id, email, phone, password\_hash | A user can belong to several businesses |
+| Tenancy | users | id, email, phone, password\_hash | A user owns at most one business, and can work in others as staff |
 | Tenancy | memberships | business\_id, user\_id, role | Owner, Manager, Staff |
 | Catalog | categories | business\_id, name, parent\_id | Optional nesting |
 | Catalog | products | business\_id, category\_id, name, description, images, status | Shared details |

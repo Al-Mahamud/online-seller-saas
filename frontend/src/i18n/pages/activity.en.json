@@ -1,0 +1,152 @@
+{
+  "subtitle": "Who did what, and when. Only the owner sees this.",
+  "today": "Today",
+  "week": "7 days",
+  "count": "{{count}}",
+  "todayCount": "{{count}} actions",
+  "search": "Search",
+  "searchHint": "Order number, product or name",
+  "who": "Who did it",
+  "everyone": "Everyone",
+  "system": "System",
+  "you": "You",
+  "youOption": "{{name}} (you)",
+  "left": "Left the team",
+  "when": "When",
+  "period": {
+    "today": "Today",
+    "week": "7 days",
+    "month": "30 days",
+    "all": "All"
+  },
+  "kinds": "What kind",
+  "allKinds": "All",
+  "kind": {
+    "ORDERS": "Orders",
+    "STOCK": "Stock",
+    "PRODUCTS": "Products and prices",
+    "CUSTOMERS": "Customers",
+    "TEAM": "Team",
+    "SETTINGS": "Business and settings",
+    "PLAN": "Plan and payment"
+  },
+  "found": "{{count}} actions",
+  "foundFiltered": "{{count}} actions match",
+  "dayToday": "Today, {{date}}",
+  "dayYesterday": "Yesterday, {{date}}",
+  "changed": "What changed",
+  "from": "from",
+  "none": "Nothing matches",
+  "seeAll": "See everything",
+  "empty": "Nothing much yet",
+  "emptyHint": "Every change to orders, stock, prices, the team and settings collects here: who, when, what.",
+  "people": "Who did how much in 7 days",
+  "byKind": "What was done most",
+  "panelHint": "Tap a name or a kind to narrow the list.",
+  "order": "order {{number}}",
+  "invoice": "invoice {{number}}",
+  "items": "{{count}} items",
+  "zones": "{{count}} zones",
+  "total": "total {{amount}}",
+  "shipments": "{{count}} parcels · {{amount}}",
+  "imported": "{{count}} products",
+  "rules": "{{count}} rules",
+  "fields": "{{count}} fields",
+  "role": {
+    "OWNER": "Owner",
+    "MANAGER": "Manager",
+    "STAFF": "Staff"
+  },
+  "can": "can",
+  "cannot": "can't",
+  "field": {
+    "name": "Name",
+    "phone": "Phone",
+    "address": "Address",
+    "logo": "Logo",
+    "stockCommitPoint": "When stock goes down",
+    "lowStockDefault": "Low-stock limit",
+    "orderNumberPrefix": "Order number prefix",
+    "invoiceFooter": "Slip footer",
+    "price": "Selling price",
+    "costPrice": "Cost",
+    "searchTheme": "Search colour",
+    "role": "Role",
+    "status": "Status",
+    "plan": "Plan"
+  },
+  "empty_value": "—",
+  "verb": {
+    "order": {
+      "created": "took",
+      "updated": "changed",
+      "confirmed": "confirmed",
+      "packed": "packed",
+      "shipped": "handed to the courier",
+      "delivered": "marked delivered",
+      "returned": "marked returned",
+      "cancelled": "cancelled"
+    },
+    "payment": {
+      "recorded": "recorded a payment on",
+      "invalid": "an invalid payment was caught:"
+    },
+    "cod": {
+      "settled": "settled COD:"
+    },
+    "stock": {
+      "adjusted": "changed stock of"
+    },
+    "variant": {
+      "prices_changed": "changed the price of"
+    },
+    "import": {
+      "committed": "imported products:"
+    },
+    "customer": {
+      "deleted": "deleted the customer"
+    },
+    "staff": {
+      "added": "added",
+      "invited": "sent an invite",
+      "invite_revoked": "cancelled an invite",
+      "joined": "joined the team",
+      "left": "left the business",
+      "removed": "removed",
+      "role_changed": "changed the role of",
+      "password_sent": "sent a new password to"
+    },
+    "business": {
+      "created": "opened the business",
+      "updated": "changed the business details",
+      "settings_changed": "changed settings",
+      "permissions_changed": "changed who can do what",
+      "ownership_transferred": "handed ownership to",
+      "deletion_requested": "asked to delete the business",
+      "deletion_cancelled": "cancelled deleting the business",
+      "suspended": "the business was suspended",
+      "unsuspended": "the business was restored"
+    },
+    "delivery_zones": {
+      "changed": "changed delivery charges"
+    },
+    "invoice": {
+      "opened": "an invoice was made:",
+      "paid": "paid:",
+      "marked_paid": "marked paid:"
+    },
+    "subscription": {
+      "changed": "the subscription changed",
+      "plan_scheduled": "scheduled a plan change",
+      "upgraded": "upgraded the plan"
+    },
+    "plan": {
+      "set": "the plan was set",
+      "edited": "the plan was changed"
+    },
+    "trial": {
+      "extended": "the trial was extended"
+    }
+  },
+  "otherVerb": "did: {{action}}"
+}

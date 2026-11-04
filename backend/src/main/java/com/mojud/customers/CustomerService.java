@@ -13,7 +13,6 @@ import com.mojud.tenancy.CurrentBusiness;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -88,7 +87,7 @@ class CustomerService implements CustomerDirectory {
         if (q != null && !q.isBlank()) {
             String query = Text.cleanName(q, "q", MAX_NAME);
             String digits = PHONE_LIKE.matcher(query).matches() ? digits(query) : "";
-            String pattern = "%" + query.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+            String pattern = Text.containsPattern(query);
             return PagedResult.of(customers.search(CurrentBusiness.require().businessId(), query, pattern,
                     digits.length() >= 3 ? digits : "", paging.pageable()), paging).map(this::view);
         }
@@ -143,7 +142,7 @@ class CustomerService implements CustomerDirectory {
         customers.delete(customer);
         customers.flush();
         CurrentBusiness me = CurrentBusiness.require();
-        audit.record(me.businessId(), me.userId(), "customer.deleted", "customer", id);
+        audit.record(me.businessId(), me.userId(), "customer.deleted", "customer", id, "name", customer.getName());
     }
 
     private static Snapshot snapshot(Customer customer) {

@@ -48,6 +48,21 @@ export const tagsQuery = queryOptions({ queryKey: ["tags"], queryFn: () => call(
 export const lowStockQuery = (paging: Paging) =>
   pagedQuery(["low-stock", paging], () => call(api.GET("/api/v1/stock/low", { params: { query: paging } })));
 
+/** Everything running low, a hundred at a time, for the running-low window. */
+export const lowStockAllQuery = infiniteQueryOptions({
+  queryKey: ["low-stock", "all"],
+  queryFn: ({ pageParam }) => call(api.GET("/api/v1/stock/low", { params: { query: { page: pageParam, size: 100 } } })),
+  initialPageParam: 1,
+  getNextPageParam: nextPage,
+});
+
+/** Stock came in or went out: whatever shows stock reads again. */
+export function stockChanged(queryClient: QueryClient) {
+  for (const key of ["low-stock", "products", "product", "movements", "dashboard", "damages"]) {
+    void queryClient.invalidateQueries({ queryKey: [key] });
+  }
+}
+
 /** The answer to a change to one product: its page has it at once, and the lists read again. */
 export function productChanged(queryClient: QueryClient, product: Product) {
   queryClient.setQueryData(productQuery(product.id).queryKey, product);

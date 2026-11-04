@@ -70,6 +70,7 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/me", (a, b) -> expectNoLeak(b.owner().get("/api/v1/me"), a));
         CASES.put("PATCH /api/v1/me", (a, b) -> expectNoLeak(b.owner().patch("/api/v1/me", Map.of()), a));
         CASES.put("POST /api/v1/me/password", notBusinessData(ownAccount));
+        CASES.put("POST /api/v1/me/first-password", notBusinessData(ownAccount));
         CASES.put("POST /api/v1/me/contact/code", notBusinessData(ownAccount));
         CASES.put("POST /api/v1/me/contact", notBusinessData(ownAccount));
         CASES.put("GET /api/v1/me/two-factor", notBusinessData(ownAccount));
@@ -86,12 +87,30 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/business", (a, b) -> expectNoLeak(b.owner().get("/api/v1/business"), a));
         CASES.put("PATCH /api/v1/business", (a, b) -> expectNoLeak(b.owner().patch("/api/v1/business", Map.of()), a));
         CASES.put("GET /api/v1/business/settings", (a, b) -> expectNoLeak(b.owner().get("/api/v1/business/settings"), a));
+        CASES.put("PUT /api/v1/business/search-theme", (a, b) -> {
+            expectNoLeak(b.owner().put("/api/v1/business/search-theme", Map.of("searchTheme", "MINT")), a);
+            assertThat(a.owner().get("/api/v1/business/settings").<String>json("$.searchTheme")).isEqualTo("LEDGER");
+        });
         CASES.put("PATCH /api/v1/business/settings",
                 (a, b) -> expectNoLeak(b.owner().patch("/api/v1/business/settings", Map.of()), a));
+        CASES.put("GET /api/v1/business/permissions",
+                (a, b) -> expectNoLeak(b.owner().get("/api/v1/business/permissions"), a));
+        CASES.put("PUT /api/v1/business/permissions", (a, b) -> {
+            expectNoLeak(b.owner().put("/api/v1/business/permissions",
+                    Map.of("staff", List.of("ORDERS"), "manager", List.of("ORDERS"))), a);
+            assertThat(a.owner().get("/api/v1/business/permissions").<List<String>>json("$.staff"))
+                    .containsExactly("ORDERS", "STOCK", "CUSTOMERS");
+        });
         CASES.put("GET /api/v1/business/audit-log", (a, b) -> expectNoLeak(b.owner().get("/api/v1/business/audit-log"), a));
+        CASES.put("GET /api/v1/business/audit-log/summary",
+                (a, b) -> expectNoLeak(b.owner().get("/api/v1/business/audit-log/summary"), a));
 
         // Staff.
         CASES.put("GET /api/v1/staff", (a, b) -> expectNoLeak(b.owner().get("/api/v1/staff"), a));
+        CASES.put("POST /api/v1/staff", (a, b) -> expectNoLeak(b.owner().post("/api/v1/staff", Map.of(
+                "name", "New", "phone", TestAccounts.newPhone(), "userId", TestAccounts.newUserId(), "role", "STAFF")), a));
+        CASES.put("POST /api/v1/staff/{userId}/new-password", (a, b) -> expectNotFound(
+                b.owner().post("/api/v1/staff/" + a.staffId() + "/new-password", Map.of())));
         CASES.put("POST /api/v1/staff/leave", (a, b) -> expectNoLeak(b.owner().post("/api/v1/staff/leave", Map.of()), a));
         CASES.put("PATCH /api/v1/staff/{userId}", (a, b) -> expectNotFound(
                 b.owner().patch("/api/v1/staff/" + a.staffId(), Map.of("role", "MANAGER"))));
@@ -347,22 +366,29 @@ class CrossTenantTests {
             expectNoLeak(b.owner().get("/api/v1/reports/sales?groupBy=category"), a);
         });
         CASES.put("GET /api/v1/reports/profit", (a, b) -> expectNoLeak(b.owner().get("/api/v1/reports/profit"), a));
+        CASES.put("GET /api/v1/damages", (a, b) -> {
+            expectNoLeak(b.owner().get("/api/v1/damages"), a);
+            expectNoLeak(b.owner().get("/api/v1/damages?q="
+                    + java.net.URLEncoder.encode(a.productName(), java.nio.charset.StandardCharsets.UTF_8)), a);
+        });
+        CASES.put("GET /api/v1/damages/summary", (a, b) -> expectNoLeak(b.owner().get("/api/v1/damages/summary"), a));
         CASES.put("GET /api/v1/exports/orders.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/orders.csv"), a));
         CASES.put("GET /api/v1/exports/products.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/products.csv"), a));
         CASES.put("GET /api/v1/exports/customers.csv", (a, b) -> expectNoLeak(b.owner().get("/api/v1/exports/customers.csv"), a));
         // Billing: B's plan and usage are B's own.
         CASES.put("GET /api/v1/billing", (a, b) -> expectNoLeak(b.owner().get("/api/v1/billing"), a));
         CASES.put("GET /api/v1/billing/status", (a, b) -> expectNoLeak(b.owner().get("/api/v1/billing/status"), a));
-        CASES.put("GET /api/v1/billing/quote", (a, b) -> expectNoLeak(b.owner().get("/api/v1/billing/quote?planCode=STARTER&months=1"), a));
+        CASES.put("GET /api/v1/billing/quote", (a, b) -> expectNoLeak(b.owner().get("/api/v1/billing/quote?planCode=PRO&months=1"), a));
         CASES.put("PUT /api/v1/billing/plan", (a, b) -> {
-            // B's choice is about B; on a trial it needs a payment first.
-            b.owner().put("/api/v1/billing/plan", Map.of("planCode", "STARTER")).expectError(409, "billing.payment_needed");
+            // B's choice is about B: B's renewal changes, A's doesn't.
+            b.owner().put("/api/v1/billing/plan", Map.of("planCode", "STARTER")).expectStatus(200);
             assertThat(a.owner().get("/api/v1/billing").<Object>json("$.pendingPlanCode")).isNull();
+            b.owner().put("/api/v1/billing/plan", Map.of("planCode", "PRO")).expectStatus(200);
         });
         CASES.put("POST /api/v1/billing/checkout", (a, b) -> expectNoLeak(b.owner().post("/api/v1/billing/checkout",
                 Map.of("planCode", "PRO", "months", 1)).expectStatus(201), a));
-        CASES.put("POST /api/v1/billing/upgrade", (a, b) -> b.owner().post("/api/v1/billing/upgrade",
-                Map.of("planCode", "PRO")).expectError(409, "billing.payment_needed"));
+        CASES.put("POST /api/v1/billing/upgrade", (a, b) -> expectNoLeak(b.owner().post("/api/v1/billing/upgrade",
+                Map.of("planCode", "PRO")), a));
         CASES.put("GET /api/v1/billing/invoices", (a, b) -> expectNoLeak(b.owner().get("/api/v1/billing/invoices"), a));
         CASES.put("GET /api/v1/billing/invoices/{id}/print", (a, b) -> assertThat(
                 b.owner().download("/api/v1/billing/invoices/" + a.invoiceId() + "/print").statusCode()).isEqualTo(404));
@@ -378,7 +404,7 @@ class CrossTenantTests {
                 b.owner().get("/api/v1/admin/businesses/" + a.businessId()).expectStatus(403));
         CASES.put("POST /api/v1/admin/businesses/{id}/suspend", (a, b) -> {
             b.owner().post("/api/v1/admin/businesses/" + a.businessId() + "/suspend", Map.of("reason", "x")).expectStatus(403);
-            assertThat(a.owner().get("/api/v1/billing").<String>json("$.status")).isEqualTo("TRIALING");
+            assertThat(a.owner().get("/api/v1/billing").<String>json("$.status")).isEqualTo("ACTIVE");
         });
         CASES.put("POST /api/v1/admin/businesses/{id}/unsuspend", (a, b) ->
                 b.owner().post("/api/v1/admin/businesses/" + a.businessId() + "/unsuspend", null).expectStatus(403));
@@ -414,9 +440,9 @@ class CrossTenantTests {
         // Anyone can post to the IPN endpoint: a forged "VALID" for A's payment fails validation.
         CASES.put("POST /api/v1/public/gateway/sslcommerz/ipn", (a, b) -> {
             b.owner().postForm("/api/v1/public/gateway/sslcommerz/ipn", Map.of("status", "VALID", "tran_id", a.tranId(),
-                    "val_id", "FORGED-" + a.tranId(), "amount", "990.00", "currency", "BDT")).expectStatus(200);
+                    "val_id", "FORGED-" + a.tranId(), "amount", "499.00", "currency", "BDT")).expectStatus(200);
             assertThat(a.owner().get("/api/v1/billing/invoices/" + a.invoiceId()).<String>json("$.status")).isEqualTo("OPEN");
-            assertThat(a.owner().get("/api/v1/billing").<String>json("$.status")).isEqualTo("TRIALING");
+            assertThat(a.owner().get("/api/v1/billing").<String>json("$.status")).isEqualTo("ACTIVE");
         });
         CASES.put("GET /api/v1/public/gateway/sslcommerz/return/{result}", notBusinessData("only redirects the browser"));
         CASES.put("POST /api/v1/public/gateway/sslcommerz/return/{result}", notBusinessData("only redirects the browser"));

@@ -131,10 +131,8 @@ class DataRightsTests {
         assertThat(storage.load(other + "/marker/a.txt")).isPresent();
         assertThat(systemDatabase.jdbc().sql("select count(*) from businesses where id = ?").param(business)
                 .query(Long.class).single()).isZero();
-        // The owner's account stays, and so does their used trial (detached).
+        // The owner's account stays.
         assertThat(tenant.owner().get("/api/v1/businesses").<List<Object>>json("$")).isEmpty();
-        assertThat(systemDatabase.jdbc().sql("select count(*) from trial_claims where claim_key = ?")
-                .param("user:" + tenant.ownerId()).query(Long.class).single()).isEqualTo(1);
     }
 
     @Test
@@ -189,16 +187,16 @@ class DataRightsTests {
         owner.post("/api/v1/products", Map.of("name", "Kurti", "price", 100)).expectStatus(201);
         ApiClient other = new ApiClient(port);
         TestAccounts.signUp(other, messages);
-        TestBusinesses.create(other, "Trial Shop");
+        TestBusinesses.createOnFree(other, "Free Shop");
 
         ApiResponse after = admin.get("/api/v1/admin/metrics").expectStatus(200);
 
         assertThat(delta(before, after, "users")).isEqualTo(2);
         assertThat(delta(before, after, "signUps7d")).isEqualTo(2);
         assertThat(delta(before, after, "businesses")).isEqualTo(2);
-        assertThat(delta(before, after, "trialing")).isEqualTo(1);
+        assertThat(delta(before, after, "trialing")).isZero();
         assertThat(delta(before, after, "paying")).isEqualTo(1);
-        assertThat(delta(before, after, "mrrPoisha")).isEqualTo(299000);
+        assertThat(delta(before, after, "mrrPoisha")).isEqualTo(89900);
         assertThat(delta(before, after, "weeklyActive")).isEqualTo(2);
     }
 
@@ -212,7 +210,7 @@ class DataRightsTests {
                         select c.relname from pg_class c
                         join pg_namespace n on n.oid = c.relnamespace
                         join pg_attribute a on a.attrelid = c.oid and a.attname = 'business_id' and not a.attisdropped
-                        where n.nspname = 'public' and c.relkind = 'r' and c.relname <> 'trial_claims'
+                        where n.nspname = 'public' and c.relkind = 'r'
                         order by c.relname
                         """)
                 .query(String.class).list();

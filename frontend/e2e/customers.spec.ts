@@ -148,32 +148,56 @@ test("a zone's charge is what an order is quoted", async ({ page }) => {
   await page.goto("/more");
   await page.getByRole("link", { name: "ডেলিভারি চার্জ" }).click();
   await expect(heading(page, "ডেলিভারি চার্জ")).toBeVisible();
-  // A new business starts with two zones, named in the seller's language.
-  await expect(label(page.locator("section").first(), "নাম")).toHaveValue("ঢাকার ভেতরে");
+  // A new business starts with two zones, named in the seller's language; everywhere else stays last.
+  const inside = page.getByRole("region", { name: "ঢাকার ভেতরে" });
+  await expect(label(inside, "অঞ্চলের নাম")).toHaveValue("ঢাকার ভেতরে");
+  await expect(inside.getByRole("button", { name: "ঢাকা সরান" })).toBeVisible();
+  await expect(label(page.getByRole("region", { name: "বাকি সব জায়গা" }), "চার্জ")).toHaveValue("130");
   await expectAccessible(page);
 
-  await page.getByRole("button", { name: "অঞ্চল যোগ করুন" }).click();
-  const zone = page.locator("section").filter({ hasText: "অঞ্চল" }).last();
-  await label(zone, "নাম").fill("চট্টগ্রাম জেলা");
-  await label(zone, "চার্জ (৳)").fill("৯৫");
-  await zone.getByRole("button", { name: "জেলা যোগ করুন", exact: true }).click();
-  const list = page.getByRole("dialog");
-  await label(list, "খুঁজুন").fill("Chattogram");
-  await list.getByRole("button", { name: "চট্টগ্রাম", exact: true }).click();
-  await expect(zone.getByRole("button", { name: "চট্টগ্রাম সরান" })).toBeVisible();
+  // A new zone, its charge by the steppers, and a district picked from the list.
+  await page.getByRole("button", { name: "নতুন অঞ্চল যোগ করুন" }).click();
+  const zone = page.getByRole("region", { name: "নতুন অঞ্চল" });
+  await label(zone, "অঞ্চলের নাম").fill("চট্টগ্রাম জেলা");
+  const named = page.getByRole("region", { name: "চট্টগ্রাম জেলা" });
+  await label(named, "চার্জ").fill("৮৫");
+  await named.getByRole("button", { name: "চট্টগ্রাম জেলা: ১০ টাকা বেশি" }).click();
+  await expect(label(named, "চার্জ")).toHaveValue("95");
+  await named.getByRole("button", { name: "জেলা বা থানা যোগ করুন" }).click();
+  const list = page.getByRole("dialog", { name: "জায়গা যোগ করুন" });
+  await list.getByRole("searchbox", { name: "নাম দিয়ে খুঁজুন" }).fill("Chattogram");
+  await list.getByRole("checkbox", { name: "চট্টগ্রাম", exact: true }).check();
+  await expectAccessible(page);
+  await list.getByRole("button", { name: "১টি যোগ করুন" }).click();
+  await expect(named.getByRole("button", { name: "চট্টগ্রাম সরান" })).toBeVisible();
 
-  await page.getByRole("button", { name: "সব সংরক্ষণ করুন" }).click();
+  // Dhaka moves here from the other zone, says so, and can go back.
+  await named.getByRole("button", { name: "জেলা বা থানা যোগ করুন" }).click();
+  await list.getByRole("searchbox", { name: "নাম দিয়ে খুঁজুন" }).fill("Dhaka");
+  await expect(list.getByText("ঢাকার ভেতরে-এ আছে · বাছলে এখানে চলে আসবে")).toBeVisible();
+  await list.getByRole("checkbox", { name: /^ঢাকা ঢাকার ভেতরে/ }).check();
+  await list.getByRole("button", { name: "১টি যোগ করুন" }).click();
+  await expect(named.getByText("ঢাকা আগে “ঢাকার ভেতরে”-তে ছিল, এখন এখানে।")).toBeVisible();
+  await expect(inside.getByText("এখনো কোনো জায়গা নেই")).toBeVisible();
+  await named.getByRole("button", { name: "ফিরিয়ে দিন" }).click();
+  await expect(inside.getByRole("button", { name: "ঢাকা সরান" })).toBeVisible();
+
+  const bar = page.getByRole("region", { name: "সংরক্ষণ হয়নি এমন পরিবর্তন" });
+  await expect(bar).toContainText("অঞ্চলের পরিবর্তন সংরক্ষণ হয়নি");
+  await bar.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
   await expect(page.getByText("ডেলিভারি চার্জ সংরক্ষণ করা হয়েছে।")).toBeVisible();
+  await expect(bar).toBeHidden();
 
   // The check on the page is the server's own quote, the one the order form will use.
-  await pick(page, /^জেলা \(ঐচ্ছিক\)/, "Chattogram", "চট্টগ্রাম");
-  await expect(page.getByRole("status").filter({ hasText: "চট্টগ্রাম জেলা: ৳৯৫" })).toBeVisible();
-
   const districts = (await (await page.request.get("/api/v1/geo/districts")).json()) as {
     id: number;
     nameEn: string;
   }[];
   const chattogram = districts.find((district) => /chatt?ogram|chittagong/i.test(district.nameEn));
+  await page.getByRole("combobox", { name: "জেলা", exact: true }).selectOption(String(chattogram?.id));
+  const answer = page.getByRole("status").filter({ hasText: "চট্টগ্রাম জেলা" });
+  await expect(answer).toContainText("৳৯৫");
+  await expect(answer).toContainText("জেলা মিলেছে");
   const quote = (await (
     await page.request.get(`/api/v1/delivery-zones/quote?districtId=${chattogram?.id}`)
   ).json()) as {
@@ -181,11 +205,19 @@ test("a zone's charge is what an order is quoted", async ({ page }) => {
   };
   expect(quote.charge).toBe(9500);
 
-  // It stays after a refresh, and a bad charge is refused before saving.
+  // It stays after a refresh, and a bad charge or a repeated name is refused before saving.
   await page.reload();
-  const saved = page.locator("section").filter({ hasText: "চট্টগ্রাম জেলা" }).first();
-  await expect(label(saved, "চার্জ (৳)")).toHaveValue("95");
-  await label(saved, "চার্জ (৳)").fill("many");
-  await page.getByRole("button", { name: "সব সংরক্ষণ করুন" }).click();
-  await expect(page.getByRole("alert")).toContainText("সঠিক একটি চার্জ দিন");
+  const saved = page.getByRole("region", { name: "চট্টগ্রাম জেলা" });
+  await expect(label(saved, "চার্জ")).toHaveValue("95");
+  await label(saved, "চার্জ").fill("many");
+  await bar.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
+  await expect(bar.getByRole("alert")).toContainText("১টি ঘর ঠিক করলে সংরক্ষণ হবে");
+  await expect(page.getByText("সঠিক একটি চার্জ দিন, যেমন ৮০।")).toBeVisible();
+  await expect(label(saved, "চার্জ")).toHaveAttribute("aria-invalid", "true");
+  await expectAccessible(page);
+  await label(saved, "অঞ্চলের নাম").fill("ঢাকার ভেতরে");
+  await expect(bar.getByRole("alert")).toContainText("২টি ঘর ঠিক করলে সংরক্ষণ হবে");
+  await expect(page.getByText("এই নামে আরেকটি অঞ্চল আছে।")).toBeVisible();
+  await bar.getByRole("button", { name: "বাতিল" }).click();
+  await expect(bar).toBeHidden();
 });

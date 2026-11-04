@@ -1,9 +1,12 @@
 package com.mojud.catalog.product;
 
 import com.mojud.catalog.CatalogReports;
+import com.mojud.shared.text.Text;
 import com.mojud.shared.tenant.TenantScope;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Map;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -36,6 +39,23 @@ class ProductReports implements CatalogReports {
                 .param("business", TenantScope.current().orElseThrow())
                 .query(Boolean.class)
                 .single();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<UUID> variantsMatching(String q) {
+        return new HashSet<>(jdbc.sql("""
+                        select v.id
+                        from product_variants v join products p on p.id = v.product_id
+                        where v.business_id = :business
+                          and (lower(p.name) like :pattern or upper(v.sku) like upper(:pattern)
+                               or word_similarity(lower(:q), lower(p.name)) >= 0.4)
+                        """)
+                .param("business", TenantScope.current().orElseThrow())
+                .param("q", q)
+                .param("pattern", Text.containsPattern(q))
+                .query(UUID.class)
+                .list());
     }
 
     @Override

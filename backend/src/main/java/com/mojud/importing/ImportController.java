@@ -4,6 +4,8 @@ import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -33,7 +35,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 /** Product imports: managers and owners, who edit the catalog. */
 @RestController
-@RequiresRole(BusinessRole.MANAGER)
+@RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.PRODUCTS)
 class ImportController {
 
     static final DataSize MAX_FILE = DataSize.ofMegabytes(10);

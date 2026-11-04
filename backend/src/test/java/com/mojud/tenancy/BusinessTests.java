@@ -58,10 +58,8 @@ class BusinessTests {
     void aUserInTwoBusinessesSeesEachOnlyAfterSwitching() {
         ApiClient client = signedIn();
         UUID first = TestBusinesses.create(client, "First Shop");
-        UUID second = TestBusinesses.create(client, "Second Shop");
-        // An owner's second business has no trial (one per owner, 10a): as if it were paid for.
-        systemDatabase.jdbc().sql("update subscriptions set status = 'ACTIVE', read_only_since = null where business_id = ?")
-                .param(second).update();
+        UUID second = joinSomeoneElses(client, "Second Shop", BusinessRole.MANAGER);
+        client.post("/api/v1/me/switch-business", Map.of("businessId", second.toString())).expectStatus(200);
 
         assertThat(client.get("/api/v1/business").<String>json("$.name")).isEqualTo("Second Shop");
         client.patch("/api/v1/business/settings", Map.of("stockCommitPoint", "CONFIRM", "lowStockDefault", 12))
@@ -107,7 +105,7 @@ class BusinessTests {
         ApiClient client = signedIn();
         Account account = accountOf(client);
         UUID first = TestBusinesses.create(client, "Used Last");
-        TestBusinesses.create(client, "Created Last");
+        joinSomeoneElses(client, "Joined Last", BusinessRole.STAFF);
         client.post("/api/v1/me/switch-business", Map.of("businessId", first.toString())).expectStatus(200);
 
         ApiClient fresh = new ApiClient(port);
@@ -133,6 +131,27 @@ class BusinessTests {
         manager.patch("/api/v1/business/settings", Map.of("lowStockDefault", 7)).expectStatus(200);
         manager.patch("/api/v1/business", Map.of("address", "Uttara, Dhaka")).expectStatus(200);
         assertThat(staff.get("/api/v1/business/settings").<Integer>json("$.lowStockDefault")).isEqualTo(7);
+    }
+
+    @Test
+    void onlyTheOwnerChoosesTheSearchColoursEveryoneSees() {
+        ApiClient owner = signedIn();
+        UUID business = TestBusinesses.create(owner, "Colour Shop");
+        ApiClient manager = signedIn();
+        ApiClient staff = signedIn();
+        TestBusinesses.addMember(memberships, transactions, business, TestBusinesses.userId(manager), BusinessRole.MANAGER);
+        TestBusinesses.addMember(memberships, transactions, business, TestBusinesses.userId(staff), BusinessRole.STAFF);
+        assertThat(staff.get("/api/v1/business/settings").<String>json("$.searchTheme")).isEqualTo("LEDGER");
+
+        manager.put("/api/v1/business/search-theme", Map.of("searchTheme", "MINT")).expectError(403, "access.denied");
+        owner.put("/api/v1/business/search-theme", Map.of("searchTheme", "PURPLE")).expectStatus(400);
+        assertThat(owner.put("/api/v1/business/search-theme", Map.of("searchTheme", "MINT")).expectStatus(200)
+                .<String>json("$.searchTheme")).isEqualTo("MINT");
+
+        assertThat(staff.get("/api/v1/business/settings").<String>json("$.searchTheme")).isEqualTo("MINT");
+        // Other settings leave it alone.
+        manager.patch("/api/v1/business/settings", Map.of("lowStockDefault", 3)).expectStatus(200);
+        assertThat(staff.get("/api/v1/business/settings").<String>json("$.searchTheme")).isEqualTo("MINT");
     }
 
     @Test
@@ -194,13 +213,31 @@ class BusinessTests {
     }
 
     @Test
-    void oneAccountCanOwnAtMostFiveBusinesses() {
+    void oneAccountCanOwnOnlyOneBusiness() {
         ApiClient client = signedIn();
-        for (int i = 1; i <= 5; i++) {
-            TestBusinesses.create(client, "Shop " + i);
-        }
+        TestBusinesses.create(client, "Shop 1");
 
-        client.post("/api/v1/businesses", Map.of("name", "Shop 6")).expectError(409, "business.limit_reached");
+        client.post("/api/v1/businesses", Map.of("name", "Shop 2")).expectError(409, "business.limit_reached");
+        assertThat(client.get("/api/v1/businesses").<List<Object>>json("$")).hasSize(1);
+    }
+
+    @Test
+    void workingInSomeoneElsesBusinessDoesNotStopOwningOne() {
+        ApiClient client = signedIn();
+        joinSomeoneElses(client, "Employer's Shop", BusinessRole.STAFF);
+
+        TestBusinesses.create(client, "My Own Shop");
+
+        assertThat(client.get("/api/v1/businesses").<List<Object>>json("$")).hasSize(2);
+    }
+
+    @Test
+    void aSuspendedBusinessStillCountsAsTheOneOwned() {
+        ApiClient client = signedIn();
+        UUID owned = TestBusinesses.create(client, "Suspended Shop");
+        systemDatabase.jdbc().sql("update businesses set status = 'SUSPENDED' where id = ?").param(owned).update();
+
+        client.post("/api/v1/businesses", Map.of("name", "Fresh Start")).expectError(409, "business.limit_reached");
     }
 
     @Test
@@ -214,9 +251,6 @@ class BusinessTests {
     @Test
     void parallelCreatesCannotPassTheOwnerLimitTogether() throws Exception {
         ApiClient client = signedIn();
-        for (int i = 1; i <= 4; i++) {
-            TestBusinesses.create(client, "Shop " + i);
-        }
         java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(6);
         try {
             List<java.util.concurrent.Future<ApiResponse>> answers = new java.util.ArrayList<>();
@@ -237,14 +271,14 @@ class BusinessTests {
         } finally {
             pool.shutdownNow();
         }
-        assertThat(client.get("/api/v1/businesses").<List<Object>>json("$")).hasSize(5);
+        assertThat(client.get("/api/v1/businesses").<List<Object>>json("$")).hasSize(1);
     }
 
     @Test
     void aSuspendedBusinessCannotBeUsedOrSwitchedTo() {
         ApiClient client = signedIn();
-        UUID suspended = TestBusinesses.create(client, "Suspended Shop");
         UUID other = TestBusinesses.create(client, "Other Shop");
+        UUID suspended = joinSomeoneElses(client, "Suspended Shop", BusinessRole.STAFF);
         client.post("/api/v1/me/switch-business", Map.of("businessId", suspended.toString())).expectStatus(200);
 
         systemDatabase.jdbc().sql("update businesses set status = 'SUSPENDED' where id = ?").param(suspended).update();
@@ -272,7 +306,8 @@ class BusinessTests {
     void switchingDoesNotCountAsEditingTheMembership() {
         ApiClient client = signedIn();
         UUID first = TestBusinesses.create(client, "First");
-        TestBusinesses.create(client, "Second");
+        UUID second = joinSomeoneElses(client, "Second", BusinessRole.STAFF);
+        client.post("/api/v1/me/switch-business", Map.of("businessId", second.toString())).expectStatus(200);
         UUID userId = TestBusinesses.userId(client);
         Long before = membershipVersion(first, userId);
 
@@ -304,6 +339,13 @@ class BusinessTests {
     private Long membershipVersion(UUID businessId, UUID userId) {
         return systemDatabase.jdbc().sql("select version from memberships where business_id = ? and user_id = ?")
                 .params(businessId, userId).query(Long.class).single();
+    }
+
+    /** Someone else's new business, with {@code client} added as a member. */
+    private UUID joinSomeoneElses(ApiClient client, String name, BusinessRole role) {
+        UUID business = TestBusinesses.create(signedIn(), name);
+        TestBusinesses.addMember(memberships, transactions, business, TestBusinesses.userId(client), role);
+        return business;
     }
 
     private final Map<ApiClient, Account> accounts = new java.util.IdentityHashMap<>();

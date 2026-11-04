@@ -5,6 +5,8 @@ import com.mojud.shared.paging.PageQuery;
 import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -35,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Orders: every member takes and edits them. Money in poisha; totals sent by clients are ignored. */
 @RestController
 @RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.ORDERS)
 class OrderController {
 
     /** Couriers suggested before any are used; the business's own come first once it has shipped. */

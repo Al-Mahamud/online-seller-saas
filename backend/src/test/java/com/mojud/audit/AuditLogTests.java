@@ -71,6 +71,66 @@ class AuditLogTests {
     }
 
     @Test
+    void theLogIsNarrowedByWhoWhatWhenAndWordsWithASummary() {
+        ApiClient owner = new ApiClient(port);
+        TestAccounts.signUp(owner, messages);
+        TestBusinesses.create(owner, "Filtered Shop");
+        UUID ownerId = TestBusinesses.userId(owner);
+        String staffLogin = TestAccounts.newUserId();
+        ApiResponse added = owner.post("/api/v1/staff", Map.of("name", "Sumi", "phone", TestAccounts.newPhone(),
+                "userId", staffLogin, "role", "STAFF")).expectStatus(201);
+        String staffId = added.json("$.member.userId");
+        ApiClient staff = new ApiClient(port);
+        staff.post("/api/v1/auth/login", Map.of("userId", staffLogin, "password", added.json("$.startingPassword")))
+                .expectStatus(200);
+        staff.post("/api/v1/me/first-password", Map.of("newPassword", "a password of mine")).expectStatus(200);
+        String customer = staff.post("/api/v1/customers", Map.of("name", "Zahid", "phone", TestAccounts.newPhone()))
+                .expectStatus(201).json("$.id");
+        owner.delete("/api/v1/customers/" + customer).expectStatus(204);
+        owner.patch("/api/v1/business", Map.of("name", "Filtered Shop Ltd")).expectStatus(200);
+
+        // About a person: their name comes with it.
+        ApiResponse team = owner.get("/api/v1/business/audit-log?kind=TEAM").expectStatus(200);
+        assertThat(team.<List<String>>json("$.items[*].action")).containsExactly("staff.added");
+        assertThat(team.<String>json("$.items[0].subject")).isEqualTo("Sumi");
+        assertThat(team.<String>json("$.items[0].kind")).isEqualTo("TEAM");
+        // Words in the details; and a deleted customer keeps their name in the log.
+        ApiResponse found = owner.get("/api/v1/business/audit-log?q=zahid").expectStatus(200);
+        assertThat(found.<List<String>>json("$.items[*].action")).containsExactly("customer.deleted");
+        assertThat(found.<String>json("$.items[0].details.name")).isEqualTo("Zahid");
+        // Who did it.
+        assertThat(owner.get("/api/v1/business/audit-log?actor=" + ownerId).expectStatus(200)
+                .<List<String>>json("$.items[*].action"))
+                .containsExactly("business.updated", "customer.deleted", "staff.added", "business.created");
+        assertThat(owner.get("/api/v1/business/audit-log?actor=SYSTEM").expectStatus(200).<Integer>json("$.totalItems"))
+                .isZero();
+        // When: today is in, tomorrow is not.
+        java.time.LocalDate today = java.time.LocalDate.now(com.mojud.shared.time.DhakaTime.ZONE);
+        assertThat(owner.get("/api/v1/business/audit-log?from=" + today + "&to=" + today).expectStatus(200)
+                .<Integer>json("$.totalItems")).isEqualTo(4);
+        assertThat(owner.get("/api/v1/business/audit-log?from=" + today.plusDays(1)).expectStatus(200)
+                .<Integer>json("$.totalItems")).isZero();
+        owner.get("/api/v1/business/audit-log?actor=nobody").expectError(400, "validation.failed");
+        owner.get("/api/v1/business/audit-log?from=" + today + "&to=" + today.minusDays(1))
+                .expectError(400, "validation.failed");
+
+        ApiResponse summary = owner.get("/api/v1/business/audit-log/summary").expectStatus(200);
+        assertThat(summary.<Integer>json("$.today")).isEqualTo(4);
+        assertThat(summary.<Integer>json("$.lastSevenDays")).isEqualTo(4);
+        assertThat(summary.<List<Integer>>json("$.people[*].count")).containsExactly(4);
+        assertThat(summary.<List<String>>json("$.kinds[*].kind")).containsExactlyInAnyOrder("SETTINGS", "TEAM", "CUSTOMERS");
+        assertThat(summary.<List<Boolean>>json("$.actors[*].member")).containsExactly(true);
+
+        // Someone who has left is marked so, and stays in the log.
+        owner.delete("/api/v1/staff/" + staffId).expectStatus(204);
+        staff.post("/api/v1/auth/logout", Map.of());
+        assertThat(owner.get("/api/v1/business/audit-log?kind=TEAM").expectStatus(200)
+                .<String>json("$.items[0].subject")).isEqualTo("Sumi");
+        owner.get("/api/v1/staff").expectStatus(200);
+        staff.get("/api/v1/business/audit-log/summary").expectError(401, "auth.required");
+    }
+
+    @Test
     void changesThatChangeNothingAreNotRecorded() {
         ApiClient owner = new ApiClient(port);
         TestAccounts.signUp(owner, messages);

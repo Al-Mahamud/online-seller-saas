@@ -82,9 +82,19 @@ export async function signUp(request: APIRequestContext, { name = "Test Seller",
 }
 
 /** An account with a business, signed in: what most tests start from. */
+/**
+ * Someone new with a business of their own. It starts on Free, as every business does; unless `plan`
+ * says "FREE", it's then put on Pro for a year (test-only endpoint), as most tests aren't about plans
+ * and Free's limits (no team, 60 orders a month) would get in their way.
+ */
 export async function signUpWithBusiness(
   request: APIRequestContext,
-  { name = "Test Seller", language = "bn", business = "রহিমার কুর্তি হাউস" } = {},
+  {
+    name = "Test Seller",
+    language = "bn",
+    business = "রহিমার কুর্তি হাউস",
+    plan = "PRO",
+  }: { name?: string; language?: string; business?: string; plan?: "FREE" | "PRO" } = {},
 ) {
   const account = await signUp(request, { name, language });
   const created = await request.post("/api/v1/businesses", {
@@ -92,35 +102,44 @@ export async function signUpWithBusiness(
     data: { name: business },
   });
   expect(created.status()).toBe(201);
+  if (plan === "PRO") {
+    const { id } = (await created.json()) as { id: string };
+    const paid = await request.post(`/dev/subscription?businessId=${id}&status=ACTIVE&plan=PRO&days=365`);
+    expect(paid.status()).toBe(204);
+  }
   return account;
 }
 
-/** Someone new who accepts an invite to the owner's business, as staff, in a browser of their own. */
-export async function joinAsStaff(owner: Page, browser: Browser): Promise<Page> {
-  const email = newEmail();
+/**
+ * Someone the owner adds to the business (by default as staff), who signs in with the starting
+ * password and sets their own, in a browser of their own.
+ */
+export async function joinAsStaff(
+  owner: Page,
+  browser: Browser,
+  { name = "Sumi Staff", role = "STAFF" }: { name?: string; role?: "STAFF" | "MANAGER" } = {},
+): Promise<Page> {
+  const userId = newUserId();
   const headers = { "X-XSRF-TOKEN": await csrfToken(owner.request) };
-  const sent = await owner.request.post("/api/v1/staff/invites", { headers, data: { to: email, role: "STAFF" } });
-  expect(sent.status()).toBe(201);
-  const token = await readInviteToken(owner.request, email);
+  const added = await owner.request.post("/api/v1/staff", {
+    headers,
+    data: { name, phone: `018${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`, userId, role },
+  });
+  expect(added.status()).toBe(201);
+  const { startingPassword } = (await added.json()) as { startingPassword: string };
 
   const context = await browser.newContext({ baseURL: test.info().project.use.baseURL });
   const staff = await context.newPage();
   const staffHeaders = { "X-XSRF-TOKEN": await csrfToken(staff.request), "Accept-Language": "bn" };
-  await staff.request.post("/api/v1/auth/otp", { headers: staffHeaders, data: { to: email, purpose: "SIGNUP" } });
-  const code = await readCode(owner.request, email);
-  await staff.request.post("/api/v1/auth/signup", {
+  const signedIn = await staff.request.post("/api/v1/auth/login", {
     headers: staffHeaders,
-    data: {
-      userId: newUserId(),
-      name: "Sumi Staff",
-      phone: `018${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`,
-      email,
-      password: PASSWORD,
-      codeSentTo: "EMAIL",
-      code,
-    },
+    data: { userId, password: startingPassword },
   });
-  const joined = await staff.request.post("/api/v1/invites/accept", { headers: staffHeaders, data: { token } });
-  expect(joined.status()).toBe(200);
+  expect(signedIn.status()).toBe(200);
+  const own = await staff.request.post("/api/v1/me/first-password", {
+    headers: { "X-XSRF-TOKEN": await csrfToken(staff.request) },
+    data: { newPassword: PASSWORD },
+  });
+  expect(own.status()).toBe(200);
   return staff;
 }

@@ -4,7 +4,7 @@ import { ChevronLeft, Plus } from "lucide-react";
 import { lazy, Suspense, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, hasRole, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import { errorText } from "@/api/query";
 import { ConfirmDialog } from "@/components/form/ConfirmDialog";
@@ -108,9 +108,11 @@ export function CustomerPage() {
             <a href={`tel:${customer.phone}`} className={ON_DARK_BUTTON}>
               {t("customers.call")}
             </a>
-            <button type="button" className={ON_DARK_BUTTON} onClick={() => setDialog("edit")}>
-              {t("customers.edit")}
-            </button>
+            {can(business, "CUSTOMERS") && (
+              <button type="button" className={ON_DARK_BUTTON} onClick={() => setDialog("edit")}>
+                {t("customers.edit")}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -145,7 +147,7 @@ export function CustomerPage() {
               </div>
             )}
           </section>
-          {hasRole(business, "MANAGER") && (
+          {hasRole(business, "MANAGER") && can(business, "CUSTOMERS") && (
             <button
               type="button"
               className="min-h-11.5 w-full cursor-pointer rounded-[10px] bg-destructive px-5 text-[15px] font-bold text-white hover:bg-danger-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-destructive"

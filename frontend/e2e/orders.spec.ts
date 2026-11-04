@@ -1,6 +1,7 @@
 import type { APIRequestContext, Browser, Page } from "@playwright/test";
 import { newPhone, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
+import { pickDays } from "./support/search";
 import { expect, test } from "./support/test";
 
 type Scope = Page | ReturnType<Page["getByRole"]>;
@@ -516,16 +517,17 @@ test("the list counts by status, filters, and packs and ships together, telling 
   await search.press("Enter");
   await expect(page.getByRole("link", { name: /দ্বিতীয়/ })).toBeVisible();
   // A chip takes the search off.
-  await page.getByRole("button", { name: /মুছুন$/ }).click();
+  await page.getByRole("button", { name: /^".*" মুছুন$/ }).click();
   await expect(search).toHaveValue("");
   await expect(tabs.getByRole("link", { name: "সব ৪" })).toBeVisible();
   // Nothing in these dates, and a way back.
-  await label(page, "তারিখ পর্যন্ত").fill("2020-01-01");
-  await find.click();
+  await pickDays(page, "2020-01-01", "2020-01-02");
   await expect(page.getByText("এই খোঁজে কোনো অর্ডার নেই।")).toBeVisible();
-  await page.getByRole("button", { name: "রিসেট", exact: true }).last().click();
+  await expect(page).toHaveURL(/to=2020-01-02/);
+  await expectAccessible(page);
+  await page.getByRole("button", { name: "রিসেট", exact: true }).first().click();
   await expect(tabs.getByRole("link", { name: "সব ৪" })).toBeVisible();
-  await expect(label(page, "তারিখ পর্যন্ত")).toHaveValue("");
+  await expect(page).not.toHaveURL(/to=/);
 
   // Pack two; one of them is cancelled by someone else first.
   await tabs.getByRole("link", { name: /^নিশ্চিত/ }).click();

@@ -87,6 +87,8 @@ export function useFormat() {
     /** "শনি": a day's name, short, for a chart's axis. */
     weekday: (at: string) => dayFormat(language, { weekday: "short" }).format(new Date(at)),
     dayMonth: (at: string) => dayFormat(language, { day: "numeric", month: "short" }).format(new Date(at)),
+    /** "৩:৪২ PM": the time of day in Dhaka. */
+    time: (at: string) => dayFormat(language, { hour: "numeric", minute: "2-digit" }).format(new Date(at)),
     /** "শনিবার, ৩১ অক্টোবর": a day in full. */
     fullDate: (at: string) =>
       dayFormat(language, { weekday: "long", day: "numeric", month: "long" }).format(new Date(at)),

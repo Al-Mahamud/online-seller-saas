@@ -41,6 +41,15 @@ public class User {
 
     private boolean isPlatformAdmin;
 
+    /** Signed in with a starting password a business gave: a new one must be set before anything else. */
+    private boolean mustChangePassword;
+
+    /** When the starting password stops working; null once the person has set their own. */
+    private Instant startingPasswordExpiresAt;
+
+    /** The business that created this account for a member, which alone may send it a new starting password. */
+    private UUID createdForBusiness;
+
     /** Read when loaded; set in identity.twofactor.TwoFactor, never through this entity. */
     @Formula("exists (select 1 from two_factor tf where tf.user_id = id and tf.enabled_at is not null)")
     private boolean twoFactorEnabled;
@@ -84,6 +93,37 @@ public class User {
         return user;
     }
 
+    /**
+     * An account a business creates for a member. Nothing is verified: the phone and email are what
+     * the business typed, and the person proves them later like anyone else.
+     */
+    public static User forTeam(String userId, String name, PhoneNumber phone, EmailAddress email, String passwordHash,
+            String locale, UUID businessId, Instant passwordExpiresAt, Instant now) {
+        User user = new User();
+        user.id = Ids.newId();
+        user.userId = userId;
+        user.name = cleanName(name);
+        user.phone = phone.e164();
+        user.email = email == null ? null : email.value();
+        user.passwordHash = passwordHash;
+        user.locale = locale;
+        user.status = UserStatus.ACTIVE;
+        user.createdAt = now;
+        user.updatedAt = now;
+        user.createdForBusiness = businessId;
+        user.mustChangePassword = true;
+        user.startingPasswordExpiresAt = passwordExpiresAt;
+        return user;
+    }
+
+    /** A new starting password from the business that made the account; the old password stops working. */
+    public void giveStartingPassword(String passwordHash, Instant expiresAt, Instant now) {
+        this.passwordHash = passwordHash;
+        mustChangePassword = true;
+        startingPasswordExpiresAt = expiresAt;
+        updatedAt = now;
+    }
+
     public void rename(String newName, Instant now) {
         name = cleanName(newName);
         updatedAt = now;
@@ -100,8 +140,11 @@ public class User {
         updatedAt = now;
     }
 
+    /** Their own password: a starting one, if any, is used up. */
     public void changePassword(String newPasswordHash, Instant now) {
         passwordHash = newPasswordHash;
+        mustChangePassword = false;
+        startingPasswordExpiresAt = null;
         updatedAt = now;
     }
 
@@ -171,5 +214,18 @@ public class User {
 
     public boolean isTwoFactorEnabled() {
         return twoFactorEnabled;
+    }
+
+    public boolean mustChangePassword() {
+        return mustChangePassword;
+    }
+
+    /** True when the account still has a starting password and its time is up. */
+    public boolean startingPasswordExpired(Instant now) {
+        return mustChangePassword && startingPasswordExpiresAt != null && !now.isBefore(startingPasswordExpiresAt);
+    }
+
+    public Optional<UUID> createdForBusiness() {
+        return Optional.ofNullable(createdForBusiness);
     }
 }

@@ -67,7 +67,8 @@ class EmailFlowTests {
     @Test
     void billingRemindersGoToOwnersOnceADayInTheirLanguage() {
         systemDatabase.jdbc().sql("update users set locale = 'bn' where email = ?").param(ownerAccount.email()).update();
-        systemDatabase.jdbc().sql("update subscriptions set trial_ends_at = ? where business_id = ?")
+        // A trial from before, or one an administrator extended: none starts now.
+        systemDatabase.jdbc().sql("update subscriptions set plan_code = 'TRIAL', status = 'TRIALING', trial_ends_at = ? where business_id = ?")
                 .params(Timestamp.from(threeDaysAway()), business).update();
 
         advancer.advance(business);
@@ -98,7 +99,7 @@ class EmailFlowTests {
         List<CapturedMessages.Message> receipts = emails(ownerAccount, "receipt for invoice");
         assertThat(receipts).hasSize(1);
         assertThat(receipts.get(0).subject()).isEqualTo("Rina's Boutique: receipt for invoice " + number);
-        assertThat(receipts.get(0).body()).contains("৳17,940").contains("Pro");
+        assertThat(receipts.get(0).body()).contains("৳5,394").contains("Pro");
         assertThat(emails(managerAccount, "receipt")).isEmpty();
     }
 

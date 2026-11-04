@@ -15,7 +15,7 @@ import { useFormat } from "@/lib/format";
 import { parseCount, parseTaka } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { categoriesQuery, flatCategories, productChanged } from "./api";
-import { BackToProducts } from "./LowStockPage";
+import { BackToProducts } from "./BackToProducts";
 import { variantRow } from "./schemas";
 import { TagPicker } from "./TagPicker";
 

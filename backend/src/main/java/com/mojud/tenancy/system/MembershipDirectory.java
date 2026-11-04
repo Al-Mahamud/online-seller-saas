@@ -58,6 +58,14 @@ public class MembershipDirectory {
                 .optional();
     }
 
+    /** Businesses, of any status, where the user is an active member: a business may only reset a password used nowhere else. */
+    public int activeMembershipCount(UUID userId) {
+        return database.jdbc().sql("select count(*) from memberships where user_id = ? and status = 'ACTIVE'")
+                .param(userId)
+                .query(Integer.class)
+                .single();
+    }
+
     public int ownedBusinessCount(UUID userId) {
         return database.jdbc().sql("""
                         select count(*) from memberships

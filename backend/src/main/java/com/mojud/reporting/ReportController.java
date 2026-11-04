@@ -2,6 +2,8 @@ package com.mojud.reporting;
 
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import com.mojud.shared.error.ApiException;
 import java.time.LocalDate;
 import java.util.Locale;
@@ -39,7 +41,8 @@ class ReportController {
     }
 
     @GetMapping("/api/v1/reports/profit")
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission(Permission.COSTS)
     SalesReports.Profit profit(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return reports.profit(from, to);

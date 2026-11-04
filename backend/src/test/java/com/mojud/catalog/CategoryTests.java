@@ -140,6 +140,38 @@ class CategoryTests {
     }
 
     @Test
+    void eachCategoryAndTagSaysHowManyProductsItHas() {
+        String women = create("Women", null);
+        String kurti = create("Kurti", women);
+        String bags = create("Bags", null);
+        String eid = owner.post("/api/v1/tags", Map.of("name", "Eid")).expectStatus(201).json("$.id");
+        owner.post("/api/v1/tags", Map.of("name", "unused")).expectStatus(201);
+        owner.post("/api/v1/products", Map.of("name", "One", "price", 1, "categoryId", kurti, "tagIds", List.of(eid)))
+                .expectStatus(201);
+        owner.post("/api/v1/products", Map.of("name", "Two", "price", 1, "categoryId", kurti, "tagIds", List.of(eid)))
+                .expectStatus(201);
+        String archived = owner.post("/api/v1/products", Map.of("name", "Three", "price", 1, "categoryId", women))
+                .expectStatus(201).json("$.id");
+        owner.post("/api/v1/products/" + archived + "/archive", Map.of()).expectStatus(200);
+
+        ApiResponse tree = owner.get("/api/v1/categories").expectStatus(200);
+        // Directly in each, archived too: they also keep a category from being deleted.
+        assertThat(tree.<List<Integer>>json("$[*].productCount")).containsExactly(1, 0);
+        assertThat(tree.<List<Integer>>json("$[0].children[*].productCount")).containsExactly(2);
+        assertThat(owner.get("/api/v1/tags").<List<Integer>>json("$[*].productCount")).containsExactly(2, 0);
+
+        // What a change answers carries the count too.
+        assertThat(owner.patch("/api/v1/categories/" + kurti, Map.of("name", "Kurtis")).expectStatus(200)
+                .<Integer>json("$.productCount")).isEqualTo(2);
+        assertThat(owner.post("/api/v1/categories/" + kurti + "/move", Map.of("topLevel", true)).expectStatus(200)
+                .<Integer>json("$.productCount")).isEqualTo(2);
+        assertThat(owner.patch("/api/v1/tags/" + eid, Map.of("name", "Eid 2026")).expectStatus(200)
+                .<Integer>json("$.productCount")).isEqualTo(2);
+        assertThat(owner.post("/api/v1/categories", Map.of("name", "New", "parentId", bags)).expectStatus(201)
+                .<Integer>json("$.productCount")).isZero();
+    }
+
+    @Test
     void staffReadButOnlyManagersChange() {
         create("Women", null);
         ApiClient staff = new ApiClient(port);

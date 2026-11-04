@@ -1,15 +1,8 @@
 package com.mojud.reporting;
 
-import com.mojud.billing.Entitlements;
-import com.mojud.billing.Metric;
 import com.mojud.catalog.CatalogReports;
 import com.mojud.orders.OrderReports;
-import com.mojud.shared.error.ApiException;
-import com.mojud.shared.error.ErrorCode;
-import com.mojud.shared.time.DhakaTime;
-import java.time.Clock;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,9 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 class SalesReports {
 
-    static final int MAX_DAYS = 366;
-    static final int DEFAULT_DAYS = 30;
-
     enum GroupBy {
         DAY, PRODUCT, CATEGORY
     }
@@ -49,29 +39,24 @@ class SalesReports {
     record Sales(LocalDate from, LocalDate to, GroupBy groupBy, List<Row> rows, int quantity, long value) {
     }
 
-    record Range(LocalDate from, LocalDate to) {
-    }
-
     record Profit(LocalDate from, LocalDate to, OrderReports.ProfitReport profit) {
     }
 
     private final OrderReports orders;
-    private final Entitlements entitlements;
     private final CatalogReports catalog;
     private final MessageSource messages;
-    private final Clock clock;
+    private final ReportRange ranges;
 
-    SalesReports(OrderReports orders, CatalogReports catalog, MessageSource messages, Clock clock, Entitlements entitlements) {
-        this.entitlements = entitlements;
+    SalesReports(OrderReports orders, CatalogReports catalog, MessageSource messages, ReportRange ranges) {
         this.orders = orders;
         this.catalog = catalog;
         this.messages = messages;
-        this.clock = clock;
+        this.ranges = ranges;
     }
 
     @Transactional(readOnly = true)
     Sales sales(LocalDate from, LocalDate to, GroupBy groupBy) {
-        Range range = range(from, to);
+        ReportRange.Range range = ranges.resolve(from, to);
         List<Row> rows = switch (groupBy) {
             case DAY -> orders.salesByDay(range.from(), range.to()).stream()
                     .map(day -> new Row(day.day().toString(), day.day().toString(), day.orders(), day.quantity(),
@@ -92,7 +77,7 @@ class SalesReports {
 
     @Transactional(readOnly = true)
     Profit profit(LocalDate from, LocalDate to) {
-        Range range = range(from, to);
+        ReportRange.Range range = ranges.resolve(from, to);
         return new Profit(range.from(), range.to(), orders.profit(range.from(), range.to()));
     }
 
@@ -109,30 +94,5 @@ class SalesReports {
                 .map(e -> new Row(e.getKey(), e.getKey(), null, (int) e.getValue()[0], e.getValue()[1], null))
                 .sorted(Comparator.comparingLong(Row::value).reversed().thenComparing(Row::label))
                 .toList();
-    }
-
-    /** Defaults to the last 30 days to today; up to 366 days, none in the future. */
-    private Range range(LocalDate from, LocalDate to) {
-        LocalDate today = DhakaTime.today(clock);
-        LocalDate end = to == null ? today : to;
-        LocalDate start = from == null ? end.minusDays(DEFAULT_DAYS - 1) : from;
-        if (start.isAfter(end) || end.isAfter(today)) {
-            throw ApiException.invalidField("from", "field.report_range");
-        }
-        if (ChronoUnit.DAYS.between(start, end) + 1 > MAX_DAYS) {
-            throw ApiException.invalidField("from", "field.report_range");
-        }
-        requireReachable(start);
-        return new Range(start, end);
-    }
-
-    /** The plan's report_days: how far back reports may look (Starter: 90 days, including today). */
-    void requireReachable(LocalDate day) {
-        entitlements.limit(Metric.REPORT_DAYS).ifPresent(days -> {
-            if (day.isBefore(DhakaTime.today(clock).minusDays(days - 1))) {
-                throw new ApiException(ErrorCode.PLAN_LIMIT_REACHED).withDetail("metric", Metric.REPORT_DAYS.key())
-                        .withDetail("limit", days);
-            }
-        });
     }
 }

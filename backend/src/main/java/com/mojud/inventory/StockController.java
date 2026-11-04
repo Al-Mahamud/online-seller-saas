@@ -4,6 +4,8 @@ import com.mojud.shared.error.ApiException;
 import com.mojud.shared.idempotency.Idempotency;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotEmpty;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.STOCK)
 class StockController {
 
     static final int MAX_QUANTITY = 1_000_000;
@@ -40,9 +43,12 @@ class StockController {
             @NotNull @PositiveOrZero @Max(MAX_QUANTITY) Integer quantity) {
     }
 
-    /** {@code note} is the reason in the seller's words, e.g. "Delivery from Islampur". */
+    /**
+     * {@code note} is the reason in the seller's words, e.g. "Delivery from Islampur";
+     * {@code reason}, optional, is why DAMAGE lines were damaged (kept on those lines only).
+     */
     record AdjustmentRequest(@NotEmpty @Size(max = 200) List<@NotNull @Valid LineRequest> lines,
-            @Size(max = 500) String note) {
+            @Size(max = 500) String note, DamageReason reason) {
     }
 
     /**
@@ -60,7 +66,8 @@ class StockController {
         }
         String note = body.note() == null || body.note().isBlank() ? null : body.note().strip();
         return adjustments.adjust(new AdjustmentService.Request(body.lines().stream()
-                .map(l -> new AdjustmentService.LineRequest(l.variantId(), l.kind(), l.quantity())).toList(), note),
+                .map(l -> new AdjustmentService.LineRequest(l.variantId(), l.kind(), l.quantity())).toList(), note,
+                body.reason()),
                 idempotencyKey);
     }
 }

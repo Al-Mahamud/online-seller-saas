@@ -3,6 +3,8 @@ package com.mojud.inventory;
 import com.mojud.shared.paging.PageQuery;
 import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.tenant.TenantScope;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,6 +49,24 @@ public class StockQueries {
         long total = jdbc.sql("select count(*) from stock_movements where business_id = :business and variant_id = :variant")
                 .param("business", business).param("variant", variantId).query(Long.class).single();
         return PagedResult.of(rows, paging, total);
+    }
+
+    /** Goods damaged or lost on the shelf from {@code from} up to {@code to}, newest first. */
+    public List<ShelfDamage> damages(Instant from, Instant to) {
+        return jdbc.sql("""
+                        select id, created_at, variant_id, -on_hand_delta, reason, note, user_id
+                        from stock_movements
+                        where business_id = :business and type = 'DAMAGE' and created_at >= :from and created_at < :to
+                        order by created_at desc, id desc
+                        """)
+                .param("business", TenantScope.current().orElseThrow())
+                .param("from", Timestamp.from(from))
+                .param("to", Timestamp.from(to))
+                .query((rs, n) -> new ShelfDamage(rs.getObject(1, UUID.class), rs.getTimestamp(2).toInstant(),
+                        rs.getObject(3, UUID.class), rs.getInt(4),
+                        rs.getString(5) == null ? null : DamageReason.valueOf(rs.getString(5)), rs.getString(6),
+                        rs.getObject(7, UUID.class)))
+                .list();
     }
 
     /** The level of each variant; a variant that never had stock is 0 / 0. */

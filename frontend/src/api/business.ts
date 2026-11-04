@@ -15,6 +15,23 @@ export function hasRole(business: { role: Role }, needed: Role): boolean {
   return RANK[business.role] >= RANK[needed];
 }
 
+export type Permission = Business["permissions"][number];
+
+/**
+ * What the member may do here, by area, as the owner set it for their role (the owner may do
+ * everything). With several areas, any one is enough. The UI hides the rest; the server decides.
+ */
+export function can(business: { role: Role; permissions: Permission[] }, ...areas: Permission[]): boolean {
+  return business.role === "OWNER" || areas.some((area) => business.permissions.includes(area));
+}
+
+/** On a page the member's areas don't reach, such as from an old link: back to the start. */
+export function requirePermission(business: { role: Role; permissions: Permission[] }, ...areas: Permission[]) {
+  if (!can(business, ...areas)) {
+    throw redirect({ to: "/" });
+  }
+}
+
 /** On a page the role doesn't reach, such as from an old link: back to the start. */
 export function requireRole(business: { role: Role }, needed: Role) {
   if (!hasRole(business, needed)) {

@@ -2,6 +2,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { joinAsStaff, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { png } from "./support/images";
+import { pickChoice } from "./support/search";
 import { expect, test } from "./support/test";
 
 const label = (scope: Page | ReturnType<Page["getByRole"]>, name: string) => scope.getByLabel(name, { exact: true });
@@ -268,7 +269,7 @@ test("edits a variant, adds another, and archives and restores", async ({ page }
   await expect(page.getByRole("button", { name: "আবার চালু করুন" })).toBeVisible();
   await page.goto("/products");
   await expect(page.getByText("এখনো কোনো পণ্য নেই।")).toBeVisible();
-  await page.getByRole("button", { name: "আর্কাইভ" }).click();
+  await pickChoice(page, "পণ্যের অবস্থা", "আর্কাইভ");
   await expect(page.getByRole("link", { name: /পাঞ্জাবি/ })).toBeVisible();
 });
 
@@ -385,13 +386,8 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   await expect(panjabiLink).toBeVisible();
   await expectAccessible(page);
 
-  // Nothing changes until the search button: picking only waits in the panel.
-  const category = label(page, "ক্যাটাগরি");
-  // The top category and its subcategory, once the list has loaded.
-  await expect(category.locator("option", { hasText: "মহিলা" })).toHaveCount(2);
-  await category.selectOption({ label: "মহিলা" });
-  await expect(panjabiLink).toBeVisible();
-  await search.click();
+  // A filter picked applies at once: the top category takes in its subcategory.
+  await pickChoice(page, "ক্যাটাগরি", "মহিলা");
   await expect(panjabiLink).toBeHidden();
   await expect(kurtiLink).toBeVisible();
   await expect(page).toHaveURL(/categoryId=/);
@@ -400,20 +396,18 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   // A chip takes one filter off.
   await page.getByRole("button", { name: "মহিলা মুছুন" }).click();
   await expect(panjabiLink).toBeVisible();
-  await expect(category).toHaveValue("");
+  await expect(page).not.toHaveURL(/categoryId=/);
 
   // Tag and category work together, and stay through a reload.
-  await label(page, "ট্যাগ").selectOption({ label: "ঈদ" });
-  await search.click();
+  await pickChoice(page, "ট্যাগ", "ঈদ");
   await expect(kurtiLink).toBeHidden();
   await expect(panjabiLink).toBeVisible();
   await expect(page).toHaveURL(/tagId=/);
   await page.reload();
   await expect(panjabiLink).toBeVisible();
   await expect(kurtiLink).toBeHidden();
-  await expect(label(page, "ট্যাগ")).not.toHaveValue("");
-  await category.selectOption({ label: "মহিলা" });
-  await search.click();
+  await expect(page.getByRole("button", { name: "ঈদ মুছুন" })).toBeVisible();
+  await pickChoice(page, "ক্যাটাগরি", "মহিলা");
   await expect(page.getByText("এই খোঁজে কোনো পণ্য পাওয়া যায়নি।")).toBeVisible();
 
   // Reset clears everything.
@@ -421,9 +415,8 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   await expect(kurtiLink).toBeVisible();
   await expect(panjabiLink).toBeVisible();
   await expect(page).not.toHaveURL(/categoryId|tagId/);
-  await expect(category).toHaveValue("");
 
-  // Typing waits too, and Enter searches.
+  // Typing waits for the button or Enter.
   const box = page.getByRole("searchbox", { name: "পণ্য খুঁজুন" });
   await box.fill("কুর্তি");
   await expect(panjabiLink).toBeVisible();
@@ -435,6 +428,12 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   await expect(panjabiLink).toBeVisible();
   await expect(box).toHaveValue("");
 
+  // What was searched before is offered again.
+  await box.focus();
+  await page.getByRole("button", { name: "কুর্তি", exact: true }).click();
+  await expect(panjabiLink).toBeHidden();
+  await expect(box).toHaveValue("কুর্তি");
+
   await box.fill("কিছুই নেই এমন");
   await search.click();
   await expect(page.getByText("এই খোঁজে কোনো পণ্য পাওয়া যায়নি।")).toBeVisible();
@@ -442,21 +441,54 @@ test("searches and filters, keeping them in the address", async ({ page }) => {
   await expect(kurtiLink).toBeVisible();
 });
 
-test("the low-stock list shows what's running low, and links to it", async ({ page }) => {
+test("running low opens as a window: stock that arrived, and a shopping list", async ({ page }) => {
   await signUpWithBusiness(page.request);
   await makeProduct(page.request, { name: "শেষের পথে", price: 10000, openingStock: 1 });
   await makeProduct(page.request, { name: "অনেক আছে", price: 10000, openingStock: 500 });
   await page.goto("/products");
 
   await expect(page.getByRole("link", { name: /শেষের পথে/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /অনেক আছে/ })).toBeVisible();
-  await expect(page.getByText("স্টক কম", { exact: true }).filter({ visible: true })).toHaveCount(1);
   await page.getByRole("link", { name: "স্টক কম: ১টি" }).click();
-
-  await expect(heading(page, "যে পণ্যের স্টক কম")).toBeVisible();
+  const window = page.getByRole("dialog", { name: "স্টক কম" });
+  await expect(window).toBeVisible();
+  await expect(page).toHaveURL(/lowStock=true/);
+  await expect(window.getByRole("link", { name: /শেষের পথে/ })).toBeVisible();
+  await expect(window.getByRole("link", { name: /অনেক আছে/ })).toBeHidden();
   await expectAccessible(page);
-  await page.getByRole("link", { name: /শেষের পথে/ }).click();
+
+  // A shopping list for the ticked one, ready to send.
+  await window.getByRole("checkbox", { name: "বেছে নিন: শেষের পথে" }).check();
+  await expect(window.getByText("১টি বাছা হয়েছে")).toBeVisible();
+  await window.getByRole("button", { name: "কেনার তালিকা" }).click();
+  await expect(page.getByRole("dialog", { name: "কেনার তালিকা" })).toBeVisible();
+  await expect(page.getByText(/• শেষের পথে \(.+\): ৯টি/)).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("button", { name: "তালিকায় ফিরুন" }).click();
+
+  // Stock arrived: written in place, and the list empties.
+  await window.getByRole("button", { name: "মাল এসেছে: শেষের পথে" }).click();
+  const arrived = page.getByRole("dialog", { name: "মাল এসেছে" });
+  await arrived.getByLabel("শেষের পথে").fill("12");
+  await expect(arrived.getByText("এরপর থাকবে ১৩টি")).toBeVisible();
+  await expectAccessible(page);
+  await arrived.getByRole("button", { name: "১২টি স্টকে যোগ করুন" }).click();
+  await expect(page.getByText("স্টকে যোগ হয়েছে।")).toBeVisible();
+  await expect(page.getByText("সব পণ্যের স্টক ঠিক আছে")).toBeVisible();
+
+  await page.getByRole("button", { name: "বন্ধ করুন" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(page).not.toHaveURL(/lowStock/);
+});
+
+test("the low-stock email's old address opens the running-low window", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  await makeProduct(page.request, { name: "শেষের পথে", price: 10000, openingStock: 1 });
+  await page.goto("/products/low-stock");
+  await expect(page).toHaveURL(/\/products\?lowStock=true/);
+  const window = page.getByRole("dialog", { name: "স্টক কম" });
+  await window.getByRole("link", { name: /শেষের পথে/ }).click();
   await expect(heading(page, "শেষের পথে")).toBeVisible();
+  await expect(page.getByRole("dialog")).toBeHidden();
 });
 
 test("manages categories and tags", async ({ page }) => {
@@ -464,40 +496,91 @@ test("manages categories and tags", async ({ page }) => {
   await page.goto("/more");
   await page.getByRole("link", { name: "ক্যাটাগরি ও ট্যাগ" }).click();
   await expect(heading(page, "ক্যাটাগরি ও ট্যাগ")).toBeVisible();
+  await expectAccessible(page);
 
-  await label(page, "নতুন ক্যাটাগরি").fill("মহিলা");
-  await page.getByRole("button", { name: "যোগ করুন" }).first().click();
+  // Starting out, one tap adds a common one; or type a name.
+  await page.getByRole("button", { name: "যোগ করুন: গয়না" }).click();
+  await expect(page.getByText("গয়না", { exact: true })).toBeVisible();
+  const box = label(page, "নতুন ক্যাটাগরির নাম");
+  await box.fill("মহিলা");
+  await box.press("Enter");
   await expect(page.getByText("মহিলা", { exact: true })).toBeVisible();
-  await label(page, "নতুন ক্যাটাগরি").fill("কুর্তি");
-  await page.getByRole("button", { name: "যোগ করুন" }).first().click();
+  await expect(box).toHaveValue("");
+
+  // A subcategory inside, straight from the menu.
+  const more = (name: string) => page.getByRole("button", { name: `${name}: আরও কাজ` });
+  await more("মহিলা").click();
+  await page.getByRole("menuitem", { name: "ভেতরে উপ-ক্যাটাগরি যোগ করুন" }).click();
+  const sub = label(page, "মহিলা-এ নতুন উপ-ক্যাটাগরির নাম");
+  await sub.fill("কুর্তি");
+  await sub.press("Enter");
   await expect(page.getByText("কুর্তি", { exact: true })).toBeVisible();
-  await expectAccessible(page);
 
-  // Under the other one, then renamed.
-  await page.getByRole("button", { name: "বদলান: কুর্তি" }).click();
-  const dialog = page.getByRole("dialog");
-  await label(dialog, "কোথায় থাকবে").selectOption({ label: "মহিলা" });
-  await label(dialog, "নাম").fill("সুতি কুর্তি");
+  // With a product in it, each says so, and it can't be deleted yet.
+  const tree = (await (await page.request.get("/api/v1/categories")).json()) as {
+    name: string;
+    children: { id: string; name: string }[];
+  }[];
+  const kurti = tree.find((top) => top.name === "মহিলা")?.children[0]?.id;
+  await makeProduct(page.request, { name: "লাল কুর্তি", price: 10000, categoryId: kurti });
+  await page.reload();
+  await page.getByRole("button", { name: "খুলুন: মহিলা" }).click();
+  await expect(page.getByRole("link", { name: "১টি পণ্য" })).toHaveCount(2);
   await expectAccessible(page);
-  await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
+  await more("কুর্তি").click();
+  await page.getByRole("menuitem", { name: /^মুছুন/ }).click();
+  const cant = page.getByRole("dialog", { name: "“কুর্তি” এখন মোছা যাবে না" });
+  await expect(cant).toContainText("এতে ১টি পণ্য আছে।");
+  await expectAccessible(page);
+  await cant.getByRole("button", { name: "ঠিক আছে" }).click();
+
+  // Renamed in place, then moved under the other one.
+  await more("কুর্তি").click();
+  await page.getByRole("menuitem", { name: "নাম বদলান" }).click();
+  const rename = label(page, "কুর্তি: নতুন নাম");
+  await rename.fill("সুতি কুর্তি");
+  await rename.press("Enter");
   await expect(page.getByText("সুতি কুর্তি", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "মুছুন: সুতি কুর্তি" })).toBeVisible();
+  await more("সুতি কুর্তি").click();
+  await page.getByRole("menuitem", { name: "অন্য জায়গায় সরান" }).click();
+  const move = page.getByRole("dialog", { name: "“সুতি কুর্তি” কোথায় থাকবে?" });
+  await move.getByRole("radio", { name: "গয়না" }).check();
+  await expectAccessible(page);
+  await move.getByRole("button", { name: "সরান" }).click();
+  await expect(page.getByRole("button", { name: "খুলুন: গয়না" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /মহিলা$/ })).toHaveCount(0);
 
-  // A name already used is refused, under the box.
-  await label(page, "নতুন ক্যাটাগরি").fill("মহিলা");
-  await page.getByRole("button", { name: "যোগ করুন" }).first().click();
-  await expect(label(page, "নতুন ক্যাটাগরি")).toHaveAttribute("aria-invalid", "true");
+  // A name already used is refused, under the box; the search narrows both lists.
+  await box.fill("মহিলা");
+  await box.press("Enter");
+  await expect(box).toHaveAttribute("aria-invalid", "true");
+  await page.getByRole("searchbox", { name: "ক্যাটাগরি বা ট্যাগ খুঁজুন" }).fill("সুতি");
+  await expect(page.getByText("সুতি কুর্তি", { exact: true })).toBeVisible();
+  await expect(page.getByText("মহিলা", { exact: true })).toBeHidden();
+  await page.getByRole("searchbox", { name: "ক্যাটাগরি বা ট্যাগ খুঁজুন" }).fill("");
 
-  await page.getByRole("button", { name: "মুছুন: সুতি কুর্তি" }).click();
+  // An empty one goes.
+  await more("মহিলা").click();
+  await page.getByRole("menuitem", { name: /^মুছুন/ }).click();
   await page.getByRole("dialog").getByRole("button", { name: "মুছুন" }).click();
-  await expect(page.getByText("সুতি কুর্তি", { exact: true })).toBeHidden();
+  await expect(page.getByText("মহিলা", { exact: true })).toBeHidden();
 
-  await label(page, "নতুন ট্যাগ").fill("ঈদ");
-  await page.getByRole("button", { name: "যোগ করুন" }).last().click();
-  await expect(page.getByText("ঈদ", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "মুছুন: ঈদ" }).click();
+  // Tags: on a phone, behind their own tab.
+  const tagsTab = page.getByRole("button", { name: /^ট্যাগ/ });
+  if (await tagsTab.isVisible()) {
+    await tagsTab.click();
+  }
+  const tagBox = label(page, "নতুন ট্যাগের নাম");
+  await tagBox.fill("ঈদ");
+  await tagBox.press("Enter");
+  await page.getByRole("button", { name: "ঈদ ০" }).click();
+  await label(page, "ট্যাগের নাম").fill("ঈদ অফার");
+  await expectAccessible(page);
+  await page.getByRole("button", { name: "সংরক্ষণ", exact: true }).click();
+  await page.getByRole("button", { name: "ঈদ অফার ০" }).click();
+  await page.getByRole("button", { name: "ট্যাগ মুছুন" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "মুছুন" }).click();
-  await expect(page.getByText("ঈদ", { exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: /ঈদ অফার/ })).toBeHidden();
 });
 
 test("the plan's variant limit opens the upgrade dialog", async ({ page }) => {

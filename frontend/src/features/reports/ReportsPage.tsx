@@ -3,8 +3,9 @@ import { getRouteApi, Link } from "@tanstack/react-router";
 import { Download as DownloadIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, hasRole, useBusiness } from "@/api/business";
 import { errorMessages } from "@/api/query";
+import { Choice } from "@/components/form/Choice";
 import { Field } from "@/components/form/Field";
 import { BackToMore } from "@/components/layout/PageHeader";
 import { addDays, dhakaToday } from "@/lib/dates";
@@ -31,24 +32,6 @@ const CARD = "rounded-[14px] border bg-card";
 
 const signed = (amount: number, taka: (amount: number) => string) => (amount < 0 ? `−${taka(-amount)}` : taka(amount));
 
-function Choice({ on, onClick, children }: { on: boolean; onClick: () => void; children: string }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      className={cn(
-        "h-11 flex-none cursor-pointer rounded-[10px] border-[1.5px] px-3.5 text-[15px] font-semibold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring",
-        on
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-input bg-card text-foreground hover:bg-muted",
-      )}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
-
 /** Sales over any days the plan reaches: how they split, by day, product or category; profit for managers and owners. */
 export function ReportsPage() {
   const { t } = useTranslation();
@@ -60,7 +43,7 @@ export function ReportsPage() {
   const to = search.to ?? today;
   const from = search.from ?? addDays(to, -29);
   const by = search.by ?? "day";
-  const canSeeProfit = hasRole(business, "MANAGER");
+  const canSeeProfit = can(business, "COSTS");
   const change = (next: Partial<typeof search>) => void navigate({ search: { ...search, ...next }, replace: true });
   const presets = [
     { label: t("reports.last7"), from: addDays(today, -6) },
@@ -273,7 +256,8 @@ function SalesShare({
         >
           <Pie
             shown={shown}
-            size={210}
+            size={220}
+            className="max-md:size-50"
             chosen={chosen}
             onChoose={setChosen}
             label={t("reports.shareLabel", {
@@ -332,13 +316,19 @@ function Sales({ from, to, by, onBy }: { from: string; to: string; by: GroupBy; 
       quantity: format.number(quantity),
       delivery: format.taka(charged),
     });
+  const heading = (
+    <h2 id="sales-title" className="text-[21px] font-bold">
+      {t("reports.sales")}
+    </h2>
+  );
   return (
     <section aria-labelledby="sales-title" className={cn(CARD, "overflow-hidden")}>
-      <div className="flex flex-col gap-1 px-3.5 pt-3 pb-3 md:px-5 md:pt-3.5">
-        <h2 id="sales-title" className="text-[21px] font-bold">
-          {t("reports.sales")}
-        </h2>
-        {(days.data?.value ?? 0) > 0 && <DayChart key={`${from}:${to}`} rows={days.data?.rows ?? []} />}
+      <div className="px-3.5 pt-3 pb-3 md:px-5 md:pt-3.5">
+        {(days.data?.value ?? 0) > 0 ? (
+          <DayChart key={`${from}:${to}`} heading={heading} rows={days.data?.rows ?? []} />
+        ) : (
+          heading
+        )}
       </div>
       {error && (
         <p
@@ -524,13 +514,11 @@ function Profit({ from, to }: { from: string; to: string }) {
       <dl className="flex flex-col gap-1.5 text-[15px] max-lg:mt-2 lg:mt-1">
         <ProfitLine label={t("reports.revenue")} value={format.taka(profit.revenue)} />
         <ProfitLine label={t("reports.costOfGoods")} value={`−${format.taka(profit.costOfGoods)}`} color={COST_COLOR} />
-        {profit.writeOffs > 0 && (
-          <ProfitLine
-            label={t("reports.writeOffs")}
-            value={`−${format.taka(profit.writeOffs)}`}
-            color={WRITE_OFF_COLOR}
-          />
-        )}
+        <ProfitLine
+          label={t("reports.writeOffs")}
+          value={`−${format.taka(profit.writeOffs)}`}
+          color={WRITE_OFF_COLOR}
+        />
         <ProfitLine
           strong
           label={t("reports.grossProfit")}

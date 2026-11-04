@@ -5,6 +5,8 @@ import com.mojud.shared.paging.PageQuery;
 import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -23,7 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 /** One variant's SKU, prices and low-stock threshold; managers and owners only. */
 @RestController
 @RequestMapping("/api/v1/variants")
-@RequiresRole(BusinessRole.MANAGER)
+@RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.PRODUCTS)
 class VariantController {
 
     private final ProductService products;

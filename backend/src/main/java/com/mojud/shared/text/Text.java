@@ -2,6 +2,7 @@ package com.mojud.shared.text;
 
 import com.mojud.shared.error.ApiException;
 import java.text.Normalizer;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 /** Checks on text people type. */
@@ -31,6 +32,14 @@ public final class Text {
             throw ApiException.invalidField(field, "field.too_long");
         }
         return cleaned;
+    }
+
+    /**
+     * A LIKE pattern for text containing {@code value}, ignoring case: lower-cased, with LIKE's
+     * own characters (backslash, %, _) escaped.
+     */
+    public static String containsPattern(String value) {
+        return "%" + value.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
     }
 
     /**

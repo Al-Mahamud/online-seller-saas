@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import i18n from "@/i18n";
+import { cn } from "@/lib/utils";
 
 /** Our own messages arrive from the form's rules as text keys; the server's are already translated. */
 function fieldMessage(message: string | undefined): string | undefined {
@@ -33,6 +34,8 @@ interface FieldProps<T extends FieldValues> extends InputProps {
   beside?: React.ReactNode;
   /** A cross with the error, so it doesn't rest on colour alone. */
   errorIcon?: boolean;
+  /** The label for screen readers only, where a placeholder and the card's heading say enough. */
+  labelHidden?: boolean;
 }
 
 /** A labelled input with its hint and its error, tied to the form for screen readers. */
@@ -45,13 +48,14 @@ export function TextField<T extends FieldValues>({
   inside,
   beside,
   errorIcon = false,
+  labelHidden = false,
   ...input
 }: FieldProps<T>) {
   const id = useId();
   const error = fieldMessage(form.getFieldState(name, form.formState).error?.message);
   const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
   const labelled = (
-    <Label htmlFor={id} className="text-[15px] leading-normal font-semibold">
+    <Label htmlFor={id} className={cn("text-[15px] leading-normal font-semibold", labelHidden && "sr-only")}>
       {label}
     </Label>
   );

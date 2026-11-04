@@ -35,6 +35,8 @@ export default function BusinessMenu({ className, children }: { className: strin
   const [open, setOpen] = useState(true);
   const [creating, setCreating] = useState(false);
   const { data: businesses } = useQuery({ ...businessesQuery, enabled: open });
+  // An account owns one business; working in others as staff doesn't count. Hidden until the list is in.
+  const ownsOne = businesses?.some((item) => item.role === "OWNER") ?? true;
   const switchTo = useMutation({
     mutationFn: (businessId: string) => call(api.POST("/api/v1/me/switch-business", { body: { businessId } })),
     onSuccess: async (selected) => {
@@ -106,11 +108,15 @@ export default function BusinessMenu({ className, children }: { className: strin
               {item.selected && <Check aria-hidden="true" className="size-4" />}
             </DropdownMenuItem>
           ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="min-h-11" onSelect={() => setCreating(true)}>
-            <Plus aria-hidden="true" />
-            {t("business.new")}
-          </DropdownMenuItem>
+          {!ownsOne && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="min-h-11" onSelect={() => setCreating(true)}>
+                <Plus aria-hidden="true" />
+                {t("business.new")}
+              </DropdownMenuItem>
+            </>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="min-h-11 text-[15px]"

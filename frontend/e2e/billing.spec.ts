@@ -4,19 +4,19 @@ import { expectAccessible } from "./support/axe";
 import { expect, test } from "./support/test";
 
 const heading = (page: Page, name: string | RegExp) => page.getByRole("heading", { level: 1, name });
-const label = (scope: Page | ReturnType<Page["getByRole"]>, name: string) => scope.getByLabel(name, { exact: true });
 const banner = (page: Page) =>
   page
     .getByRole("status")
     .filter({ hasText: /ট্রায়াল|প্ল্যান|স্থগিত/ })
     .first();
 const taka = (poisha: number) => `৳${new Intl.NumberFormat("bn-BD").format(poisha / 100)}`;
+const payButton = (page: Page) => page.getByRole("dialog").getByRole("button", { name: /পেমেন্ট করুন$/ });
 
 async function businessId(request: APIRequestContext): Promise<string> {
   return ((await (await request.get("/api/v1/business")).json()) as { id: string }).id;
 }
 
-/** Puts the business in a status, as time and the daily job would. */
+/** Puts the business in a status, as time, payments and the daily job would. */
 async function setStatus(request: APIRequestContext, status: string, query = "") {
   const answer = await request.post(
     `/dev/subscription?businessId=${await businessId(request)}&status=${status}${query}`,
@@ -35,27 +35,31 @@ async function planCard(page: Page, code: string) {
   if (!plan) {
     throw new Error(`No plan ${code}`);
   }
-  const card = page
-    .getByRole("listitem")
-    .filter({ has: page.getByRole("heading", { level: 3, name: plan.nameBn, exact: true }) });
-  return { card, ...plan };
+  return { card: page.getByRole("article", { name: plan.nameBn, exact: true }), ...plan };
 }
 
-test("pays through the gateway, waits for the confirmation, and the plan becomes active", async ({ page }) => {
-  await signUpWithBusiness(page.request);
+test("starts on Free, pays for Starter through the gateway, and the plan becomes active", async ({ page }) => {
+  await signUpWithBusiness(page.request, { plan: "FREE" });
   await page.goto("/more");
   await page.getByRole("link", { name: "প্ল্যান ও পেমেন্ট" }).click();
   await expect(heading(page, "প্ল্যান ও পেমেন্ট")).toBeVisible();
-  await expect(page.getByText("ফ্রি ট্রায়াল", { exact: true })).toBeVisible();
+  await expect(page.getByText("সবসময় ফ্রি, কোনো মেয়াদ নেই")).toBeVisible();
+  await expect(page.getByText("শুধু আপনি", { exact: true })).toBeVisible();
   await expect(page.getByText("এখনো কোনো ইনভয়েস নেই।")).toBeVisible();
+  const free = await planCard(page, "FREE");
+  await expect(free.card.getByRole("button", { name: "আপনার এখনকার প্ল্যান" })).toBeDisabled();
   await expectAccessible(page);
 
+  await page.getByRole("group", { name: "কত দিনের জন্য" }).getByRole("button", { name: "৬ মাস" }).click();
   const starter = await planCard(page, "STARTER");
+  await expect(starter.card).toContainText(taka(starter.priceMonthly * 6));
   await starter.card.getByRole("button", { name: "এই প্ল্যান নিন" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("status")).toContainText(taka(starter.priceMonthly));
-  await dialog.getByLabel("৬ মাস").check();
-  await expect(dialog.getByRole("status")).toContainText(taka(starter.priceMonthly * 6));
+  await expect(dialog.getByRole("radio", { name: /^৬ মাস/ })).toBeChecked();
+  await expect(payButton(page)).toHaveText(`${taka(starter.priceMonthly * 6)} পেমেন্ট করুন`);
+  await dialog.getByRole("radio", { name: /^১ মাস/ }).check();
+  await expect(payButton(page)).toHaveText(`${taka(starter.priceMonthly)} পেমেন্ট করুন`);
+  await dialog.getByRole("radio", { name: /^৬ মাস/ }).check();
   await expectAccessible(page);
 
   // The browser's return proves nothing: the page waits until the server says it's paid.
@@ -69,7 +73,7 @@ test("pays through the gateway, waits for the confirmation, and the plan becomes
       await route.fulfill({ response });
     }
   });
-  await dialog.getByRole("button", { name: "পেমেন্টে যান" }).click();
+  await payButton(page).click();
   await expect(page.getByRole("heading", { name: "Test gateway" })).toBeVisible();
   await page.getByRole("link", { name: "Pay", exact: true }).click();
   await expect(page).toHaveURL(/\/billing\/return\?result=success/);
@@ -89,23 +93,23 @@ test("pays through the gateway, waits for the confirmation, and the plan becomes
   expect(billing).toMatchObject({ status: "ACTIVE", plan: { code: "STARTER" } });
 
   // The invoice, and its page to print.
-  await page.getByRole("link", { name: /^MJ-/ }).click();
+  await page.getByRole("link", { name: /^MJ-/ }).filter({ visible: true }).click();
   await expect(heading(page, /^MJ-/)).toBeVisible();
   await expect(page.getByText("পরিশোধিত", { exact: false }).first()).toBeVisible();
   await expectAccessible(page);
   const [printed] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("link", { name: "প্রিন্ট করুন" }).click(),
+    page.getByRole("link", { name: "প্রিন্ট বা PDF" }).click(),
   ]);
   await expect(printed.getByText(/MJ-/).first()).toBeVisible();
 });
 
 test("a failed or cancelled payment changes nothing, and says so", async ({ page }) => {
-  await signUpWithBusiness(page.request);
+  await signUpWithBusiness(page.request, { plan: "FREE" });
   const pay = async (choice: string) => {
     await page.goto("/billing");
     await (await planCard(page, "STARTER")).card.getByRole("button", { name: "এই প্ল্যান নিন" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "পেমেন্টে যান" }).click();
+    await payButton(page).click();
     await page.getByRole("link", { name: choice, exact: true }).click();
   };
 
@@ -117,34 +121,36 @@ test("a failed or cancelled payment changes nothing, and says so", async ({ page
   await expect(page.getByText("আপনি পেমেন্ট বাতিল করেছেন।", { exact: false })).toBeVisible();
 
   await page.goto("/billing");
-  await expect(page.getByText("ফ্রি ট্রায়াল", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: /^MJ-/ }).first().click();
+  await expect(page.getByText("সবসময় ফ্রি, কোনো মেয়াদ নেই")).toBeVisible();
+  await page.getByRole("link", { name: /^MJ-/ }).filter({ visible: true }).first().click();
   await expect(page.getByText("এই পেমেন্ট সম্পন্ন হয়নি।", { exact: false })).toBeVisible();
 });
 
-test("a bank transfer gives the instructions, and they're still there later", async ({ page }) => {
-  await signUpWithBusiness(page.request);
+test("a bank transfer gives the steps, and they're still there later", async ({ page }) => {
+  await signUpWithBusiness(page.request, { plan: "FREE" });
   await page.goto("/billing");
   const starter = await planCard(page, "STARTER");
   await starter.card.getByRole("button", { name: "এই প্ল্যান নিন" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("ব্যাংক ট্রান্সফার").check();
+  // A year, as the page offers first: ten months' price.
+  await dialog.getByRole("radio", { name: /^ব্যাংক ট্রান্সফার/ }).check();
   await dialog.getByRole("button", { name: "ব্যাংকের তথ্য দেখুন" }).click();
 
   await expect(heading(page, /^MJ-/)).toBeVisible();
   const number = (await heading(page, /^MJ-/).textContent()) as string;
-  await expect(page.getByText(`${taka(starter.priceMonthly)} ব্যাংকে পাঠান`)).toBeVisible();
+  await expect(page.getByText(`এই অ্যাকাউন্টে ${taka(starter.priceMonthly * 10)} পাঠান`)).toBeVisible();
   await expect(page.getByText(`Reference: ${number}`, { exact: false })).toBeVisible();
+  await expect(page.getByText("রেফারেন্সে ইনভয়েস নম্বর লিখুন")).toBeVisible();
   await expectAccessible(page);
 
   await page.goto("/billing");
-  await expect(page.getByText("ফ্রি ট্রায়াল", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: new RegExp(number) }).click();
+  await expect(page.getByText("সবসময় ফ্রি, কোনো মেয়াদ নেই")).toBeVisible();
+  await page.getByRole("link", { name: number }).filter({ visible: true }).click();
   await expect(page.getByText(`Reference: ${number}`, { exact: false })).toBeVisible();
 });
 
-test("upgrades for the prorated amount, and downgrades wait for the renewal", async ({ page }) => {
-  await signUpWithBusiness(page.request);
+test("upgrades for the prorated amount, and a cheaper plan waits for the renewal", async ({ page }) => {
+  await signUpWithBusiness(page.request, { plan: "FREE" });
   await setStatus(page.request, "ACTIVE", "&plan=STARTER&days=10");
   await page.goto("/billing");
 
@@ -154,9 +160,9 @@ test("upgrades for the prorated amount, and downgrades wait for the renewal", as
   expect(quote.amount).toBeGreaterThan(0);
   expect(quote.amount).toBeLessThan(pro.priceMonthly);
   await pro.card.getByRole("button", { name: "আপগ্রেড করুন" }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("status")).toContainText(taka(quote.amount));
-  await dialog.getByRole("button", { name: "পেমেন্টে যান" }).click();
+  await expect(page.getByRole("dialog").getByText("শুধু পার্থক্যটুকু")).toBeVisible();
+  await expect(payButton(page)).toHaveText(`${taka(quote.amount)} পেমেন্ট করুন`);
+  await payButton(page).click();
   await page.getByRole("link", { name: "Pay", exact: true }).click();
   await expect(page.getByText(`${taka(quote.amount)} পেমেন্ট পাওয়া গেছে।`, { exact: false })).toBeVisible();
   const after = (await (await page.request.get("/api/v1/billing")).json()) as { plan: { code: string } };
@@ -166,9 +172,11 @@ test("upgrades for the prorated amount, and downgrades wait for the renewal", as
   const starter = await planCard(page, "STARTER");
   await starter.card.getByRole("button", { name: "পরের নবায়নে বদলান" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "পরের নবায়নে বদলান" }).click();
-  await expect(page.getByText(new RegExp(`${starter.nameBn} প্ল্যানে যাবে`))).toBeVisible();
-  await starter.card.getByRole("button", { name: "বর্তমান প্ল্যানই রাখুন" }).click();
-  await expect(page.getByText(new RegExp(`${starter.nameBn} প্ল্যানে যাবে`))).toHaveCount(0);
+  await expect(page.getByText(new RegExp(`থেকে ${starter.nameBn}। তার আগে`))).toBeVisible();
+  await expect(starter.card.getByRole("button", { name: "বর্তমান প্ল্যানই রাখুন" })).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("button", { name: /-ই রাখুন$/ }).click();
+  await expect(page.getByText(new RegExp(`থেকে ${starter.nameBn}। তার আগে`))).toHaveCount(0);
 });
 
 test("read-only: a banner, the server refuses what the screen didn't stop, and paying turns it back on", async ({
@@ -194,8 +202,8 @@ test("read-only: a banner, the server refuses what the screen didn't stop, and p
   await page.goto("/customers");
   await page.getByRole("button", { name: "নতুন গ্রাহক" }).first().click();
   const dialog = page.getByRole("dialog");
-  await label(dialog, "গ্রাহকের নাম").fill("করিম");
-  await label(dialog, "ফোন নম্বর").fill("01712345678");
+  await dialog.getByLabel("গ্রাহকের নাম", { exact: true }).fill("করিম");
+  await dialog.getByLabel("ফোন নম্বর", { exact: true }).fill("01712345678");
   await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
   await expect(dialog.getByRole("alert")).toContainText("শুধু দেখা যাবে");
   await page.keyboard.press("Escape");
@@ -205,18 +213,34 @@ test("read-only: a banner, the server refuses what the screen didn't stop, and p
   // Staff are told whom to ask, and don't get the billing pages.
   await staff.goto("/");
   await expect(banner(staff)).toContainText("মালিককে প্ল্যান নিতে বলুন");
-  await expect(staff.getByRole("link", { name: "প্ল্যান দেখুন" })).toHaveCount(0);
+  await expect(staff.getByRole("link", { name: "আবার চালু করুন" })).toHaveCount(0);
   await staff.goto("/billing");
   await expect(staff).toHaveURL(/localhost:\d+\/$/);
   await staff.context().close();
 
   // The owner pays, and the shop is back without a reload.
-  await page.getByRole("link", { name: "প্ল্যান দেখুন" }).click();
-  await (await planCard(page, "STARTER")).card.getByRole("button", { name: "নবায়ন করুন" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "পেমেন্টে যান" }).click();
+  await page.getByRole("link", { name: "আবার চালু করুন" }).click();
+  await expect(heading(page, "প্ল্যান ও পেমেন্ট")).toBeVisible();
+  await page.getByRole("button", { name: "আবার চালু করুন" }).click();
+  await payButton(page).click();
   await page.getByRole("link", { name: "Pay", exact: true }).click();
   await expect(page.getByText("পেমেন্ট পাওয়া গেছে।", { exact: false })).toBeVisible();
   await expect(page.getByText("দোকানটি এখন শুধু দেখা যাবে")).toHaveCount(0);
+  await page.goto("/orders/new");
+  await expect(page.getByRole("button", { name: "খসড়া রাখুন" })).toBeEnabled();
+});
+
+test("a lapsed plan can move to Free at once", async ({ page }) => {
+  await signUpWithBusiness(page.request, { plan: "FREE" });
+  await setStatus(page.request, "READ_ONLY");
+  await page.goto("/billing");
+  await expect(page.getByText("দোকানটি এখন শুধু দেখা যাবে। নতুন অর্ডার", { exact: false })).toBeVisible();
+
+  await (await planCard(page, "FREE")).card.getByRole("button", { name: "ফ্রি-তে যান" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "ফ্রি-তে যান" }).click();
+
+  await expect(page.getByText("এখন ফ্রি প্ল্যানে চলছে।")).toBeVisible();
+  await expect(page.getByText("সবসময় ফ্রি, কোনো মেয়াদ নেই")).toBeVisible();
   await page.goto("/orders/new");
   await expect(page.getByRole("button", { name: "খসড়া রাখুন" })).toBeEnabled();
 });
@@ -234,7 +258,7 @@ test("a suspended business still opens, says why, and can't pay its way out", as
   await expectAccessible(page);
 });
 
-test("the banners warn of a trial's end and a payment due, and only then", async ({ page }) => {
+test("the banners warn of an old trial's end and a payment due, and only then", async ({ page }) => {
   await signUpWithBusiness(page.request);
   await page.goto("/");
   await expect(heading(page, "আজ")).toBeVisible();
@@ -243,11 +267,12 @@ test("the banners warn of a trial's end and a payment due, and only then", async
   await setStatus(page.request, "TRIALING", "&days=2");
   await page.reload();
   await expect(banner(page)).toContainText("আপনার ফ্রি ট্রায়াল");
-  await expect(page.getByRole("link", { name: "প্ল্যান দেখুন" })).toBeVisible();
 
   await setStatus(page.request, "GRACE", "&days=5");
   await page.goto("/orders");
   await expect(banner(page)).toContainText("পেমেন্ট করুন");
+  await expect(page.getByRole("link", { name: "পেমেন্ট করুন" })).toBeVisible();
+  await expectAccessible(page);
   // Grace still works: the way to a new order stays.
   await expect(page.getByRole("link", { name: "নতুন অর্ডার" })).toBeVisible();
 });

@@ -2,10 +2,13 @@ package com.mojud.tenancy.staff;
 
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -22,20 +25,44 @@ import org.springframework.web.bind.annotation.RestController;
 /** Members and invites of the selected business; owners and managers only (backend-plan.md §7). */
 @RestController
 @RequestMapping("/api/v1/staff")
-@RequiresRole(BusinessRole.MANAGER)
+@RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.TEAM)
 class StaffController {
 
     private final StaffService staff;
     private final InviteService invites;
+    private final TeamMembers team;
 
-    StaffController(StaffService staff, InviteService invites) {
+    StaffController(StaffService staff, InviteService invites, TeamMembers team) {
         this.staff = staff;
         this.invites = invites;
+        this.team = team;
     }
 
     @GetMapping
     List<StaffService.StaffMember> list() {
         return staff.list();
+    }
+
+    /** {@code email} may be left out; {@code role} is MANAGER or STAFF, never above the caller's own. */
+    record AddRequest(@NotBlank @Size(max = 120) String name, @NotBlank String phone, @Size(max = 254) String email,
+            @NotBlank @Size(max = 64) String userId, @NotNull BusinessRole role) {
+    }
+
+    /**
+     * Creates the person's account with this User ID and a starting password (in the answer, once),
+     * or adds the Mojud account their phone or email already proves; either way they are told.
+     */
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    TeamMembers.Added add(@Valid @RequestBody AddRequest body) {
+        return team.add(body.name(), body.phone(), body.email(), body.userId(), body.role());
+    }
+
+    /** For a member whose account this business made and who works nowhere else. */
+    @PostMapping("/{userId}/new-password")
+    TeamMembers.NewPassword newPassword(@PathVariable UUID userId) {
+        return team.newPassword(userId);
     }
 
     record RoleChange(@NotNull BusinessRole role) {

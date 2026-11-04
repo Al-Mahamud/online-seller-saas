@@ -4,6 +4,8 @@ import com.mojud.shared.paging.PageQuery;
 import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Customers: every member works with them (orders need them). */
 @RestController
 @RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.CUSTOMERS)
 class CustomerController {
 
     private final CustomerService customers;
@@ -37,6 +40,7 @@ class CustomerController {
      * {@code q}: search by name or part of a phone number; or neither: newest first, paged.
      */
     @GetMapping("/api/v1/customers")
+    @RequiresPermission({Permission.ORDERS, Permission.CUSTOMERS})
     PagedResult<CustomerService.View> list(@RequestParam(required = false) String q,
             @RequestParam(required = false) String phone, @ParameterObject PageQuery paging) {
         if (phone != null) {
@@ -48,12 +52,14 @@ class CustomerController {
     /** Deletes the customer (managers and owners): refused while they have orders in progress. */
     @DeleteMapping("/api/v1/customers/{id}")
     @RequiresRole(BusinessRole.MANAGER)
+    @RequiresPermission(Permission.CUSTOMERS)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void delete(@PathVariable UUID id) {
         customers.delete(id);
     }
 
     @GetMapping("/api/v1/customers/{id}")
+    @RequiresPermission({Permission.ORDERS, Permission.CUSTOMERS})
     CustomerService.View get(@PathVariable UUID id) {
         return customers.get(id);
     }

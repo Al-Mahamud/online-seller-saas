@@ -8,6 +8,7 @@ import { api, call } from "@/api/client";
 import { ApiError } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import { usePlaceName } from "@/features/delivery/geo";
+import { ON_DARK_FOCUS } from "@/lib/focus";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type Order, orderChanged, orderErrorText, orderQuery, slipsUrl, stillOut } from "./api";
@@ -21,7 +22,6 @@ const route = getRouteApi("/_app/orders/$orderId/");
 
 type DialogName = "ship" | "deliver" | "failed" | "return" | "payment" | "cancel";
 
-const ON_DARK_FOCUS = "focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-marigold-text";
 const CARD = "flex flex-col gap-2.5 rounded-[14px] border bg-card p-3.5 md:px-5 md:py-4";
 const MAIN_ACTION = cn(
   "h-13 cursor-pointer rounded-[10px] bg-marigold-text px-4.5 text-lg font-bold text-ledger hover:bg-marigold disabled:opacity-60 md:h-11.5 md:text-base",

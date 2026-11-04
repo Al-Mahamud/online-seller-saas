@@ -6,6 +6,8 @@ import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import com.mojud.tenancy.TeamSize;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -81,7 +83,8 @@ class BillingController {
     }
 
     @GetMapping("/api/v1/billing")
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission(Permission.SETTINGS)
     @Transactional(readOnly = true)
     Billing billing() {
         Subscriptions.Subscription subscription = subscriptions.current();
@@ -159,7 +162,8 @@ class BillingController {
     }
 
     @GetMapping("/api/v1/billing/invoices")
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission(Permission.SETTINGS)
     @Transactional(readOnly = true)
     PagedResult<Invoices.InvoiceView> invoices(@ParameterObject PageQuery paging) {
         return invoices.list(paging);
@@ -167,7 +171,8 @@ class BillingController {
 
     /** The invoice as a page to print or save as PDF; {@code lang} bn or en (default: the reader's). */
     @GetMapping("/api/v1/billing/invoices/{id}/print")
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission(Permission.SETTINGS)
     @Transactional(readOnly = true)
     ResponseEntity<String> print(@PathVariable UUID id, @RequestParam(required = false) String lang) {
         boolean bangla = lang != null && !lang.isBlank() ? lang.equalsIgnoreCase("bn")
@@ -180,7 +185,8 @@ class BillingController {
     }
 
     @GetMapping("/api/v1/billing/invoices/{id}")
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission(Permission.SETTINGS)
     @Transactional(readOnly = true)
     Invoices.InvoiceView invoice(@PathVariable UUID id) {
         return invoices.get(id);

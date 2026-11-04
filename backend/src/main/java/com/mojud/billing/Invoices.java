@@ -137,7 +137,7 @@ class Invoices implements PaymentConfirmations {
         return new long[] {base + vat, vat};
     }
 
-    /** Pays for {@code months} of a plan: a renewal, a first plan after the trial, or coming back from read-only. */
+    /** Pays for {@code months} of a plan: a renewal, a first paid plan after Free, or coming back from read-only. */
     Checkout checkout(String planCode, int months, PayBy payBy) {
         return open("SUBSCRIPTION", publicPlan(planCode), months, periodCharge(planCode, months), payBy);
     }
@@ -160,9 +160,14 @@ class Invoices implements PaymentConfirmations {
             throw ApiException.invalidField("months", "field.invalid_value");
         }
         Plans.Plan plan = publicPlan(planCode);
+        if (plan.priceMonthly() == 0) {
+            // Free is chosen, not paid for.
+            throw ApiException.invalidField("planCode", "field.invalid_value");
+        }
         Subscriptions.Subscription subscription = subscriptions.current();
         requireNotSuspended(subscription);
-        if (subscription.status().equals("ACTIVE") && !plan.code().equals(subscription.planCode())) {
+        boolean paidPeriod = plans.get(subscription.planCode()).priceMonthly() > 0;
+        if (subscription.status().equals("ACTIVE") && paidPeriod && !plan.code().equals(subscription.planCode())) {
             // While a paid period runs, payments extend that plan; another plan is an upgrade, or a
             // downgrade waiting for the renewal.
             throw new ApiException(ErrorCode.BILLING_USE_UPGRADE);

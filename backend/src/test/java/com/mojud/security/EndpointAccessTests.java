@@ -27,7 +27,7 @@ class EndpointAccessTests {
     /** Signed-in user, no business needed. Adding one here is a security decision: say why. */
     static final Set<String> ACCOUNT_LEVEL = Set.of(
             // The user's own account.
-            "GET /api/v1/me", "PATCH /api/v1/me", "POST /api/v1/me/password",
+            "GET /api/v1/me", "PATCH /api/v1/me", "POST /api/v1/me/password", "POST /api/v1/me/first-password",
             "POST /api/v1/me/contact/code", "POST /api/v1/me/contact",
             "GET /api/v1/me/two-factor", "POST /api/v1/me/two-factor/setup", "POST /api/v1/me/two-factor/enable",
             "POST /api/v1/me/two-factor/recovery-codes", "POST /api/v1/me/two-factor/disable",

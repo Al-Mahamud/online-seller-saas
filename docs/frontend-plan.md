@@ -265,7 +265,7 @@ Sizes are full-time working days. Each sub-phase is one commit with a green CI, 
   - A `business.not_selected` or 403 from any request triggers the same check.
   - Within that minute, writes are protected too (added in F3): each names the business on screen in `X-Business-Id`, and the server refuses it with `business.changed` if the session has moved.
 - **Roles:** `hasRole` hides what a role cannot do and `requireRole` keeps pages out of reach, with the server still deciding.
-- **Switcher:** in the header on phones and the sidebar on laptops: logo or initials, name, role. The list loads when opened; it can create another business. Switching drops everything cached from the other one.
+- **Switcher:** in the header on phones and the sidebar on laptops: logo or initials, name, role. The list loads when opened; someone who doesn't own a business yet (staff elsewhere) can create one from it, and an owner isn't offered it. Switching drops everything cached from the other one.
 - **`/settings/business`** (managers and owners): details; logo upload, change and remove (the server's message for an image too small or too large); when stock goes down, low-stock level, order number start (upper-cased as typed), slip footer.
 - **Accessibility scan caught:** the switcher's spoken name (now hidden text plus the visible name), and a menu hiding the page from screen readers while open (`modal={false}`).
 - **A bug the tests caught:** several requests failing together when a session ended each added a "return to" onto the sign-in link. Only the first counts now.

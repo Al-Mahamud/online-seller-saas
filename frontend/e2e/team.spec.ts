@@ -1,13 +1,5 @@
 import type { Browser, Page } from "@playwright/test";
-import {
-  newEmail,
-  newUserId,
-  PASSWORD,
-  readCode,
-  readInviteToken,
-  signUp,
-  signUpWithBusiness,
-} from "./support/accounts";
+import { joinAsStaff, newUserId, PASSWORD, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
 import { expect, test } from "./support/test";
 
@@ -19,38 +11,40 @@ async function secondBrowser(browser: Browser): Promise<Page> {
   return context.newPage();
 }
 
-async function invite(owner: Page, to: string, role: "ম্যানেজার" | "স্টাফ") {
-  await label(owner, "ফোন নম্বর বা ইমেইল").fill(to);
-  await label(owner, "ভূমিকা").selectOption({ label: role });
-  await owner.getByRole("button", { name: "আমন্ত্রণ পাঠান" }).click();
-  await expect(owner.getByText(`${to}-এ আমন্ত্রণ পাঠানো হয়েছে।`)).toBeVisible();
+const phone = () => `017${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
+
+/** The owner fills the form; the starting password shown once comes back. */
+async function addMember(owner: Page, name: string, userId: string, role: "স্টাফ" | "ম্যানেজার"): Promise<string> {
+  await label(owner, "নাম").fill(name);
+  await label(owner, "ফোন নম্বর").fill(phone());
+  await label(owner, "ইউজার আইডি").fill(userId);
+  await expect(owner.getByText(`✓ ${userId} পাওয়া যাবে`)).toBeVisible();
+  await owner.getByRole("radio", { name: new RegExp(`^${role}`) }).check();
+  await owner.getByRole("button", { name: "সদস্য যোগ করুন" }).click();
+  await expect(owner.getByRole("heading", { name: `${name} যোগ হয়েছেন` })).toBeVisible();
+  const card = owner.getByRole("region", { name: `${name} যোগ হয়েছেন` });
+  return ((await card.getByRole("definition").nth(1).textContent()) ?? "").trim();
 }
 
-/** Someone new opens the invite link, signs up with the invited email, and joins. */
-async function joinAsNewPerson(owner: Page, member: Page, name: string, email: string) {
-  const token = await readInviteToken(owner.request, email);
-  await member.goto(`/invites#${token}`);
-  await expect(member.getByRole("heading", { level: 1, name: /যোগ দিন/ })).toBeVisible();
+/** Signs in with the starting password and sets their own on the page that asks. */
+async function firstSignIn(member: Page, userId: string, starting: string, name: string) {
+  await member.goto("/sign-in");
+  await label(member, "ইউজার আইডি").fill(userId);
+  await label(member, "পাসওয়ার্ড").fill(starting);
+  await member.getByRole("button", { name: "লগ ইন" }).click();
+  await expect(member).toHaveURL(/\/set-password$/);
+  await expect(member.getByRole("heading", { name: `স্বাগতম, ${name}!` })).toBeVisible();
   await expectAccessible(member);
-  await member.getByRole("link", { name: "নতুন অ্যাকাউন্ট খুলুন" }).click();
-
-  await label(member, "আপনার নাম").fill(name);
-  await label(member, "ফোন নম্বর").fill(`017${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`);
-  await label(member, "ইউজার আইডি").fill(newUserId());
-  await label(member, "ইমেইল (ঐচ্ছিক)").fill(email);
-  await label(member, "পাসওয়ার্ড").fill(PASSWORD);
-  await label(member, "পাসওয়ার্ড আবার দিন").fill(PASSWORD);
-  await member.getByRole("radio", { name: "ইমেইল" }).check();
-  await member.getByRole("button", { name: "এগিয়ে যান" }).click();
-  await label(member, "৬ সংখ্যার কোড").fill(await readCode(owner.request, email));
-  await member.getByRole("button", { name: "অ্যাকাউন্ট খুলুন" }).click();
-
-  // Back on the invite, now signed in.
-  await member.getByRole("button", { name: /যোগ দিন/ }).click();
+  await label(member, "নতুন পাসওয়ার্ড").fill(PASSWORD);
+  await label(member, "আবার লিখুন").fill("something else");
+  await member.getByRole("button", { name: "পাসওয়ার্ড রেখে ঢুকুন" }).click();
+  await expect(member.getByText("দুটি পাসওয়ার্ড মিলছে না।")).toBeVisible();
+  await label(member, "আবার লিখুন").fill(PASSWORD);
+  await member.getByRole("button", { name: "পাসওয়ার্ড রেখে ঢুকুন" }).click();
   await expect(member.getByRole("heading", { level: 1, name: "আজ" })).toBeVisible();
 }
 
-test("an owner invites a manager, who joins from the link; the manager can't reach owner pages", async ({
+test("the owner adds a manager with a user ID, who sets their own password at the first sign-in", async ({
   page,
   browser,
 }) => {
@@ -60,13 +54,18 @@ test("an owner invites a manager, who joins from the link; the manager can't rea
   await expect(page.getByRole("heading", { level: 1, name: "সদস্য" })).toBeVisible();
   await expectAccessible(page);
 
-  const email = newEmail();
-  await invite(page, email, "ম্যানেজার");
-  await expect(page.getByText(email, { exact: true })).toBeVisible();
+  const userId = newUserId();
+  const starting = await addMember(page, "Karim Manager", userId, "ম্যানেজার");
+  expect(starting).toMatch(/^[A-Za-z2-9]{4}-[A-Za-z2-9]{4}$/);
+  await expect(page.getByText(/এসএমএস পাঠানো হয়েছে/)).toBeVisible();
+  await expect(page.getByText("এই পাসওয়ার্ড আর দেখা যাবে না।")).toBeVisible();
+  const row = page.getByRole("listitem").filter({ hasText: "Karim Manager" });
+  await expect(row.getByText("এখনো ঢোকেননি")).toBeVisible();
+  await expect(row.getByText(`আইডি ${userId}`, { exact: false })).toBeVisible();
   await expectAccessible(page);
 
   const manager = await secondBrowser(browser);
-  await joinAsNewPerson(page, manager, "Karim Manager", email);
+  await firstSignIn(manager, userId, starting, "Karim Manager");
   await expect(manager.getByRole("button", { name: /দলের দোকান/ })).toBeVisible();
 
   // A manager reaches the team and the business, but not the audit log or deleting.
@@ -76,17 +75,55 @@ test("an owner invites a manager, who joins from the link; the manager can't rea
   await manager.goto("/settings/audit-log");
   await expect(manager).toHaveURL(/localhost:\d+\/$/);
   await manager.goto("/settings/business");
-  await expect(manager.getByRole("heading", { level: 1, name: "ব্যবসা" })).toBeVisible();
+  await expect(manager.getByRole("heading", { level: 1, name: /দলের দোকান/ })).toBeVisible();
   await expect(manager.getByRole("button", { name: "ব্যবসা মুছে ফেলুন" })).toBeHidden();
+  await expect(manager.getByText("শুধু মালিক বদলাতে পারেন।")).toBeVisible();
+  // The rules are for the owner to change.
+  await manager.goto("/settings/staff");
+  await expect(manager.getByRole("button", { name: "বদলান", exact: true })).toBeHidden();
 
-  // The owner sees them join, and the invite is gone.
+  // The owner sees them signed in, and it is in the log.
   await page.reload();
-  await expect(page.getByText("Karim Manager")).toBeVisible();
-  await expect(page.getByRole("button", { name: `${email}-এর আমন্ত্রণ বাতিল করুন` })).toBeHidden();
+  await expect(page.getByRole("listitem").filter({ hasText: "Karim Manager" }).getByText("এখনো ঢোকেননি")).toBeHidden();
   await page.goto("/settings/audit-log");
-  await expect(page.getByText("নতুন সদস্য যোগ দিয়েছেন")).toBeVisible();
-  await expectAccessible(page);
+  await expect(page.getByRole("listitem").filter({ hasText: "সদস্য যোগ করেছেন: Karim Manager" })).toBeVisible();
   await manager.context().close();
+});
+
+test("the activity log says who did what by day, narrowed by person, kind and words", async ({ page, browser }) => {
+  await signUpWithBusiness(page.request, { business: "হিসাবের দোকান" });
+  const staff = await joinAsStaff(page, browser);
+  await page.goto("/settings/business");
+  await page.getByLabel("ঠিকানা (ঐচ্ছিক)", { exact: true }).fill("মিরপুর, ঢাকা");
+  await page.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
+  await expect(page.getByText("সংরক্ষণ হয়েছে।")).toBeVisible();
+
+  await page.goto("/more");
+  await page.getByRole("link", { name: "কার্যক্রমের তালিকা" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "কার্যক্রমের তালিকা" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: /^আজ,/ })).toBeVisible();
+  const changed = page.getByRole("listitem").filter({ hasText: "আপনি ব্যবসার তথ্য বদলেছেন" });
+  await expect(changed).toBeVisible();
+  await changed.getByRole("button", { name: "কী বদলেছে" }).click();
+  await expect(changed.getByText("মিরপুর, ঢাকা")).toBeVisible();
+  await expectAccessible(page);
+
+  // Narrowed by kind: only the team's entries, with the member named.
+  await page.getByRole("group", { name: "কোন কাজ" }).getByRole("button", { name: "সদস্য" }).click();
+  await expect(page).toHaveURL(/kind=TEAM/);
+  await expect(page.getByRole("listitem").filter({ hasText: "সদস্য যোগ করেছেন: Sumi Staff" })).toBeVisible();
+  await expect(changed).toBeHidden();
+  // By a person who did nothing here: nothing, and a way back.
+  await page.getByLabel("কে করেছেন").selectOption({ label: "সিস্টেম" });
+  await expect(page.getByText("এই খোঁজে কোনো কাজ নেই")).toBeVisible();
+  await page.getByRole("button", { name: "সব দেখুন" }).click();
+  await expect(changed).toBeVisible();
+  // Words in the details.
+  await page.getByRole("searchbox", { name: "খুঁজুন" }).fill("মিরপুর");
+  await page.getByRole("searchbox", { name: "খুঁজুন" }).press("Enter");
+  await expect(page.getByRole("status").filter({ hasText: "এই খোঁজে ১টি কাজ" })).toBeVisible();
+  await expectAccessible(page);
+  await staff.context().close();
 });
 
 test("staff can't reach team or business pages, and a removed member is out of the business", async ({
@@ -94,13 +131,10 @@ test("staff can't reach team or business pages, and a removed member is out of t
   browser,
 }) => {
   await signUpWithBusiness(page.request, { business: "সরানোর দোকান" });
-  await page.goto("/settings/staff");
-  const email = newEmail();
-  await invite(page, email, "স্টাফ");
-
-  const staff = await secondBrowser(browser);
+  const staff = await joinAsStaff(page, browser);
   await staff.clock.install();
-  await joinAsNewPerson(page, staff, "Sumi Staff", email);
+  await staff.goto("/");
+  await expect(staff.getByRole("heading", { level: 1, name: "আজ" })).toBeVisible();
 
   await staff.goto("/more");
   await expect(staff.getByRole("link", { name: "সদস্য" })).toBeHidden();
@@ -110,8 +144,9 @@ test("staff can't reach team or business pages, and a removed member is out of t
   await expect(staff).toHaveURL(/localhost:\d+\/$/);
 
   // The owner removes them; within a minute the app notices and leaves the business.
-  await page.reload();
-  await page.getByRole("listitem").filter({ hasText: "Sumi Staff" }).getByRole("button", { name: "সরান" }).click();
+  await page.goto("/settings/staff");
+  await page.getByRole("button", { name: "Sumi Staff: আরও" }).click();
+  await page.getByRole("menuitem", { name: "দল থেকে সরান" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "সরান" }).click();
   await expect(page.getByText("Sumi Staff-কে সরানো হয়েছে।")).toBeVisible();
 
@@ -121,21 +156,32 @@ test("staff can't reach team or business pages, and a removed member is out of t
   await staff.context().close();
 });
 
-test("changes a member's role, and hands over ownership with the password", async ({ page, browser }) => {
+test("changes a member's role, sends a new password, and hands over ownership", async ({ page, browser }) => {
   await signUpWithBusiness(page.request, { business: "হস্তান্তরের দোকান" });
+  const member = await joinAsStaff(page, browser, { name: "Nila Next" });
   await page.goto("/settings/staff");
-  const email = newEmail();
-  await invite(page, email, "স্টাফ");
-  const member = await secondBrowser(browser);
-  await joinAsNewPerson(page, member, "Nila Next", email);
-  await page.reload();
 
   const row = page.getByRole("listitem").filter({ hasText: "Nila Next" });
   const saved = page.waitForResponse((response) => response.request().method() === "PATCH");
-  await row.getByRole("combobox").selectOption({ label: "ম্যানেজার" });
+  await row.getByRole("radio", { name: "ম্যানেজার" }).click();
   expect((await saved).status()).toBe(204);
+  await expect(row.getByRole("radio", { name: "ম্যানেজার" })).toHaveAttribute("aria-checked", "true");
 
-  await row.getByRole("button", { name: "মালিক বানান" }).click();
+  // A new starting password, shown once; their old one stops working.
+  await page.getByRole("button", { name: "Nila Next: আরও" }).click();
+  await page.getByRole("menuitem", { name: "নতুন পাসওয়ার্ড পাঠান" }).click();
+  const sending = page.getByRole("dialog", { name: "Nila Next-কে নতুন পাসওয়ার্ড পাঠাবেন?" });
+  await expectAccessible(page);
+  await sending.getByRole("button", { name: "নতুন পাসওয়ার্ড পাঠান" }).click();
+  const shown = page.getByRole("dialog", { name: "Nila Next-এর নতুন পাসওয়ার্ড" });
+  await expect(shown.getByText("এই পাসওয়ার্ড আর দেখা যাবে না।")).toBeVisible();
+  await shown.getByRole("button", { name: "বন্ধ করুন" }).first().click();
+  await expect(row.getByText("এখনো ঢোকেননি")).toBeVisible();
+  await member.goto("/orders");
+  await expect(member).toHaveURL(/\/sign-in/);
+
+  await page.getByRole("button", { name: "Nila Next: আরও" }).click();
+  await page.getByRole("menuitem", { name: "মালিকানা দিন" }).click();
   const dialog = page.getByRole("dialog");
   await label(dialog, "বর্তমান পাসওয়ার্ড").fill("not-the-password");
   await dialog.getByRole("button", { name: "মালিক বানান" }).click();
@@ -154,36 +200,36 @@ test("changes a member's role, and hands over ownership with the password", asyn
   await member.context().close();
 });
 
-test("cancels an invite, after which its link says so", async ({ page, browser }) => {
-  await signUpWithBusiness(page.request);
+test("the owner changes what staff may do, and it counts at once", async ({ page, browser }) => {
+  await signUpWithBusiness(page.request, { business: "নিয়মের দোকান" });
+  const staff = await joinAsStaff(page, browser);
+  await staff.goto("/more");
+  await expect(staff.getByRole("link", { name: "নষ্ট পণ্য" })).toBeVisible();
+
   await page.goto("/settings/staff");
-  const email = newEmail();
-  await invite(page, email, "স্টাফ");
-  const token = await readInviteToken(page.request, email);
+  await page.getByRole("button", { name: "বদলান", exact: true }).click();
+  const stock = page.getByRole("checkbox", { name: "স্টাফ: স্টক আর নষ্ট পণ্য লেখা" });
+  await expect(stock).toBeChecked();
+  await stock.uncheck();
+  await page.getByRole("checkbox", { name: "স্টাফ: পণ্য যোগ ও দাম বদলানো" }).check();
+  await expectAccessible(page);
+  await page.getByRole("button", { name: "২টি বদল সংরক্ষণ" }).click();
+  await expect(page.getByText("নিয়ম বদলানো হয়েছে।")).toBeVisible();
+  await expect(page.getByRole("img", { name: "স্টাফ: স্টক আর নষ্ট পণ্য লেখা: পারেন না" })).toBeVisible();
 
-  await page.getByRole("button", { name: `${email}-এর আমন্ত্রণ বাতিল করুন` }).click();
-  await expect(page.getByRole("button", { name: `${email}-এর আমন্ত্রণ বাতিল করুন` })).toBeHidden();
+  await staff.reload();
+  await expect(staff.getByRole("link", { name: "নষ্ট পণ্য" })).toBeHidden();
+  await staff.goto("/damages");
+  await expect(staff).toHaveURL(/localhost:\d+\/$/);
+  await staff.goto("/products/new");
+  await expect(staff.getByRole("heading", { level: 1, name: "নতুন পণ্য" })).toBeVisible();
 
-  const stranger = await secondBrowser(browser);
-  await stranger.goto(`/invites#${token}`);
-  await expect(stranger.getByRole("alert")).toContainText("নতুন আমন্ত্রণ");
-  await stranger.context().close();
-});
-
-test("someone signed in with another account is told whose invite it is", async ({ page, browser }) => {
-  await signUpWithBusiness(page.request);
-  await page.goto("/settings/staff");
-  const email = newEmail();
-  await invite(page, email, "স্টাফ");
-  const token = await readInviteToken(page.request, email);
-
-  const other = await secondBrowser(browser);
-  await signUp(other.request);
-  await other.goto(`/invites#${token}`);
-  await other.getByRole("button", { name: /যোগ দিন/ }).click();
-
-  await expect(other.getByRole("alert")).toContainText("লগ ইন করুন");
-  await other.context().close();
+  // And back.
+  await page.getByRole("button", { name: "বদলান", exact: true }).click();
+  await page.getByRole("button", { name: "শুরুর নিয়মে ফিরিয়ে নিন" }).click();
+  await page.getByRole("button", { name: "২টি বদল সংরক্ষণ" }).click();
+  await expect(page.getByRole("img", { name: "স্টাফ: স্টক আর নষ্ট পণ্য লেখা: পারেন" })).toBeVisible();
+  await staff.context().close();
 });
 
 test("deleting a business needs the password, shows the date, and can be undone", async ({ page }) => {
@@ -191,12 +237,15 @@ test("deleting a business needs the password, shows the date, and can be undone"
   await page.goto("/settings/business");
 
   await page.getByRole("button", { name: "ব্যবসা মুছে ফেলুন" }).click();
-  const dialog = page.getByRole("dialog");
-  await label(dialog, "পাসওয়ার্ড").fill("not-the-password");
-  await dialog.getByRole("button", { name: "ব্যবসা মুছে ফেলুন" }).click();
-  await expect(label(dialog, "পাসওয়ার্ড")).toHaveAttribute("aria-invalid", "true");
-  await label(dialog, "পাসওয়ার্ড").fill(PASSWORD);
-  await dialog.getByRole("button", { name: "ব্যবসা মুছে ফেলুন" }).click();
+  const dialog = page.getByRole("dialog", { name: '"মোছার দোকান" মুছে ফেলবেন?' });
+  await expect(dialog).toContainText("০টি পণ্য, ০টি অর্ডার, ০ জন ক্রেতা");
+  await expectAccessible(page);
+  const password = label(dialog, "নিশ্চিত করতে পাসওয়ার্ড দিন");
+  await password.fill("not-the-password");
+  await dialog.getByRole("button", { name: "মুছে ফেলুন", exact: true }).click();
+  await expect(password).toHaveAttribute("aria-invalid", "true");
+  await password.fill(PASSWORD);
+  await dialog.getByRole("button", { name: "মুছে ফেলুন", exact: true }).click();
 
   // On every page until undone.
   const banner = page.getByRole("status").filter({ hasText: "মোছার দোকান" });

@@ -14,11 +14,14 @@ public record MeResponse(
         boolean emailVerified,
         String locale,
         boolean platformAdmin,
-        boolean twoFactorEnabled) {
+        boolean twoFactorEnabled,
+        /** Signed in with a starting password a business gave: their own is needed before anything else. */
+        boolean mustChangePassword) {
 
     public static MeResponse of(User user) {
         return new MeResponse(user.getId(), user.getUserId(), user.getName(), user.getPhone().e164(),
                 user.getEmail().map(Object::toString).orElse(null), user.isPhoneVerified(), user.isEmailVerified(),
-                user.getLocale(), user.isPlatformAdmin(), user.isTwoFactorEnabled());
+                user.getLocale(), user.isPlatformAdmin(), user.isTwoFactorEnabled(),
+                user.mustChangePassword());
     }
 }

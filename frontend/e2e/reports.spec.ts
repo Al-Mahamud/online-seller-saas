@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { joinAsStaff, newPhone, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
+import { switchLanguage } from "./support/shell";
 import { expect, test } from "./support/test";
 
 const number = (value: number) => new Intl.NumberFormat("bn-BD").format(value);
@@ -182,7 +183,7 @@ test("deliveries and returns come from the overview, per courier", async ({ page
   await expect(page.getByText("সব ঠিক আছে। এখন নজর দেওয়ার মতো কিছু নেই।")).toBeVisible();
   await expectAccessible(page);
 
-  await page.getByRole("button", { name: "English" }).click();
+  await switchLanguage(page, "English");
   await expect(page.getByRole("heading", { level: 2, name: "Delivery and returns" })).toBeVisible();
   await expect(page.locator("section").filter({ hasText: "Last 30 days, 5 parcels" })).toContainText("80.0%");
   await expect(page.getByText("All clear. Nothing needs your attention right now.")).toBeVisible();
@@ -319,11 +320,11 @@ test("a report compares with the days before, and a plan that can't reach them s
   await expect(period.getByText("৩০ দিনের হিসাব")).toBeVisible();
 
   const business = (await (await page.request.get("/api/v1/business")).json()) as { id: string };
-  expect((await page.request.post(`/dev/plan?businessId=${business.id}&code=STARTER`)).status()).toBe(204);
-  // Sixty days are within Starter's ninety; the sixty before them aren't.
-  const sixtyAgo = new Date(Date.now() - 59 * 24 * 60 * 60_000).toISOString().slice(0, 10);
-  await page.getByLabel("তারিখ থেকে", { exact: true }).fill(sixtyAgo);
-  await expect(period.getByText("৬০ দিনের হিসাব")).toBeVisible();
+  expect((await page.request.post(`/dev/plan?businessId=${business.id}&code=FREE`)).status()).toBe(204);
+  // Twenty days are within Free's thirty; the twenty before them aren't.
+  const twentyAgo = new Date(Date.now() - 19 * 24 * 60 * 60_000).toISOString().slice(0, 10);
+  await page.getByLabel("তারিখ থেকে", { exact: true }).fill(twentyAgo);
+  await expect(period.getByText("২০ দিনের হিসাব")).toBeVisible();
   await expect(period).toContainText("৳৪,৫০০");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
@@ -350,17 +351,17 @@ test("downloads: the orders of the chosen days, and the owner's whole copy", asy
 test("what the plan doesn't allow opens the upgrade dialog", async ({ page }) => {
   await signUpWithBusiness(page.request);
   const business = (await (await page.request.get("/api/v1/business")).json()) as { id: string };
-  expect((await page.request.post(`/dev/plan?businessId=${business.id}&code=STARTER`)).status()).toBe(204);
+  expect((await page.request.post(`/dev/plan?businessId=${business.id}&code=FREE`)).status()).toBe(204);
 
-  // Starter: no exports, and reports reach back 90 days.
+  // Free: no exports, and reports reach back 30 days.
   await page.goto("/reports");
   await page.getByRole("button", { name: "অর্ডার (CSV)" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(page.getByRole("dialog")).toContainText("আপনার প্ল্যানে ডাউনলোড নেই।");
   await page.getByRole("dialog").getByRole("button", { name: "বন্ধ করুন" }).first().click();
 
-  const longAgo = new Date(Date.now() - 120 * 24 * 60 * 60_000).toISOString().slice(0, 10);
+  const longAgo = new Date(Date.now() - 60 * 24 * 60 * 60_000).toISOString().slice(0, 10);
   await page.getByLabel("তারিখ থেকে", { exact: true }).fill(longAgo);
-  await expect(page.getByRole("dialog")).toContainText("গত ৯০ দিনের রিপোর্ট");
+  await expect(page.getByRole("dialog")).toContainText("গত ৩০ দিনের রিপোর্ট");
   await expect(page.getByRole("dialog").getByRole("link", { name: "প্ল্যান দেখুন" })).toBeVisible();
 });

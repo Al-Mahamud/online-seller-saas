@@ -3,13 +3,14 @@ import { getRouteApi, Link, type LinkProps } from "@tanstack/react-router";
 import { Check, ChevronRight, Clock, CreditCard, Package, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, useBusiness } from "@/api/business";
 import { errorMessages } from "@/api/query";
 import { Field } from "@/components/form/Field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useCanWrite } from "@/features/billing/status";
 import { lowStockQuery } from "@/features/catalog/api";
+import { LowStockLink } from "@/features/catalog/LowStockWindow";
 import type { OrderStatus } from "@/features/orders/search";
 import { dhakaToday } from "@/lib/dates";
 import { useFormat } from "@/lib/format";
@@ -328,7 +329,7 @@ function Attention({ data, overview }: { data: Today; overview: Overview }) {
           ))}
           {data.lowStock > 0 && (
             <Problem
-              link={{ to: "/products/low-stock" }}
+              link={{ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, lowStock: true }) } as LinkProps}
               tone="warning"
               icon={<Package />}
               title={t("today.lowStockItems", { count: data.lowStock, shown: format.number(data.lowStock) })}
@@ -534,7 +535,8 @@ function Deliveries({ overview }: { overview: Overview }) {
 function Products({ data, isToday }: { data: Today; isToday: boolean }) {
   const { t } = useTranslation();
   const format = useFormat();
-  const { data: lowStock, isSuccess } = useQuery(lowStockQuery({ size: SHOWN }));
+  const seesStock = can(useBusiness(), "STOCK");
+  const { data: lowStock, isSuccess } = useQuery({ ...lowStockQuery({ size: SHOWN }), enabled: seesStock });
   const items = lowStock?.items;
   return (
     <section aria-labelledby="products" className={cn(CARD, "flex-[5_1_320px]")}>
@@ -581,9 +583,7 @@ function Products({ data, isToday }: { data: Today; isToday: boolean }) {
           ))}
         </ul>
         {lowStock && lowStock.totalItems > SHOWN && (
-          <Link to="/products/low-stock" className="flex min-h-11 w-fit items-center">
-            {t("today.seeAll")}
-          </Link>
+          <LowStockLink className="flex min-h-11 w-fit items-center">{t("today.seeAll")}</LowStockLink>
         )}
       </div>
     </section>
@@ -647,7 +647,7 @@ function GetStarted({ overview }: { overview: Overview }) {
   const format = useFormat();
   const business = useBusiness();
   const canWrite = useCanWrite();
-  if (!canWrite || !hasRole(business, "MANAGER")) {
+  if (!canWrite || !can(business, "PRODUCTS")) {
     return null;
   }
   return (

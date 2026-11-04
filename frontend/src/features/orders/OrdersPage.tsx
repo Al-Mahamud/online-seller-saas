@@ -5,10 +5,11 @@ import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, call } from "@/api/client";
 import { AddressPagination } from "@/components/layout/Pagination";
-import { DatedSearchPanel, ON_DARK_FOCUS, SearchChips } from "@/components/layout/SearchPanel";
+import { ListSearch } from "@/components/search/ListSearch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useCanWrite } from "@/features/billing/status";
+import { ON_DARK_FOCUS } from "@/lib/focus";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type BulkResult, type OrderSummary, orderCountsQuery, ordersChanged, ordersQuery, slipsUrl } from "./api";
@@ -75,36 +76,22 @@ function SearchPanel({ onChange }: { onChange: () => void }) {
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   return (
-    <DatedSearchPanel
-      value={filters}
+    <ListSearch
+      list="orders"
       label={t("orders.search")}
       hint={t("orders.searchHint")}
-      fromLabel={t("orders.from")}
-      toLabel={t("orders.to")}
-      className="md:relative md:overflow-hidden md:rounded-2xl md:bg-ledger md:py-4.5 md:pr-6 md:pl-14 md:text-white"
-      onSearch={(value) => {
+      value={{ q: filters.q, from: filters.from, to: filters.to }}
+      dates={{}}
+      onChange={(value) => {
         onChange();
-        void navigate({ search: { status: filters.status, ...value, size: filters.size }, replace: true });
+        void navigate({
+          search: { status: filters.status, q: value.q, from: value.from, to: value.to, size: filters.size },
+          replace: true,
+        });
       }}
       onReset={() => {
         onChange();
         void navigate({ search: { size: filters.size }, replace: true });
-      }}
-    >
-      <div aria-hidden="true" className="absolute inset-y-0 left-7 hidden w-0.5 bg-marigold md:block" />
-    </DatedSearchPanel>
-  );
-}
-
-function ActiveFilters({ onChange }: { onChange: () => void }) {
-  const filters = route.useSearch();
-  const navigate = route.useNavigate();
-  return (
-    <SearchChips
-      value={filters}
-      onRemove={(key) => {
-        onChange();
-        void navigate({ search: { ...filters, [key]: undefined, page: undefined }, replace: true });
       }}
     />
   );
@@ -214,7 +201,6 @@ export function OrdersPage() {
       </div>
 
       <div className="flex flex-col gap-2.5 max-md:relative max-md:-mx-4 max-md:-mt-7.5 max-md:rounded-t-3xl max-md:bg-background max-md:px-3.5 max-md:pt-3.5 md:gap-4">
-        <ActiveFilters onChange={clearSelection} />
         {results && (
           <Alert variant={failures.length > 0 ? "destructive" : "default"}>
             <AlertDescription>
