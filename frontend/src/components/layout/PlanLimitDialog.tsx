@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, useBusiness } from "@/api/business";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,14 +35,14 @@ export default function PlanLimitDialog({ limit, onClose: close }: { limit: Plan
           <DialogTitle>{t("planLimit.title")}</DialogTitle>
           <DialogDescription>
             {text}
-            {!hasRole(business, "MANAGER") && ` ${t("planLimit.askOwner")}`}
+            {!can(business, "SETTINGS") && ` ${t("planLimit.askOwner")}`}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={close}>
             {t("page.close")}
           </Button>
-          {hasRole(business, "MANAGER") && (
+          {can(business, "SETTINGS") && (
             <Button asChild onClick={close}>
               <Link to="/billing">{t("planLimit.seePlans")}</Link>
             </Button>

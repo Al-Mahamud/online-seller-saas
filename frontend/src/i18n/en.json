@@ -401,7 +401,7 @@
     "welcome": {
       "title": "Add your business",
       "subtitle": "To start, give the name of your shop or page. The rest can wait.",
-      "invited": "If someone invited you to their business, open the link they sent you."
+      "invited": "If a business adds you as a member, open this page again and it opens by itself."
     },
     "profile": {
       "title": "Business details",
@@ -524,77 +524,7 @@
   },
   "audit": {
     "title": "Activity log",
-    "system": "System",
-    "more": "Show more",
-    "action": {
-      "business": {
-        "created": "Business created",
-        "deletion_cancelled": "Business deletion cancelled",
-        "deletion_requested": "Business deletion requested",
-        "ownership_transferred": "Ownership handed over",
-        "settings_changed": "Settings changed",
-        "suspended": "Business suspended",
-        "unsuspended": "Business resumed",
-        "updated": "Business details changed"
-      },
-      "cod": {
-        "settled": "COD settled"
-      },
-      "customer": {
-        "deleted": "Customer deleted"
-      },
-      "delivery_zones": {
-        "changed": "Delivery zones changed"
-      },
-      "import": {
-        "committed": "Products imported"
-      },
-      "invoice": {
-        "marked_paid": "Invoice marked paid",
-        "opened": "Invoice created",
-        "paid": "Invoice paid"
-      },
-      "order": {
-        "cancelled": "Order cancelled",
-        "confirmed": "Order confirmed",
-        "created": "Order created",
-        "delivered": "Order delivered",
-        "packed": "Order packed",
-        "returned": "Order returned",
-        "shipped": "Order handed to the courier",
-        "updated": "Order changed"
-      },
-      "payment": {
-        "invalid": "Invalid payment caught",
-        "recorded": "Payment recorded"
-      },
-      "plan": {
-        "edited": "Plan changed",
-        "set": "Plan set"
-      },
-      "staff": {
-        "invited": "Member invited",
-        "invite_revoked": "Invite cancelled",
-        "joined": "New member joined",
-        "left": "Member left the business",
-        "removed": "Member removed",
-        "role_changed": "Member's role changed"
-      },
-      "stock": {
-        "adjusted": "Stock changed"
-      },
-      "subscription": {
-        "changed": "Subscription changed",
-        "plan_scheduled": "Plan change scheduled",
-        "upgraded": "Plan upgraded"
-      },
-      "trial": {
-        "extended": "Trial extended"
-      },
-      "variant": {
-        "prices_changed": "Product prices changed"
-      }
-    }
+    "more": "Show more"
   },
   "products": {
     "new": "New product",
@@ -1625,5 +1555,16 @@
       "copied": "Copied",
       "whatsapp": "Send on WhatsApp"
     }
+  },
+  "firstLogin": {
+    "title": "Welcome, {{name}}!",
+    "subtitle": "First time: set a password of your own. The starting one stops working.",
+    "added": "You were added to “{{business}}” as {{role}}.",
+    "newPassword": "New password",
+    "hint": "At least 8 characters.",
+    "again": "Type it again",
+    "mismatch": "The two passwords don't match.",
+    "save": "Keep the password and go in",
+    "after": "From now on, sign in with user ID {{userId}} and this password."
   }
 }

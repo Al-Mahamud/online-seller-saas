@@ -3,7 +3,7 @@ import { getRouteApi, Link, type LinkProps } from "@tanstack/react-router";
 import { Check, ChevronRight, Clock, CreditCard, Package, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, useBusiness } from "@/api/business";
 import { errorMessages } from "@/api/query";
 import { Field } from "@/components/form/Field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -535,7 +535,8 @@ function Deliveries({ overview }: { overview: Overview }) {
 function Products({ data, isToday }: { data: Today; isToday: boolean }) {
   const { t } = useTranslation();
   const format = useFormat();
-  const { data: lowStock, isSuccess } = useQuery(lowStockQuery({ size: SHOWN }));
+  const seesStock = can(useBusiness(), "STOCK");
+  const { data: lowStock, isSuccess } = useQuery({ ...lowStockQuery({ size: SHOWN }), enabled: seesStock });
   const items = lowStock?.items;
   return (
     <section aria-labelledby="products" className={cn(CARD, "flex-[5_1_320px]")}>
@@ -646,7 +647,7 @@ function GetStarted({ overview }: { overview: Overview }) {
   const format = useFormat();
   const business = useBusiness();
   const canWrite = useCanWrite();
-  if (!canWrite || !hasRole(business, "MANAGER")) {
+  if (!canWrite || !can(business, "PRODUCTS")) {
     return null;
   }
   return (

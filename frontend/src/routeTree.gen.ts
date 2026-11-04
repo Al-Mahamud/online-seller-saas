@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as InvitesRouteImport } from './routes/invites'
+import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppMoreRouteImport } from './routes/_app/more'
@@ -69,6 +70,11 @@ const AdminRoute = AdminRouteImport.update({
 const InvitesRoute = InvitesRouteImport.update({
   id: '/invites',
   path: '/invites',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetPasswordRoute = SetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WelcomeRoute = WelcomeRouteImport.update({
@@ -274,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/invites': typeof InvitesRoute
+  '/set-password': typeof SetPasswordRoute
   '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -316,6 +323,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/invites': typeof InvitesRoute
+  '/set-password': typeof SetPasswordRoute
   '/welcome': typeof WelcomeRoute
   '/more': typeof AppMoreRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -361,6 +369,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/invites': typeof InvitesRoute
+  '/set-password': typeof SetPasswordRoute
   '/welcome': typeof WelcomeRoute
   '/_app/more': typeof AppMoreRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -407,6 +416,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/invites'
+    | '/set-password'
     | '/welcome'
     | '/more'
     | '/forgot-password'
@@ -449,6 +459,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/invites'
+    | '/set-password'
     | '/welcome'
     | '/more'
     | '/forgot-password'
@@ -493,6 +504,7 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/admin'
     | '/invites'
+    | '/set-password'
     | '/welcome'
     | '/_app/more'
     | '/_auth/forgot-password'
@@ -539,6 +551,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
   InvitesRoute: typeof InvitesRoute
+  SetPasswordRoute: typeof SetPasswordRoute
   WelcomeRoute: typeof WelcomeRoute
 }
 
@@ -570,6 +583,13 @@ declare module '@tanstack/react-router' {
       path: '/invites'
       fullPath: '/invites'
       preLoaderRoute: typeof InvitesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/set-password': {
+      id: '/set-password'
+      path: '/set-password'
+      fullPath: '/set-password'
+      preLoaderRoute: typeof SetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/welcome': {
@@ -953,6 +973,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
   InvitesRoute: InvitesRoute,
+  SetPasswordRoute: SetPasswordRoute,
   WelcomeRoute: WelcomeRoute,
 }
 export const routeTree = rootRouteImport

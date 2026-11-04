@@ -2,6 +2,8 @@ package com.mojud.delivery;
 
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -41,7 +43,8 @@ class DeliveryZoneController {
 
     /** The whole set: zones left out are removed; one zone is the default. */
     @PutMapping("/api/v1/delivery-zones")
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission(Permission.SETTINGS)
     List<DeliveryZones.Zone> replace(@Valid @RequestBody ZonesRequest body) {
         return zones.replace(body.zones().stream().map(zone -> new DeliveryZones.ZoneInput(zone.id(), zone.name(),
                 zone.charge(), Boolean.TRUE.equals(zone.isDefault()), zone.districtIds(), zone.areaIds())).toList());

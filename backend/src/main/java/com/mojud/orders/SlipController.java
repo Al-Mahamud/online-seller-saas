@@ -2,6 +2,8 @@ package com.mojud.orders;
 
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.ORDERS)
 class SlipController {
 
     private final PackingSlips slips;

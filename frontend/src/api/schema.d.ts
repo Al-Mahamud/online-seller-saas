@@ -564,6 +564,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/business/audit-log/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["summary_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/business/deletion": {
         parameters: {
             query?: never;
@@ -607,6 +623,22 @@ export interface paths {
         put: operations["changeLogo"];
         post?: never;
         delete: operations["removeLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/business/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["permissions"];
+        put: operations["changePermissions"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -731,7 +763,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_4"];
+        get: operations["list_5"];
         put?: never;
         post: operations["create_3"];
         delete?: never;
@@ -1140,6 +1172,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/first-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["setFirstPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/password": {
         parameters: {
             query?: never;
@@ -1307,7 +1355,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_3"];
+        get: operations["list_4"];
         put?: never;
         post: operations["create_2"];
         delete?: never;
@@ -1547,7 +1595,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         post: operations["create_1"];
         delete?: never;
@@ -1867,9 +1915,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_6"];
+        get: operations["list_2"];
         put?: never;
-        post?: never;
+        post: operations["add"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1956,6 +2004,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff/{userId}/new-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["newPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/stock/adjustments": {
         parameters: {
             query?: never;
@@ -1979,7 +2043,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_5"];
+        get: operations["list_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2112,6 +2176,9 @@ export interface components {
             currentPassword: string;
             to: string;
         };
+        AccountFirstPassword: {
+            newPassword: string;
+        };
         AccountPasswordChange: {
             currentPassword: string;
             newPassword: string;
@@ -2220,7 +2287,13 @@ export interface components {
         AuditLogActor: {
             /** Format: uuid */
             id: string;
-            name: string;
+            member: boolean;
+            name: string | null;
+        };
+        AuditLogCount: {
+            actor: components["schemas"]["AuditLogActor"] | null;
+            /** Format: int64 */
+            count: number;
         };
         AuditLogEntry: {
             action: string;
@@ -2235,6 +2308,24 @@ export interface components {
             entityType: string | null;
             /** Format: uuid */
             id: string;
+            /** @enum {string} */
+            kind: "ORDERS" | "STOCK" | "PRODUCTS" | "CUSTOMERS" | "TEAM" | "SETTINGS" | "PLAN";
+            subject: string | null;
+        };
+        AuditLogKindCount: {
+            /** Format: int64 */
+            count: number;
+            /** @enum {string} */
+            kind: "ORDERS" | "STOCK" | "PRODUCTS" | "CUSTOMERS" | "TEAM" | "SETTINGS" | "PLAN";
+        };
+        AuditLogSummary: {
+            actors: components["schemas"]["AuditLogActor"][];
+            kinds: components["schemas"]["AuditLogKindCount"][];
+            /** Format: int64 */
+            lastSevenDays: number;
+            people: components["schemas"]["AuditLogCount"][];
+            /** Format: int64 */
+            today: number;
         };
         AuthCodeRequest: {
             /** @enum {string} */
@@ -2464,6 +2555,10 @@ export interface components {
             role: "OWNER" | "MANAGER" | "STAFF";
             selected: boolean;
         };
+        BusinessPermissionRules: {
+            manager: ("ORDERS" | "STOCK" | "CUSTOMERS" | "COSTS" | "PRODUCTS" | "SETTINGS" | "TEAM")[];
+            staff: ("ORDERS" | "STOCK" | "CUSTOMERS" | "COSTS" | "PRODUCTS" | "SETTINGS" | "TEAM")[];
+        };
         BusinessResponse: {
             address: string | null;
             /** Format: date-time */
@@ -2472,6 +2567,7 @@ export interface components {
             id: string;
             logo: components["schemas"]["FileLinks"] | null;
             name: string;
+            permissions: ("ORDERS" | "STOCK" | "CUSTOMERS" | "COSTS" | "PRODUCTS" | "SETTINGS" | "TEAM")[];
             phone: string | null;
             /** @enum {string} */
             role: "OWNER" | "MANAGER" | "STAFF";
@@ -3009,6 +3105,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             locale: string;
+            mustChangePassword: boolean;
             name: string;
             phone: string;
             phoneVerified: boolean;
@@ -3738,6 +3835,10 @@ export interface components {
             quantity?: number;
             size?: string;
         };
+        RolePermissionsRules: {
+            manager: ("ORDERS" | "STOCK" | "CUSTOMERS" | "COSTS" | "PRODUCTS" | "SETTINGS" | "TEAM")[];
+            staff: ("ORDERS" | "STOCK" | "CUSTOMERS" | "COSTS" | "PRODUCTS" | "SETTINGS" | "TEAM")[];
+        };
         SalesReportsProfit: {
             /** Format: date */
             from: string;
@@ -3796,15 +3897,26 @@ export interface components {
         ShipmentSettleRequest: {
             shipmentIds: string[];
         };
+        StaffAddRequest: {
+            email?: string;
+            name: string;
+            phone: string;
+            /** @enum {string} */
+            role: "OWNER" | "MANAGER" | "STAFF";
+            userId: string;
+        };
         StaffInviteRequest: {
             /** @enum {string} */
             role: "OWNER" | "MANAGER" | "STAFF";
             to: string;
         };
         StaffMember: {
+            awaitingFirstSignIn: boolean;
+            canSendPassword: boolean;
             email: string | null;
             /** Format: date-time */
             joinedAt: string;
+            loginId: string;
             name: string;
             phone: string;
             /** @enum {string} */
@@ -3843,6 +3955,18 @@ export interface components {
             name: string;
             /** Format: int32 */
             productCount: number;
+        };
+        TeamMembersAdded: {
+            existingAccount: boolean;
+            member: components["schemas"]["StaffMember"];
+            /** @enum {string|null} */
+            sentBy: "SMS" | "EMAIL" | null;
+            startingPassword: string | null;
+        };
+        TeamMembersNewPassword: {
+            /** @enum {string|null} */
+            sentBy: "SMS" | "EMAIL" | null;
+            startingPassword: string;
         };
         TwoFactorCodeBody: {
             code: string;
@@ -4699,6 +4823,11 @@ export interface operations {
             query?: {
                 page?: number | null;
                 size?: number | null;
+                actor?: string;
+                kind?: "ORDERS" | "STOCK" | "PRODUCTS" | "CUSTOMERS" | "TEAM" | "SETTINGS" | "PLAN";
+                from?: string;
+                to?: string;
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -4713,6 +4842,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PagedResultAuditLogEntry"];
+                };
+            };
+        };
+    };
+    summary_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogSummary"];
                 };
             };
         };
@@ -4817,6 +4966,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BusinessResponse"];
+                };
+            };
+        };
+    };
+    permissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolePermissionsRules"];
+                };
+            };
+        };
+    };
+    changePermissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusinessPermissionRules"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolePermissionsRules"];
                 };
             };
         };
@@ -5071,7 +5264,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    list_5: {
         parameters: {
             query?: {
                 q?: string;
@@ -5769,6 +5962,30 @@ export interface operations {
             };
         };
     };
+    setFirstPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountFirstPassword"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
     changePassword: {
         parameters: {
             query?: never;
@@ -6018,7 +6235,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_4: {
         parameters: {
             query?: {
                 status?: ("DRAFT" | "CONFIRMED" | "PACKED" | "SHIPPED" | "DELIVERED" | "RETURNED" | "CANCELLED")[];
@@ -6448,7 +6665,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_3: {
         parameters: {
             query?: {
                 status?: "ACTIVE" | "ARCHIVED";
@@ -7023,7 +7240,7 @@ export interface operations {
             };
         };
     };
-    list_6: {
+    list_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -7039,6 +7256,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffMember"][];
+                };
+            };
+        };
+    };
+    add: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffAddRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMembersAdded"];
                 };
             };
         };
@@ -7193,6 +7434,28 @@ export interface operations {
             };
         };
     };
+    newPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMembersNewPassword"];
+                };
+            };
+        };
+    };
     adjust: {
         parameters: {
             query?: never;
@@ -7219,7 +7482,7 @@ export interface operations {
             };
         };
     };
-    list_5: {
+    list_6: {
         parameters: {
             query?: {
                 page?: number | null;

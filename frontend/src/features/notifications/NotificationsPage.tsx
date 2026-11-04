@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AddressPagination } from "@/components/layout/Pagination";
@@ -51,7 +51,7 @@ export function NotificationsPage() {
         </ul>
       )}
       <AddressPagination result={list.data} />
-      {hasRole(business, "MANAGER") && (
+      {can(business, "SETTINGS") && (
         <Link to="/settings/notifications" className="flex min-h-11 w-fit items-center text-primary">
           {t("notifications.emailChoices")}
         </Link>

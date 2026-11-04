@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import { joinAsStaff, newPhone, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
+import { hasBellAndLanguageSwitch, switchLanguage } from "./support/shell";
 import { expect, test } from "./support/test";
 
 const heading = (page: Page, name: string) => page.getByRole("heading", { level: 1, name });
@@ -40,14 +41,22 @@ test("a low-stock alert reaches the bell within a minute, and leads to the produ
   // The minute passes on the page's own clock, so the test proves the wait without sitting through it.
   await page.clock.install();
   await page.goto("/");
-  await expect(bell(page)).toHaveAccessibleName("নোটিফিকেশন");
+  if (hasBellAndLanguageSwitch()) {
+    await expect(bell(page)).toHaveAccessibleName("নোটিফিকেশন");
+  }
 
   await sell(page.request, kurti.variantId, 2);
   await page.clock.fastForward(61_000);
-  await expect(bell(page)).toHaveAccessibleName("নোটিফিকেশন ১ না পড়া");
+  if (hasBellAndLanguageSwitch()) {
+    await expect(bell(page)).toHaveAccessibleName("নোটিফিকেশন ১ না পড়া");
+  }
   await expectAccessible(page);
 
-  await bell(page).click();
+  if (hasBellAndLanguageSwitch()) {
+    await bell(page).click();
+  } else {
+    await page.goto("/notifications");
+  }
   await expect(heading(page, "নোটিফিকেশন")).toBeVisible();
   await expectAccessible(page);
   const notice = page.getByRole("link", { name: /সুতি কুর্তি-এর স্টক কমে গেছে/ });
@@ -55,7 +64,9 @@ test("a low-stock alert reaches the bell within a minute, and leads to the produ
   await notice.click();
 
   await expect(heading(page, "সুতি কুর্তি")).toBeVisible();
-  await expect(bell(page)).toHaveAccessibleName("নোটিফিকেশন");
+  if (hasBellAndLanguageSwitch()) {
+    await expect(bell(page)).toHaveAccessibleName("নোটিফিকেশন");
+  }
 });
 
 test("marks all as read, and the titles follow the language", async ({ page }) => {
@@ -66,15 +77,19 @@ test("marks all as read, and the titles follow the language", async ({ page }) =
   await sell(page.request, second.variantId, 2);
 
   await page.goto("/notifications");
-  await expect(bell(page)).toHaveAccessibleName("নোটিফিকেশন ২ না পড়া");
+  if (hasBellAndLanguageSwitch()) {
+    await expect(bell(page)).toHaveAccessibleName("নোটিফিকেশন ২ না পড়া");
+  }
   await expect(page.getByRole("listitem").filter({ hasText: "স্টক কমে গেছে" })).toHaveCount(2);
 
-  await page.getByRole("button", { name: "English" }).first().click();
+  await switchLanguage(page, "English");
   await expect(page.getByRole("listitem").filter({ hasText: "is running low" }).first()).toBeVisible();
-  await page.getByRole("button", { name: "বাংলা" }).first().click();
+  await switchLanguage(page, "বাংলা");
 
   await page.getByRole("button", { name: "সব পড়া হয়েছে" }).click();
-  await expect(bell(page)).toHaveAccessibleName("নোটিফিকেশন");
+  if (hasBellAndLanguageSwitch()) {
+    await expect(bell(page)).toHaveAccessibleName("নোটিফিকেশন");
+  }
   await expect(page.getByRole("button", { name: "সব পড়া হয়েছে" })).toHaveCount(0);
 });
 
@@ -116,7 +131,9 @@ test("staff don't get the managers' notices or the email choices", async ({ page
 
   await staff.goto("/notifications");
   await expect(staff.getByText("এখনো কোনো নোটিফিকেশন নেই।")).toBeVisible();
-  await expect(bell(staff)).toHaveAccessibleName("নোটিফিকেশন");
+  if (hasBellAndLanguageSwitch()) {
+    await expect(bell(staff)).toHaveAccessibleName("নোটিফিকেশন");
+  }
   await expect(staff.getByRole("link", { name: "ইমেইলের পছন্দ" })).toHaveCount(0);
   await staff.goto("/settings/notifications");
   await expect(staff).toHaveURL(/localhost:\d+\/$/);

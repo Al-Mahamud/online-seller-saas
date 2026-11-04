@@ -28,13 +28,18 @@ import org.springframework.transaction.support.TransactionTemplate;
  * because the tenancy filter reads the membership on every request.
  *
  * <p>Rules: the owner is changed only by transferring ownership; nobody changes their own role or
- * removes themselves; roles given here are MANAGER or STAFF.
+ * removes themselves; roles given here are MANAGER or STAFF; and a member allowed to manage the team
+ * ({@code TEAM}) never manages, or gives, a role above their own.
  */
 @Service
 class StaffService {
 
+    /**
+     * {@code loginId}: the User ID they sign in with. {@code awaitingFirstSignIn}: they still have the
+     * starting password. {@code canSendPassword}: the caller may send them a new starting password.
+     */
     record StaffMember(UUID userId, String name, String phone, @Nullable String email, BusinessRole role, Instant joinedAt,
-            boolean you) {
+            boolean you, String loginId, boolean awaitingFirstSignIn, boolean canSendPassword) {
     }
 
     private final MembershipRepository memberships;
@@ -63,14 +68,35 @@ class StaffService {
 
     @Transactional(readOnly = true)
     List<StaffMember> list() {
-        UUID me = CurrentBusiness.require().userId();
         List<Membership> active = memberships.findAllByStatusOrderByJoinedAt(MembershipStatus.ACTIVE);
         Map<UUID, UserDirectory.UserSummary> people = users.summaries(active.stream().map(Membership::getUserId).toList());
-        return active.stream().map(member -> {
-            UserDirectory.UserSummary person = people.get(member.getUserId());
-            return new StaffMember(member.getUserId(), person.name(), person.phone(), person.email(), member.getRole(),
-                    member.getJoinedAt(), member.getUserId().equals(me));
-        }).toList();
+        return active.stream().map(member -> member(member, people.get(member.getUserId()))).toList();
+    }
+
+    StaffMember member(Membership member, UserDirectory.UserSummary person) {
+        return member(member, person, directory.activeMembershipCount(member.getUserId()));
+    }
+
+    /** {@code businesses}: how many businesses they work in, counted by the caller when it knows better. */
+    StaffMember member(Membership member, UserDirectory.UserSummary person, int businesses) {
+        CurrentBusiness business = CurrentBusiness.require();
+        boolean you = member.getUserId().equals(business.userId());
+        return new StaffMember(member.getUserId(), person.name(), person.phone(), person.email(), member.getRole(),
+                member.getJoinedAt(), you, person.loginId(), person.awaitingFirstSignIn(),
+                !you && member.getRole() != BusinessRole.OWNER && mayManage(business, member.getRole())
+                        && business.businessId().equals(person.createdForBusiness())
+                        && businesses == 1);
+    }
+
+    /** The owner manages anyone; others only roles up to their own. */
+    static boolean mayManage(CurrentBusiness actor, BusinessRole role) {
+        return actor.role() == BusinessRole.OWNER || actor.role().atLeast(role);
+    }
+
+    static void requireMayManage(CurrentBusiness actor, BusinessRole role) {
+        if (!mayManage(actor, role)) {
+            throw new ApiException(ErrorCode.STAFF_ROLE_ABOVE_YOURS);
+        }
     }
 
     /** Demoting to STAFF also withdraws the member's unanswered invites: staff cannot invite. */
@@ -81,6 +107,8 @@ class StaffService {
         }
         Membership member = otherMember(userId);
         BusinessRole before = member.getRole();
+        requireMayManage(CurrentBusiness.require(), before);
+        requireMayManage(CurrentBusiness.require(), role);
         member.changeRole(role, clock.instant());
         int withdrawn = role == BusinessRole.STAFF ? invites.revokeAllSentBy(userId, clock.instant()) : 0;
         if (before != role) {
@@ -94,6 +122,7 @@ class StaffService {
     @Transactional
     void remove(UUID userId) {
         Membership member = otherMember(userId);
+        requireMayManage(CurrentBusiness.require(), member.getRole());
         member.remove(clock.instant());
         int withdrawn = invites.revokeAllSentBy(userId, clock.instant());
         CurrentBusiness business = CurrentBusiness.require();
@@ -147,7 +176,7 @@ class StaffService {
     }
 
     /** Another active member who is not the owner. */
-    private Membership otherMember(UUID userId) {
+    Membership otherMember(UUID userId) {
         if (userId.equals(CurrentBusiness.require().userId())) {
             throw new ApiException(ErrorCode.STAFF_SELF_CHANGE);
         }

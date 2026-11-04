@@ -4,7 +4,7 @@ import type { TFunction } from "i18next";
 import { Plus } from "lucide-react";
 import { lazy, Suspense, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, useBusiness } from "@/api/business";
 import { Choice } from "@/components/form/Choice";
 import { BackToMore } from "@/components/layout/PageHeader";
 import { Pagination } from "@/components/layout/Pagination";
@@ -39,7 +39,7 @@ export function DamagesPage() {
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   const business = useBusiness();
-  const canSeeMoney = hasRole(business, "MANAGER");
+  const canSeeMoney = can(business, "COSTS");
   const [recording, setRecording] = useState(false);
   const today = dhakaToday();
   const to = filters.to ?? today;

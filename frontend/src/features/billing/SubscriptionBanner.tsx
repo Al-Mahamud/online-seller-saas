@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Clock, Lock, TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, useBusiness } from "@/api/business";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { billingQuery } from "./api";
@@ -37,7 +37,7 @@ export function SubscriptionBanner() {
   const format = useFormat();
   const business = useBusiness();
   const { data } = useQuery(subscriptionStatusQuery);
-  const canSeeBilling = hasRole(business, "MANAGER");
+  const canSeeBilling = can(business, "SETTINGS");
   // Usage is only for managers and owners, who can do something about it.
   const { data: billing } = useQuery({ ...billingQuery, enabled: canSeeBilling && data?.status === "ACTIVE" });
   let banner: { text: string; look: keyof typeof LOOK; icon: typeof Clock; action?: string } | undefined;

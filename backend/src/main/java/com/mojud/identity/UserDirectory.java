@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,8 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class UserDirectory {
 
-    /** A user as shown to colleagues: name and contacts, nothing about sign-in. */
-    public record UserSummary(UUID id, String name, String phone, String email) {
+    /**
+     * A user as shown to colleagues: name, contacts and the User ID they sign in with; whether they
+     * still have a starting password, and which business made the account, if one did.
+     */
+    public record UserSummary(UUID id, String name, String phone, String email, String loginId,
+            boolean awaitingFirstSignIn, @Nullable UUID createdForBusiness) {
     }
 
     private final UserRepository users;
@@ -52,7 +57,8 @@ public class UserDirectory {
     public Map<UUID, UserSummary> summaries(Collection<UUID> ids) {
         return users.findAllById(ids).stream()
                 .map(user -> new UserSummary(user.getId(), user.getName(), user.getPhone().e164(),
-                        user.getEmail().map(Object::toString).orElse(null)))
+                        user.getEmail().map(Object::toString).orElse(null), user.getUserId(), user.mustChangePassword(),
+                        user.createdForBusiness().orElse(null)))
                 .collect(Collectors.toMap(UserSummary::id, Function.identity()));
     }
 

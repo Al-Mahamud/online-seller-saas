@@ -15,7 +15,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import type { hasRole } from "@/api/business";
+import { type Business, can, hasRole, type Permission } from "@/api/business";
 
 export type NavLabel =
   | "nav.today"
@@ -37,29 +37,35 @@ export interface NavLink {
   label: NavLabel;
   icon: LucideIcon;
   exact?: boolean;
-  /** Who may open it; the page itself checks too. */
+  /** Who may open it, by role or by area (any one); the page itself checks too. */
   role?: Parameters<typeof hasRole>[1];
+  areas?: Permission[];
+}
+
+/** Whether this member's menus show the link. */
+export function linkAllowed(link: NavLink, business: Business): boolean {
+  return (!link.role || hasRole(business, link.role)) && (!link.areas || can(business, ...link.areas));
 }
 
 /** The phone's tabs hold the first three; the rest are on its "More" page. */
 export const TAB_LINKS: NavLink[] = [
   { to: "/", label: "nav.today", icon: House, exact: true },
-  { to: "/orders", label: "nav.orders", icon: ReceiptText },
+  { to: "/orders", label: "nav.orders", icon: ReceiptText, areas: ["ORDERS"] },
   { to: "/products", label: "nav.products", icon: Package },
 ];
 
 export const WORK_LINKS: NavLink[] = [
-  { to: "/damages", label: "damages.title", icon: PackageX },
-  { to: "/customers", label: "customers.title", icon: Users },
-  { to: "/cod", label: "cod.title", icon: Banknote },
+  { to: "/damages", label: "damages.title", icon: PackageX, areas: ["STOCK"] },
+  { to: "/customers", label: "customers.title", icon: Users, areas: ["ORDERS", "CUSTOMERS"] },
+  { to: "/cod", label: "cod.title", icon: Banknote, areas: ["ORDERS"] },
   { to: "/reports", label: "reports.title", icon: ChartColumn },
 ];
 
 export const MANAGE_LINKS: NavLink[] = [
-  { to: "/billing", label: "billing.title", icon: CreditCard, role: "MANAGER" },
-  { to: "/settings/business", label: "business.title", icon: Store, role: "MANAGER" },
-  { to: "/settings/categories", label: "categories.title", icon: Tags, role: "MANAGER" },
-  { to: "/settings/delivery", label: "delivery.title", icon: Truck, role: "MANAGER" },
-  { to: "/settings/staff", label: "staff.title", icon: UserPlus, role: "MANAGER" },
+  { to: "/billing", label: "billing.title", icon: CreditCard, areas: ["SETTINGS"] },
+  { to: "/settings/business", label: "business.title", icon: Store, areas: ["SETTINGS"] },
+  { to: "/settings/categories", label: "categories.title", icon: Tags, areas: ["PRODUCTS"] },
+  { to: "/settings/delivery", label: "delivery.title", icon: Truck, areas: ["SETTINGS"] },
+  { to: "/settings/staff", label: "staff.title", icon: UserPlus, areas: ["TEAM"] },
   { to: "/settings/audit-log", label: "audit.title", icon: ScrollText, role: "OWNER" },
 ];

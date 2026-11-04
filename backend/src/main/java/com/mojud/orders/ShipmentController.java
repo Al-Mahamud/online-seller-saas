@@ -4,6 +4,8 @@ import com.mojud.shared.paging.PageQuery;
 import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Shipments and their COD money. Members see them; managers and owners settle with couriers. */
 @RestController
 @RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.ORDERS)
 class ShipmentController {
 
     private final CodSettlements cod;

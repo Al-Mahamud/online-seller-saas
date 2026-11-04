@@ -3,6 +3,8 @@ package com.mojud.notifications;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.sql.Timestamp;
@@ -20,7 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
  * (to managers and owners) can be turned off; billing and security emails always go.
  */
 @RestController
-@RequiresRole(BusinessRole.MANAGER)
+@RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.SETTINGS)
 class NotificationPreferencesController {
 
     record Preferences(@NotNull Boolean lowStockDigestEmail) {

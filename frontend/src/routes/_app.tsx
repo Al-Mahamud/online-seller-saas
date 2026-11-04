@@ -41,6 +41,9 @@ export const Route = createFileRoute("/_app")({
     if (!me) {
       throw redirect({ to: "/sign-in", search: location.href === "/" ? {} : { redirect: location.href } });
     }
+    if (me.mustChangePassword) {
+      throw redirect({ to: "/set-password" });
+    }
     if (accountLanguage(me) !== currentLanguage()) {
       await setLanguage(accountLanguage(me));
     }

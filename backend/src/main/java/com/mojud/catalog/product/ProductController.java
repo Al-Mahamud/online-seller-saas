@@ -6,6 +6,8 @@ import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.error.ApiException;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
@@ -34,7 +36,8 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/products")
-@RequiresRole(BusinessRole.MANAGER)
+@RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.PRODUCTS)
 class ProductController {
 
     /** Up to ৳10,000,000,000 in poisha: far beyond any product, well inside a long. */

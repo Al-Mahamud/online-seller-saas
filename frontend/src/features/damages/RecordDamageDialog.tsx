@@ -3,7 +3,7 @@ import { ChevronDown, Minus, Plus, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, useBusiness } from "@/api/business";
 import { api, call, newIdempotencyKey } from "@/api/client";
 import { ApiError } from "@/api/errors";
 import { errorText } from "@/api/query";
@@ -53,7 +53,7 @@ export default function RecordDamageDialog({ onClose }: { onClose: () => void })
   const format = useFormat();
   const id = useId();
   const queryClient = useQueryClient();
-  const canSeeMoney = hasRole(useBusiness(), "MANAGER");
+  const canSeeMoney = can(useBusiness(), "COSTS");
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string>();
   const [lines, setLines] = useState<Line[]>([]);

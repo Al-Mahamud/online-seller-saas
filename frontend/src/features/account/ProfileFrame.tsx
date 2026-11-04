@@ -1,7 +1,7 @@
 import { Link, type LinkProps } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { hasRole, initials, useBusiness } from "@/api/business";
+import { can, initials, useBusiness } from "@/api/business";
 import { useMe } from "@/api/session";
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "./useSignOut";
@@ -18,7 +18,7 @@ export function ProfileFrame({ children }: { children: ReactNode }) {
   const tabs: { to: LinkProps["to"]; label: string }[] = [
     { to: "/settings/account", label: t("account.info") },
     { to: "/settings/security", label: t("account.security") },
-    ...(hasRole(business, "MANAGER")
+    ...(can(business, "SETTINGS")
       ? [{ to: "/settings/notifications" as const, label: t("notifications.emailChoices") }]
       : []),
   ];

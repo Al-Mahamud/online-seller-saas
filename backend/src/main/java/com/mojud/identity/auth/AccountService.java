@@ -1,5 +1,7 @@
 package com.mojud.identity.auth;
 
+import jakarta.servlet.http.HttpServletRequest;
+import com.mojud.shared.error.ErrorCode;
 import com.mojud.identity.PasswordConfirmation;
 import com.mojud.identity.account.ContactConflicts;
 import com.mojud.identity.account.MeResponse;
@@ -83,6 +85,32 @@ class AccountService {
         transactions.executeWithoutResult(status ->
                 users.findById(userId).orElseThrow(ApiException::notFound).changePassword(hash, clock.instant()));
         sessions.revokeOthers(userId, currentSessionId);
+    }
+
+    /**
+     * The first password of an account a business created: replaces the starting one, which had
+     * just been typed to sign in, so it isn't asked for again. Other devices are signed out.
+     *
+     * @throws ApiException {@code access.denied} when the account has its own password already, or
+     *         {@code auth.starting_password_expired}
+     */
+    MeResponse setFirstPassword(UUID userId, String newPassword, HttpServletRequest request) {
+        User before = users.findById(userId).orElseThrow(ApiException::notFound);
+        if (!before.mustChangePassword()) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+        if (before.startingPasswordExpired(clock.instant())) {
+            throw new ApiException(ErrorCode.STARTING_PASSWORD_EXPIRED);
+        }
+        String hash = passwords.encode(newPassword);
+        User after = transactions.execute(status -> {
+            User user = users.findById(userId).orElseThrow(ApiException::notFound);
+            user.changePassword(hash, clock.instant());
+            return user;
+        });
+        PasswordGate.clear(request);
+        sessions.revokeOthers(userId, request.getSession().getId());
+        return MeResponse.of(after);
     }
 
     /**

@@ -1,5 +1,6 @@
 import { getRouteApi, Link, type LinkProps, useNavigate } from "@tanstack/react-router";
 import { lazy, type ReactNode, Suspense } from "react";
+import { can, useBusiness } from "@/api/business";
 
 const route = getRouteApi("/_app");
 const LowStockDialog = lazy(() => import("./LowStockDialog"));
@@ -15,7 +16,8 @@ export function lowStockSearch(search: Record<string, unknown>): { lowStock?: tr
 export function LowStockWindow() {
   const { lowStock } = route.useSearch();
   const navigate = useNavigate();
-  if (!lowStock) {
+  const business = useBusiness();
+  if (!lowStock || !can(business, "STOCK")) {
     return null;
   }
   return (

@@ -57,6 +57,16 @@ class AccountController {
                 request.getSession().getId(), request.getRemoteAddr());
     }
 
+    record FirstPassword(@NotBlank @Size(min = 8, max = 128) String newPassword) {
+    }
+
+    /** After signing in with a starting password a business gave: their own, before anything else. */
+    @PostMapping("/first-password")
+    MeResponse setFirstPassword(@AuthenticationPrincipal AuthenticatedUser user, @Valid @RequestBody FirstPassword body,
+            HttpServletRequest request) {
+        return accounts.setFirstPassword(user.id(), body.newPassword(), request);
+    }
+
     /** {@code to} is a phone number or an email address. */
     record ContactCodeRequest(@NotBlank String to) {
     }

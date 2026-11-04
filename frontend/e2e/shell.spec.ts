@@ -1,5 +1,6 @@
 import { signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
+import { hasBellAndLanguageSwitch } from "./support/shell";
 import { expect, test } from "./support/test";
 
 test.beforeEach(async ({ page }) => {
@@ -43,6 +44,7 @@ test("moves between tabs and marks the open one", async ({ page }) => {
 });
 
 test("switches to English and saves it on the account", async ({ page }) => {
+  test.skip(!hasBellAndLanguageSwitch(), "The laptop sidebar leaves the language switch out for now.");
   await page.goto("/orders");
 
   const saved = page.waitForResponse(

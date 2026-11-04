@@ -6,6 +6,7 @@ import com.mojud.shared.error.ApiException;
 import com.mojud.shared.time.DhakaTime;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
+import com.mojud.tenancy.Permission;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -67,7 +68,7 @@ class Dashboard {
         }
         ranges.requireReachable(day);
         OrderReports.Day figures = orders.day(day);
-        boolean seesProfit = CurrentBusiness.require().isAtLeast(BusinessRole.MANAGER);
+        boolean seesProfit = CurrentBusiness.require().can(Permission.COSTS);
         return new Today(day, new Confirmed(figures.confirmedOrders(), figures.confirmedValue()), figures.cancelledOrders(),
                 figures.byStatus(), figures.shipped(), figures.delivered(),
                 new Cod(figures.codInTransit(), figures.codWithCourier(), figures.codInTransit() + figures.codWithCourier()),

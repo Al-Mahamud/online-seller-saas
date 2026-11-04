@@ -12,6 +12,7 @@ import com.mojud.shared.paging.PagedResult;
 import com.mojud.shared.text.Text;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
+import com.mojud.tenancy.Permission;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -192,6 +193,6 @@ class DamageReports {
     }
 
     private static boolean seesMoney() {
-        return CurrentBusiness.require().isAtLeast(BusinessRole.MANAGER);
+        return CurrentBusiness.require().can(Permission.COSTS);
     }
 }

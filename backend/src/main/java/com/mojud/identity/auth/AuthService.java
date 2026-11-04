@@ -187,6 +187,10 @@ class AuthService {
         if (!user.isActive()) {
             throw new ApiException(ErrorCode.ACCOUNT_DISABLED);
         }
+        if (user.startingPasswordExpired(clock.instant())) {
+            // The right starting password, but too late: the business sends a new one.
+            throw new ApiException(ErrorCode.STARTING_PASSWORD_EXPIRED);
+        }
         if (user.isTwoFactorEnabled()) {
             // The failure count is cleared only once the second step is passed too.
             sessions.awaitSecondStep(user.getId(), userId, request);
@@ -194,6 +198,7 @@ class AuthService {
         }
         limits.loginSucceeded(userId, clientIp);
         sessions.start(principal(user, false), user.getLocale(), request, response);
+        PasswordGate.mark(request, user);
         return Optional.of(MeResponse.of(user));
     }
 
@@ -220,6 +225,7 @@ class AuthService {
         }
         limits.loginSucceeded(pending.login(), clientIp);
         sessions.start(principal(user, true), user.getLocale(), request, response);
+        PasswordGate.mark(request, user);
         if (verified.recoveryCode()) {
             emails.recoveryCodeUsed(user, verified.recoveryCodesLeft());
         }

@@ -3,7 +3,9 @@ package com.mojud.tenancy.business;
 import com.mojud.identity.AuthenticatedUser;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
+import com.mojud.tenancy.Permission;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
 import com.mojud.tenancy.web.SelectedBusiness;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -16,6 +18,7 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,7 +42,10 @@ class BusinessController {
     private final BusinessService businesses;
     private final DeletionRequests deletions;
 
-    BusinessController(BusinessService businesses, DeletionRequests deletions) {
+    private final RolePermissions rolePermissions;
+
+    BusinessController(BusinessService businesses, DeletionRequests deletions, RolePermissions rolePermissions) {
+        this.rolePermissions = rolePermissions;
         this.deletions = deletions;
         this.businesses = businesses;
     }
@@ -92,7 +98,8 @@ class BusinessController {
     }
 
     @PatchMapping("/api/v1/business")
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission(Permission.SETTINGS)
     BusinessResponse update(@Valid @RequestBody UpdateRequest body) {
         return businesses.update(body.name(), body.phone(), body.address());
     }
@@ -102,14 +109,16 @@ class BusinessController {
 
     /** An uploaded file ({@code POST /uploads}) becomes the logo. */
     @PutMapping("/api/v1/business/logo")
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission(Permission.SETTINGS)
     BusinessResponse changeLogo(@Valid @RequestBody LogoRequest body) {
         return businesses.changeLogo(body.fileId());
     }
 
     /** The uploaded file itself is kept. */
     @DeleteMapping("/api/v1/business/logo")
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission(Permission.SETTINGS)
     BusinessResponse removeLogo() {
         return businesses.changeLogo(null);
     }
@@ -138,6 +147,23 @@ class BusinessController {
         deletions.cancel();
     }
 
+    record PermissionRules(@NotNull Set<Permission> staff, @NotNull Set<Permission> manager) {
+    }
+
+    /** What staff and managers may do here; every member may read it. */
+    @GetMapping("/api/v1/business/permissions")
+    @RequiresRole(BusinessRole.STAFF)
+    RolePermissions.Rules permissions() {
+        return rolePermissions.read();
+    }
+
+    /** The owner's choice; counts from each member's next request. */
+    @PutMapping("/api/v1/business/permissions")
+    @RequiresRole(BusinessRole.OWNER)
+    RolePermissions.Rules changePermissions(@Valid @RequestBody PermissionRules body) {
+        return rolePermissions.write(body.staff(), body.manager());
+    }
+
     @GetMapping("/api/v1/business/settings")
     @RequiresRole(BusinessRole.STAFF)
     SettingsResponse settings() {
@@ -163,7 +189,8 @@ class BusinessController {
 
     /** Fields left out stay as they are. */
     @PatchMapping("/api/v1/business/settings")
-    @RequiresRole(BusinessRole.MANAGER)
+    @RequiresRole(BusinessRole.STAFF)
+    @RequiresPermission(Permission.SETTINGS)
     SettingsResponse updateSettings(@Valid @RequestBody SettingsRequest body) {
         return businesses.updateSettings(body.stockCommitPoint(), body.lowStockDefault(), body.orderNumberPrefix(),
                 body.invoiceFooter());

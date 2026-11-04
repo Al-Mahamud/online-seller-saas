@@ -4,6 +4,8 @@ import com.mojud.shared.error.ApiException;
 import com.mojud.shared.idempotency.Idempotency;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotEmpty;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.STOCK)
 class StockController {
 
     static final int MAX_QUANTITY = 1_000_000;

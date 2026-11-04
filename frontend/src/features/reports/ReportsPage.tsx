@@ -3,7 +3,7 @@ import { getRouteApi, Link } from "@tanstack/react-router";
 import { Download as DownloadIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, hasRole, useBusiness } from "@/api/business";
 import { errorMessages } from "@/api/query";
 import { Choice } from "@/components/form/Choice";
 import { Field } from "@/components/form/Field";
@@ -43,7 +43,7 @@ export function ReportsPage() {
   const to = search.to ?? today;
   const from = search.from ?? addDays(to, -29);
   const by = search.by ?? "day";
-  const canSeeProfit = hasRole(business, "MANAGER");
+  const canSeeProfit = can(business, "COSTS");
   const change = (next: Partial<typeof search>) => void navigate({ search: { ...search, ...next }, replace: true });
   const presets = [
     { label: t("reports.last7"), from: addDays(today, -6) },

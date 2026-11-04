@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { joinAsStaff, newPhone, signUpWithBusiness } from "./support/accounts";
 import { expectAccessible } from "./support/axe";
+import { switchLanguage } from "./support/shell";
 import { expect, test } from "./support/test";
 
 const number = (value: number) => new Intl.NumberFormat("bn-BD").format(value);
@@ -182,7 +183,7 @@ test("deliveries and returns come from the overview, per courier", async ({ page
   await expect(page.getByText("সব ঠিক আছে। এখন নজর দেওয়ার মতো কিছু নেই।")).toBeVisible();
   await expectAccessible(page);
 
-  await page.getByRole("button", { name: "English" }).click();
+  await switchLanguage(page, "English");
   await expect(page.getByRole("heading", { level: 2, name: "Delivery and returns" })).toBeVisible();
   await expect(page.locator("section").filter({ hasText: "Last 30 days, 5 parcels" })).toContainText("80.0%");
   await expect(page.getByText("All clear. Nothing needs your attention right now.")).toBeVisible();

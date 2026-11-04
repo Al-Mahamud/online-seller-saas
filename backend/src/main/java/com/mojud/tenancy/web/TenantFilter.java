@@ -1,5 +1,9 @@
 package com.mojud.tenancy.web;
 
+import com.mojud.tenancy.BusinessRole;
+import com.mojud.tenancy.Permission;
+import com.mojud.tenancy.business.RolePermissions;
+import java.util.Set;
 import com.mojud.identity.AuthenticatedUser;
 import com.mojud.shared.tenant.TenantScope;
 import com.mojud.tenancy.CurrentBusiness;
@@ -38,15 +42,18 @@ class TenantFilter extends OncePerRequestFilter {
 
     private final MembershipRepository memberships;
     private final MembershipDirectory directory;
+    private final RolePermissions permissions;
 
     /**
      * The repositories are resolved on first use: servlet filters are created while the web server
      * starts, earlier than the database needs to be ready (and, in tests, before the embedded
      * database's address is known).
      */
-    TenantFilter(@Lazy MembershipRepository memberships, @Lazy MembershipDirectory directory) {
+    TenantFilter(@Lazy MembershipRepository memberships, @Lazy MembershipDirectory directory,
+            @Lazy RolePermissions permissions) {
         this.memberships = memberships;
         this.directory = directory;
+        this.permissions = permissions;
     }
 
     @Override
@@ -70,8 +77,10 @@ class TenantFilter extends OncePerRequestFilter {
             return;
         }
         UUID businessId = membership.get().getBusinessId();
-        request.setAttribute(CurrentBusiness.class.getName(),
-                new CurrentBusiness(businessId, userId, membership.get().getRole()));
+        BusinessRole role = membership.get().getRole();
+        // What this role may do here is read afresh too, so the owner's change counts at once.
+        Set<Permission> allowed = TenantScope.call(businessId, () -> permissions.forRole(role));
+        request.setAttribute(CurrentBusiness.class.getName(), new CurrentBusiness(businessId, userId, role, allowed));
         try (TenantScope.Opened ignored = TenantScope.open(businessId)) {
             chain.doFilter(request, response);
         }

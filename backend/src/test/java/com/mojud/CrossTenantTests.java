@@ -70,6 +70,7 @@ class CrossTenantTests {
         CASES.put("GET /api/v1/me", (a, b) -> expectNoLeak(b.owner().get("/api/v1/me"), a));
         CASES.put("PATCH /api/v1/me", (a, b) -> expectNoLeak(b.owner().patch("/api/v1/me", Map.of()), a));
         CASES.put("POST /api/v1/me/password", notBusinessData(ownAccount));
+        CASES.put("POST /api/v1/me/first-password", notBusinessData(ownAccount));
         CASES.put("POST /api/v1/me/contact/code", notBusinessData(ownAccount));
         CASES.put("POST /api/v1/me/contact", notBusinessData(ownAccount));
         CASES.put("GET /api/v1/me/two-factor", notBusinessData(ownAccount));
@@ -92,10 +93,24 @@ class CrossTenantTests {
         });
         CASES.put("PATCH /api/v1/business/settings",
                 (a, b) -> expectNoLeak(b.owner().patch("/api/v1/business/settings", Map.of()), a));
+        CASES.put("GET /api/v1/business/permissions",
+                (a, b) -> expectNoLeak(b.owner().get("/api/v1/business/permissions"), a));
+        CASES.put("PUT /api/v1/business/permissions", (a, b) -> {
+            expectNoLeak(b.owner().put("/api/v1/business/permissions",
+                    Map.of("staff", List.of("ORDERS"), "manager", List.of("ORDERS"))), a);
+            assertThat(a.owner().get("/api/v1/business/permissions").<List<String>>json("$.staff"))
+                    .containsExactly("ORDERS", "STOCK", "CUSTOMERS");
+        });
         CASES.put("GET /api/v1/business/audit-log", (a, b) -> expectNoLeak(b.owner().get("/api/v1/business/audit-log"), a));
+        CASES.put("GET /api/v1/business/audit-log/summary",
+                (a, b) -> expectNoLeak(b.owner().get("/api/v1/business/audit-log/summary"), a));
 
         // Staff.
         CASES.put("GET /api/v1/staff", (a, b) -> expectNoLeak(b.owner().get("/api/v1/staff"), a));
+        CASES.put("POST /api/v1/staff", (a, b) -> expectNoLeak(b.owner().post("/api/v1/staff", Map.of(
+                "name", "New", "phone", TestAccounts.newPhone(), "userId", TestAccounts.newUserId(), "role", "STAFF")), a));
+        CASES.put("POST /api/v1/staff/{userId}/new-password", (a, b) -> expectNotFound(
+                b.owner().post("/api/v1/staff/" + a.staffId() + "/new-password", Map.of())));
         CASES.put("POST /api/v1/staff/leave", (a, b) -> expectNoLeak(b.owner().post("/api/v1/staff/leave", Map.of()), a));
         CASES.put("PATCH /api/v1/staff/{userId}", (a, b) -> expectNotFound(
                 b.owner().patch("/api/v1/staff/" + a.staffId(), Map.of("role", "MANAGER"))));

@@ -3,6 +3,7 @@ import { getRouteApi, Link } from "@tanstack/react-router";
 import { Phone, Plus } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { can, useBusiness } from "@/api/business";
 import { BackToMore } from "@/components/layout/PageHeader";
 import { AddressPagination } from "@/components/layout/Pagination";
 import { ListSearch } from "@/components/search/ListSearch";
@@ -28,12 +29,14 @@ export function CustomersPage() {
   const total = customers.data?.totalItems ?? 0;
   const search = (text?: string) =>
     void navigate({ search: { q: text || undefined, size: paging.size }, replace: true });
-  const addButton = (className: string) => (
-    <Button className={className} onClick={() => setCreating(true)}>
-      <Plus aria-hidden="true" strokeWidth={2.5} />
-      {t("customers.new")}
-    </Button>
-  );
+  const canAdd = can(useBusiness(), "CUSTOMERS");
+  const addButton = (className: string) =>
+    canAdd && (
+      <Button className={className} onClick={() => setCreating(true)}>
+        <Plus aria-hidden="true" strokeWidth={2.5} />
+        {t("customers.new")}
+      </Button>
+    );
   return (
     <div className="flex w-full flex-col gap-4">
       {/* On phones the title and the panel share one dark header; from 768 px each stands alone. */}

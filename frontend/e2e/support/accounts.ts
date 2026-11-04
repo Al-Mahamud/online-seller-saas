@@ -110,32 +110,36 @@ export async function signUpWithBusiness(
   return account;
 }
 
-/** Someone new who accepts an invite to the owner's business, as staff, in a browser of their own. */
-export async function joinAsStaff(owner: Page, browser: Browser): Promise<Page> {
-  const email = newEmail();
+/**
+ * Someone the owner adds to the business (by default as staff), who signs in with the starting
+ * password and sets their own, in a browser of their own.
+ */
+export async function joinAsStaff(
+  owner: Page,
+  browser: Browser,
+  { name = "Sumi Staff", role = "STAFF" }: { name?: string; role?: "STAFF" | "MANAGER" } = {},
+): Promise<Page> {
+  const userId = newUserId();
   const headers = { "X-XSRF-TOKEN": await csrfToken(owner.request) };
-  const sent = await owner.request.post("/api/v1/staff/invites", { headers, data: { to: email, role: "STAFF" } });
-  expect(sent.status()).toBe(201);
-  const token = await readInviteToken(owner.request, email);
+  const added = await owner.request.post("/api/v1/staff", {
+    headers,
+    data: { name, phone: `018${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`, userId, role },
+  });
+  expect(added.status()).toBe(201);
+  const { startingPassword } = (await added.json()) as { startingPassword: string };
 
   const context = await browser.newContext({ baseURL: test.info().project.use.baseURL });
   const staff = await context.newPage();
   const staffHeaders = { "X-XSRF-TOKEN": await csrfToken(staff.request), "Accept-Language": "bn" };
-  await staff.request.post("/api/v1/auth/otp", { headers: staffHeaders, data: { to: email, purpose: "SIGNUP" } });
-  const code = await readCode(owner.request, email);
-  await staff.request.post("/api/v1/auth/signup", {
+  const signedIn = await staff.request.post("/api/v1/auth/login", {
     headers: staffHeaders,
-    data: {
-      userId: newUserId(),
-      name: "Sumi Staff",
-      phone: `018${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`,
-      email,
-      password: PASSWORD,
-      codeSentTo: "EMAIL",
-      code,
-    },
+    data: { userId, password: startingPassword },
   });
-  const joined = await staff.request.post("/api/v1/invites/accept", { headers: staffHeaders, data: { token } });
-  expect(joined.status()).toBe(200);
+  expect(signedIn.status()).toBe(200);
+  const own = await staff.request.post("/api/v1/me/first-password", {
+    headers: { "X-XSRF-TOKEN": await csrfToken(staff.request) },
+    data: { newPassword: PASSWORD },
+  });
+  expect(own.status()).toBe(200);
   return staff;
 }

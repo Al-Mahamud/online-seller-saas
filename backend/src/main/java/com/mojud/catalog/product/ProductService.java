@@ -20,6 +20,7 @@ import com.mojud.shared.text.Text;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.BusinessDefaults;
 import com.mojud.tenancy.CurrentBusiness;
+import com.mojud.tenancy.Permission;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -651,7 +652,7 @@ class ProductService {
                 variant.changePrices(price, cost, now);
                 CurrentBusiness business = CurrentBusiness.require();
                 audit.record(business.businessId(), business.userId(), "variant.prices_changed", "variant", variantId,
-                        "sku", variant.getSku(), "changes", changes.asMap());
+                        "sku", variant.getSku(), "product", find(variant.getProductId()).getName(), "changes", changes.asMap());
             }
             if (command.useDefaultThreshold()) {
                 variant.changeLowStockThreshold(null, now);
@@ -861,6 +862,6 @@ class ProductService {
     }
 
     private static boolean showCost() {
-        return CurrentBusiness.require().isAtLeast(BusinessRole.MANAGER);
+        return CurrentBusiness.require().can(Permission.COSTS);
     }
 }

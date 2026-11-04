@@ -7,7 +7,7 @@ import { type UseFormReturn, useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod/mini";
-import { type Business, businessQuery, hasRole, initials, settingsQuery, useBusiness } from "@/api/business";
+import { type Business, businessQuery, can, hasRole, initials, settingsQuery, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";
 import { uploadImage } from "@/api/uploads";
@@ -277,7 +277,7 @@ function useContactLine(form: Form) {
 function useNextNumber(form: Form) {
   const format = useFormat();
   const prefix = useWatch({ control: form.control, name: "orderNumberPrefix" }).trim().toUpperCase();
-  const { data } = useQuery(ordersQuery({ size: 1 }));
+  const { data } = useQuery({ ...ordersQuery({ size: 1 }), enabled: can(useBusiness(), "ORDERS") });
   const newest = data?.items[0]?.number;
   const next = newest ? newest + 1 : FIRST_ORDER;
   return format.orderNumber(`${prefix || "#"}${next}`);
@@ -292,7 +292,7 @@ function Header({ form, business, onLogo }: { form: Form; business: Business; on
   const contact = useContactLine(form);
   const nextNumber = useNextNumber(form);
   const { data: billing } = useQuery(billingQuery);
-  const { data: members } = useQuery(membersQuery);
+  const { data: members } = useQuery({ ...membersQuery, enabled: can(business, "TEAM") });
   const lowNumber = Number(latinDigits(low.trim()));
   const figures = [
     { label: t("business.page.commitAt"), value: t("business.page.commitSHIP") },
@@ -534,7 +534,7 @@ const STEPS = [
 function StockCard({ form }: { form: Form }) {
   const { t } = useTranslation();
   const format = useFormat();
-  const { data: lowStock } = useQuery(lowStockQuery({ size: 1 }));
+  const { data: lowStock } = useQuery({ ...lowStockQuery({ size: 1 }), enabled: can(useBusiness(), "STOCK") });
   const id = sectionId("stock");
   const step = (by: number) => {
     const now = Number(latinDigits(form.getValues("lowStockDefault").trim()));

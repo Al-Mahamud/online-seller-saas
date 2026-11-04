@@ -20,6 +20,7 @@ const me = {
   locale: "bn",
   platformAdmin: false,
   twoFactorEnabled: false,
+  mustChangePassword: false,
 };
 
 const business: Business = {
@@ -29,6 +30,7 @@ const business: Business = {
   address: null,
   logo: null,
   role: "OWNER",
+  permissions: ["ORDERS", "STOCK", "CUSTOMERS", "COSTS", "PRODUCTS", "SETTINGS", "TEAM"],
   deletionDueAt: null,
 };
 

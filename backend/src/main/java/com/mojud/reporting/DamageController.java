@@ -5,6 +5,8 @@ import com.mojud.shared.paging.PageQuery;
 import com.mojud.shared.paging.PagedResult;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.RequiresRole;
+import com.mojud.tenancy.RequiresPermission;
+import com.mojud.tenancy.Permission;
 import java.time.LocalDate;
 import java.util.Locale;
 import org.springdoc.core.annotations.ParameterObject;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequiresRole(BusinessRole.STAFF)
+@RequiresPermission(Permission.STOCK)
 class DamageController {
 
     private final DamageReports damages;

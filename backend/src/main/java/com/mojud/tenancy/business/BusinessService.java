@@ -1,5 +1,6 @@
 package com.mojud.tenancy.business;
 
+import com.mojud.tenancy.Permission;
 import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.audit.Changes;
 import com.mojud.shared.db.AdvisoryLocks;
@@ -43,9 +44,13 @@ class BusinessService {
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
+    private final RolePermissions rolePermissions;
+
     BusinessService(BusinessRepository businesses, BusinessSettingsRepository settings,
             MembershipRepository memberships, MembershipDirectory directory, TransactionTemplate transactions,
-            AdvisoryLocks locks, AuditTrail audit, ApplicationEventPublisher events, Clock clock) {
+            AdvisoryLocks locks, AuditTrail audit, ApplicationEventPublisher events, Clock clock,
+            RolePermissions rolePermissions) {
+        this.rolePermissions = rolePermissions;
         this.businesses = businesses;
         this.settings = settings;
         this.memberships = memberships;
@@ -78,7 +83,7 @@ class BusinessService {
             memberships.save(new Membership(userId, BusinessRole.OWNER, now));
             audit.record(businessId, userId, "business.created", "business", businessId, "name", business.getName());
             events.publishEvent(new BusinessCreated(businessId, userId));
-            return BusinessResponse.of(business, BusinessRole.OWNER);
+            return BusinessResponse.of(business, BusinessRole.OWNER, Permission.all());
         }));
     }
 
@@ -94,7 +99,7 @@ class BusinessService {
             Membership membership = memberships.findActive(userId).orElseThrow(ApiException::notFound);
             Business business = businesses.findById(businessId).orElseThrow(ApiException::notFound);
             memberships.markUsed(membership.getId(), clock.instant());
-            return BusinessResponse.of(business, membership.getRole());
+            return BusinessResponse.of(business, membership.getRole(), rolePermissions.forRole(membership.getRole()));
         }));
     }
 
@@ -105,7 +110,7 @@ class BusinessService {
     @Transactional(readOnly = true)
     BusinessResponse current() {
         CurrentBusiness current = CurrentBusiness.require();
-        return BusinessResponse.of(load(current.businessId()), current.role());
+        return BusinessResponse.of(load(current.businessId()), current.role(), current.permissions());
     }
 
     /** Null arguments keep the current value; an empty phone or address clears it. */
@@ -113,7 +118,7 @@ class BusinessService {
     BusinessResponse update(String name, String phone, String address) {
         CurrentBusiness current = CurrentBusiness.require();
         Business business = load(current.businessId());
-        BusinessResponse before = BusinessResponse.of(business, current.role());
+        BusinessResponse before = BusinessResponse.of(business, current.role(), current.permissions());
         Instant now = clock.instant();
         if (name != null) {
             business.rename(name, now);
@@ -123,7 +128,7 @@ class BusinessService {
                     : PhoneNumber.fromOptionalInput(phone, "phone");
             business.changeContact(newPhone, address == null ? business.getAddress() : address, now);
         }
-        BusinessResponse after = BusinessResponse.of(businesses.saveAndFlush(business), current.role());
+        BusinessResponse after = BusinessResponse.of(businesses.saveAndFlush(business), current.role(), current.permissions());
         Changes changes = new Changes()
                 .field("name", before.name(), after.name())
                 .field("phone", before.phone(), after.phone())
@@ -150,7 +155,7 @@ class BusinessService {
                 audit.record(current.businessId(), current.userId(), "business.updated", "business",
                         current.businessId(), "changes", new Changes().field("logo", before, fileId).asMap());
             }
-            return BusinessResponse.of(business, current.role());
+            return BusinessResponse.of(business, current.role(), current.permissions());
         });
     }
 

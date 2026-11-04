@@ -69,6 +69,14 @@ public enum ErrorCode {
     /** Members cannot change their own role or remove themselves. */
     STAFF_SELF_CHANGE("staff.self_change", HttpStatus.CONFLICT),
     /** Unknown, expired, used or revoked; deliberately not distinguished. */
+    /** A team member's starting password ran out before they set their own; the business sends a new one. */
+    STARTING_PASSWORD_EXPIRED("auth.starting_password_expired", HttpStatus.UNAUTHORIZED),
+    /** Signed in with a starting password: only setting their own is allowed until then. */
+    PASSWORD_CHANGE_REQUIRED("auth.password_change_required", HttpStatus.FORBIDDEN),
+    /** A new starting password only for an account this business made, used by no other business. */
+    STAFF_PASSWORD_NOT_YOURS("staff.password_not_yours", HttpStatus.CONFLICT),
+    /** Managing someone, or giving a role, above the caller's own role. */
+    STAFF_ROLE_ABOVE_YOURS("staff.role_above_yours", HttpStatus.FORBIDDEN),
     INVITE_INVALID("invite.invalid", HttpStatus.NOT_FOUND),
     /** {0} is the invited phone or email, partly hidden. */
     INVITE_WRONG_ACCOUNT("invite.wrong_account", HttpStatus.FORBIDDEN),

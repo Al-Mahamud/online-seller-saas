@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod/mini";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, useBusiness } from "@/api/business";
 import { api, call } from "@/api/client";
 import { FormError, SelectField, TextAreaField, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
@@ -33,7 +33,8 @@ export function ProductPage() {
   if (!product) {
     return <BackToProducts />;
   }
-  const manager = hasRole(business, "MANAGER");
+  const manager = can(business, "PRODUCTS");
+  const stock = can(business, "STOCK");
   const changeStock = (
     <Button
       size="lg"
@@ -60,14 +61,14 @@ export function ProductPage() {
           </div>
           <div className="flex flex-wrap gap-2.5 max-md:hidden">
             {manager && <ArchiveButton product={product} />}
-            {changeStock}
+            {stock && changeStock}
           </div>
         </div>
         <Totals product={product} />
       </div>
 
       <div className="flex flex-col gap-4.5 max-md:relative max-md:-mx-4 max-md:-mt-8 max-md:rounded-t-3xl max-md:bg-background max-md:px-3.5 max-md:pt-4">
-        <div className="md:hidden">{changeStock}</div>
+        {stock && <div className="md:hidden">{changeStock}</div>}
         <div className="flex flex-wrap items-stretch gap-4.5">
           <ProductImages product={product} canEdit={manager} />
           <Details product={product} canEdit={manager} />

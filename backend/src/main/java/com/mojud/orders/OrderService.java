@@ -18,6 +18,7 @@ import com.mojud.shared.text.Text;
 import com.mojud.shared.time.DhakaTime;
 import com.mojud.tenancy.BusinessRole;
 import com.mojud.tenancy.CurrentBusiness;
+import com.mojud.tenancy.Permission;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -407,7 +408,7 @@ class OrderService {
     }
 
     OrderViews.Detail detail(Order order) {
-        boolean showCost = CurrentBusiness.require().isAtLeast(BusinessRole.MANAGER);
+        boolean showCost = CurrentBusiness.require().can(Permission.COSTS);
         List<OrderItem> lines = items.findByOrder(order.getId());
         return OrderViews.detail(order, lines, shipments.findByOrder(order.getId()), payments.findByOrder(order.getId()),
                 returns.forOrder(order.getId(), lines), events.forOrder(order.getId()), geo, showCost);

@@ -1,0 +1,153 @@
+{
+  "subtitle": "কে কখন কী করেছেন। শুধু মালিক দেখেন।",
+  "today": "আজ",
+  "week": "৭ দিনে",
+  "count": "{{count}}টি",
+  "todayCount": "{{count}}টি কাজ",
+  "search": "খুঁজুন",
+  "searchHint": "অর্ডার নম্বর, পণ্য বা নাম",
+  "who": "কে করেছেন",
+  "everyone": "সবাই",
+  "system": "সিস্টেম",
+  "you": "আপনি",
+  "youOption": "{{name}} (আপনি)",
+  "left": "আর দলে নেই",
+  "when": "কবে",
+  "period": {
+    "today": "আজ",
+    "week": "৭ দিন",
+    "month": "৩০ দিন",
+    "all": "সব"
+  },
+  "kinds": "কোন কাজ",
+  "allKinds": "সব কাজ",
+  "kind": {
+    "ORDERS": "অর্ডার",
+    "STOCK": "স্টক",
+    "PRODUCTS": "পণ্য ও দাম",
+    "CUSTOMERS": "গ্রাহক",
+    "TEAM": "সদস্য",
+    "SETTINGS": "ব্যবসা ও সেটিংস",
+    "PLAN": "প্ল্যান ও পেমেন্ট"
+  },
+  "found": "{{count}}টি কাজ",
+  "foundFiltered": "এই খোঁজে {{count}}টি কাজ",
+  "dayToday": "আজ, {{date}}",
+  "dayYesterday": "গতকাল, {{date}}",
+  "changed": "কী বদলেছে",
+  "from": "থেকে",
+  "none": "এই খোঁজে কোনো কাজ নেই",
+  "seeAll": "সব দেখুন",
+  "older": "আগের কাজ দেখুন",
+  "empty": "এখনো তেমন কিছু হয়নি",
+  "emptyHint": "অর্ডার, স্টক, দাম, সদস্য আর সেটিংসের প্রতিটি বদল এখানে জমা হবে: কে, কখন, কী।",
+  "people": "৭ দিনে কে কতটা",
+  "byKind": "কোন কাজ বেশি",
+  "panelHint": "নাম বা কাজে চাপ দিলে তালিকা সেভাবে ছেঁকে যায়।",
+  "order": "অর্ডার {{number}}",
+  "invoice": "ইনভয়েস {{number}}",
+  "items": "{{count}}টি পণ্যে",
+  "zones": "{{count}}টি অঞ্চল",
+  "total": "মোট {{amount}}",
+  "shipments": "{{count}}টি পার্সেল · {{amount}}",
+  "imported": "{{count}}টি পণ্য",
+  "rules": "{{count}}টি নিয়ম",
+  "fields": "{{count}}টি ঘর",
+  "role": {
+    "OWNER": "মালিক",
+    "MANAGER": "ম্যানেজার",
+    "STAFF": "স্টাফ"
+  },
+  "can": "পারেন",
+  "cannot": "পারেন না",
+  "field": {
+    "name": "নাম",
+    "phone": "ফোন",
+    "address": "ঠিকানা",
+    "logo": "লোগো",
+    "stockCommitPoint": "স্টক কখন কমবে",
+    "lowStockDefault": "কম স্টকের সীমা",
+    "orderNumberPrefix": "অর্ডার নম্বরের শুরু",
+    "invoiceFooter": "স্লিপের নিচের লেখা",
+    "price": "বিক্রির দাম",
+    "costPrice": "কেনা দাম",
+    "searchTheme": "খোঁজার রং",
+    "role": "ভূমিকা",
+    "status": "অবস্থা",
+    "plan": "প্ল্যান"
+  },
+  "empty_value": "—",
+  "verb": {
+    "order": {
+      "created": "নতুন নিয়েছেন",
+      "updated": "বদলেছেন",
+      "confirmed": "নিশ্চিত করেছেন",
+      "packed": "প্যাক করেছেন",
+      "shipped": "কুরিয়ারে দিয়েছেন",
+      "delivered": "ডেলিভারি হয়েছে লিখেছেন",
+      "returned": "ফেরত লিখেছেন",
+      "cancelled": "বাতিল করেছেন"
+    },
+    "payment": {
+      "recorded": "টাকা পেয়েছেন লিখেছেন:",
+      "invalid": "অবৈধ পেমেন্ট ধরা পড়েছে:"
+    },
+    "cod": {
+      "settled": "COD বুঝে নিয়েছেন:"
+    },
+    "stock": {
+      "adjusted": "স্টক বদলেছেন"
+    },
+    "variant": {
+      "prices_changed": "দাম বদলেছেন:"
+    },
+    "import": {
+      "committed": "পণ্য ইমপোর্ট করেছেন:"
+    },
+    "customer": {
+      "deleted": "গ্রাহক মুছেছেন:"
+    },
+    "staff": {
+      "added": "সদস্য যোগ করেছেন:",
+      "invited": "সদস্যকে আমন্ত্রণ পাঠিয়েছেন",
+      "invite_revoked": "আমন্ত্রণ বাতিল করেছেন",
+      "joined": "দলে যোগ দিয়েছেন",
+      "left": "ব্যবসা ছেড়ে গেছেন",
+      "removed": "দল থেকে সরিয়েছেন:",
+      "role_changed": "ভূমিকা বদলেছেন:",
+      "password_sent": "নতুন পাসওয়ার্ড পাঠিয়েছেন:"
+    },
+    "business": {
+      "created": "ব্যবসা খুলেছেন",
+      "updated": "ব্যবসার তথ্য বদলেছেন",
+      "settings_changed": "সেটিংস বদলেছেন",
+      "permissions_changed": "বদলেছেন: কে কী করতে পারেন",
+      "ownership_transferred": "মালিকানা দিয়েছেন:",
+      "deletion_requested": "ব্যবসা মুছে ফেলতে বলেছেন",
+      "deletion_cancelled": "ব্যবসা মুছে ফেলা বাতিল করেছেন",
+      "suspended": "ব্যবসা স্থগিত হয়েছে",
+      "unsuspended": "ব্যবসা আবার চালু হয়েছে"
+    },
+    "delivery_zones": {
+      "changed": "ডেলিভারি চার্জ বদলেছেন"
+    },
+    "invoice": {
+      "opened": "ইনভয়েস তৈরি হয়েছে:",
+      "paid": "পরিশোধ হয়েছে:",
+      "marked_paid": "পরিশোধিত লিখেছেন:"
+    },
+    "subscription": {
+      "changed": "সাবস্ক্রিপশন বদলেছে",
+      "plan_scheduled": "প্ল্যান বদলের সময় ঠিক করেছেন",
+      "upgraded": "প্ল্যান আপগ্রেড করেছেন"
+    },
+    "plan": {
+      "set": "প্ল্যান ঠিক করা হয়েছে",
+      "edited": "প্ল্যান বদলানো হয়েছে"
+    },
+    "trial": {
+      "extended": "ট্রায়াল বাড়ানো হয়েছে"
+    }
+  },
+  "otherVerb": "করেছেন: {{action}}"
+}

@@ -142,7 +142,7 @@ class CustomerService implements CustomerDirectory {
         customers.delete(customer);
         customers.flush();
         CurrentBusiness me = CurrentBusiness.require();
-        audit.record(me.businessId(), me.userId(), "customer.deleted", "customer", id);
+        audit.record(me.businessId(), me.userId(), "customer.deleted", "customer", id, "name", customer.getName());
     }
 
     private static Snapshot snapshot(Customer customer) {

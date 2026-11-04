@@ -1,5 +1,7 @@
 package com.mojud.tenancy.web;
 
+import com.mojud.tenancy.RequiresPermission;
+import java.util.Arrays;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
 import com.mojud.tenancy.CurrentBusiness;
@@ -44,6 +46,15 @@ class RoleInterceptor implements HandlerInterceptor {
             throw new ApiException(ErrorCode.BUSINESS_CHANGED);
         }
         if (!business.isAtLeast(required.value())) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+        RequiresPermission areas = AnnotatedElementUtils.findMergedAnnotation(method.getMethod(), RequiresPermission.class);
+        if (areas == null && AnnotatedElementUtils.findMergedAnnotation(method.getMethod(), RequiresRole.class) == null) {
+            // A method that sets its own role sets its own areas too: without any, it needs none.
+            areas = AnnotatedElementUtils.findMergedAnnotation(method.getBeanType(), RequiresPermission.class);
+        }
+        if (areas != null && areas.value().length > 0
+                && Arrays.stream(areas.value()).noneMatch(business::can)) {
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
         return true;

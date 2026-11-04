@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { Archive, ChevronRight, LayoutGrid, Plus, Tag, TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { hasRole, useBusiness } from "@/api/business";
+import { can, useBusiness } from "@/api/business";
 import { AddressPagination } from "@/components/layout/Pagination";
 import { type ChoiceFilter, ListSearch } from "@/components/search/ListSearch";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ export function ProductListPage() {
   const products = useQuery(productsQuery(filters));
   const items = products.data?.items ?? [];
   const filtered = !!(filters.q || filters.categoryId || filters.tagId);
-  const canManage = hasRole(business, "MANAGER") && canWrite;
+  const canManage = can(business, "PRODUCTS") && canWrite;
   const reset = () => void navigate({ search: { size: filters.size }, replace: true });
 
   return (
@@ -98,7 +98,7 @@ function SearchPanel() {
   const navigate = route.useNavigate();
   const { data: categories } = useQuery(categoriesQuery);
   const { data: tags } = useQuery(tagsQuery);
-  const { data: lowStock } = useQuery(lowStockQuery({ size: 1 }));
+  const { data: lowStock } = useQuery({ ...lowStockQuery({ size: 1 }), enabled: can(useBusiness(), "STOCK") });
   const products = useQuery(productsQuery(filters));
   const choices: ChoiceFilter[] = [
     {
