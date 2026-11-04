@@ -8,6 +8,7 @@ import { errorText } from "@/api/query";
 import type { components } from "@/api/schema";
 import { BackToMore } from "@/components/layout/PageHeader";
 import { useFormat } from "@/lib/format";
+import { randomId } from "@/lib/ids";
 import { parseTaka, takaInput } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { areasQuery, type Named, usePlaceName } from "./geo";
@@ -291,7 +292,7 @@ export function DeliveryPage() {
               setEdited((all) => {
                 const zonesNow = all ?? [];
                 const fresh: Draft = {
-                  key: crypto.randomUUID(),
+                  key: randomId(),
                   name: "",
                   charge: "",
                   isDefault: false,

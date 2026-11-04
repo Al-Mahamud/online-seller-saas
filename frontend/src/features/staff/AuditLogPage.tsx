@@ -1,4 +1,4 @@
-import { infiniteQueryOptions, queryOptions, useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { getRouteApi, Link, type LinkProps } from "@tanstack/react-router";
 import i18next from "i18next";
 import { ArrowRight, ChevronRight, Clock, Search } from "lucide-react";
@@ -8,19 +8,20 @@ import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";
 import { useMe } from "@/api/session";
 import { BackToMore } from "@/components/layout/PageHeader";
+import { AddressPagination } from "@/components/layout/Pagination";
 import { Input } from "@/components/ui/input";
 import { type LooseT, useLooseT } from "@/i18n/pages";
 import { addDays, dhakaToday } from "@/lib/dates";
 import { latinDigits } from "@/lib/digits";
 import { useFormat } from "@/lib/format";
-import { nextPage } from "@/lib/paging";
+import { type Paging, pagedQuery, pagingSearch } from "@/lib/paging";
 import { cn } from "@/lib/utils";
 
 type Entry = components["schemas"]["AuditLogEntry"];
 type Kind = Entry["kind"];
 export type Period = "today" | "week" | "month" | "all";
 
-export interface ActivityFilters {
+export interface ActivityFilters extends Paging {
   actor?: string;
   kind?: Kind;
   period?: Period;
@@ -59,6 +60,7 @@ export function activityFilters(search: Record<string, unknown>): ActivityFilter
     kind: KINDS.find((kind) => kind === search.kind),
     period: PERIODS.find((period) => period === search.period),
     q: text(search.q),
+    ...pagingSearch(search),
   };
 }
 
@@ -74,26 +76,22 @@ function range(period: Period): { from?: string; to?: string } {
 }
 
 const logQuery = (filters: ActivityFilters) =>
-  infiniteQueryOptions({
-    queryKey: ["audit-log", filters],
-    queryFn: ({ pageParam }) =>
-      call(
-        api.GET("/api/v1/business/audit-log", {
-          params: {
-            query: {
-              page: pageParam,
-              size: 30,
-              actor: filters.actor,
-              kind: filters.kind,
-              q: filters.q ? latinDigits(filters.q) : undefined,
-              ...range(filters.period ?? "week"),
-            },
+  pagedQuery(["audit-log", filters], () =>
+    call(
+      api.GET("/api/v1/business/audit-log", {
+        params: {
+          query: {
+            page: filters.page,
+            size: filters.size,
+            actor: filters.actor,
+            kind: filters.kind,
+            q: filters.q ? latinDigits(filters.q) : undefined,
+            ...range(filters.period ?? "week"),
           },
-        }),
-      ),
-    initialPageParam: 1,
-    getNextPageParam: nextPage,
-  });
+        },
+      }),
+    ),
+  );
 
 const summaryQuery = queryOptions({
   queryKey: ["audit-log", "summary"],
@@ -109,15 +107,16 @@ export function AuditLogPage() {
   const me = useMe();
   const id = useId();
   const { data: summary } = useQuery(summaryQuery);
-  const log = useInfiniteQuery(logQuery(filters));
-  const entries = log.data?.pages.flatMap((page) => page.items) ?? [];
-  const total = log.data?.pages[0]?.totalItems ?? 0;
+  const log = useQuery(logQuery(filters));
+  const entries = log.data?.items ?? [];
+  const total = log.data?.totalItems ?? 0;
   const period = filters.period ?? "week";
   const filtered = !!(filters.actor || filters.kind || filters.q);
   const [text, setText] = useState(filters.q ?? "");
   useEffect(() => setText(filters.q ?? ""), [filters.q]);
+  // A new filter starts again from the first page, keeping the rows per page.
   const go = (change: Partial<ActivityFilters>) =>
-    void navigate({ search: (prev) => ({ ...prev, ...change }), replace: true });
+    void navigate({ search: (prev) => ({ ...prev, ...change, page: undefined }), replace: true });
   const days = groupByDay(entries);
   const today = dhakaToday();
   const dayLabel = (day: string) =>
@@ -233,62 +232,55 @@ export function AuditLogPage() {
         </div>
       </header>
       <div className="grid items-start gap-4.5 max-md:relative max-md:-mx-4 max-md:-mt-11.5 max-md:rounded-t-3xl max-md:bg-background max-md:px-3 max-md:pt-3.5 md:grid-cols-[minmax(0,3fr)_minmax(0,1.2fr)]">
-        <section
-          aria-labelledby={`${id}-found`}
-          className="flex min-w-0 flex-col gap-1.5 rounded-2xl border bg-card p-3.5 md:p-4.5"
-        >
-          <p id={`${id}-found`} role="status" className="text-sm font-semibold text-muted-foreground">
-            {log.isSuccess &&
-              t(filtered ? "activity.foundFiltered" : "activity.found", { count: format.number(total) })}
-          </p>
-          {days.map(([day, items]) => (
-            <div key={day}>
-              <h2 className="mt-2 mb-1 flex items-baseline gap-2 font-bold">
-                {dayLabel(day)}
-                <span className="text-[13px] font-semibold text-muted-foreground">{count(items.length)}</span>
-              </h2>
-              <ol>
-                {items.map((entry) => (
-                  <Row key={entry.id} entry={entry} myId={me.id} />
-                ))}
-              </ol>
-            </div>
-          ))}
-          {log.isSuccess && entries.length === 0 && (
-            <div className="flex flex-col items-center gap-2.5 px-3 py-7 text-center">
-              <span aria-hidden="true" className="flex size-13 items-center justify-center rounded-[14px] bg-accent">
-                <Clock className="size-6.5 text-primary" />
-              </span>
-              {filtered || period !== "all" ? (
-                <>
-                  <p className="text-[17px] font-bold">{t("activity.none")}</p>
-                  <button
-                    type="button"
-                    className="min-h-11 cursor-pointer rounded-[10px] border-[1.5px] border-primary px-4 text-[15px] font-bold text-primary hover:bg-accent"
-                    onClick={() => void navigate({ search: { period: "all" }, replace: true })}
-                  >
-                    {t("activity.seeAll")}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="text-[17px] font-bold">{t("activity.empty")}</p>
-                  <p className="max-w-sm text-sm text-muted-foreground">{t("activity.emptyHint")}</p>
-                </>
-              )}
-            </div>
-          )}
-          {log.hasNextPage && (
-            <button
-              type="button"
-              disabled={log.isFetchingNextPage}
-              className="mt-2 min-h-11.5 cursor-pointer rounded-xl border-[1.5px] border-input bg-card text-[15px] font-bold hover:bg-muted"
-              onClick={() => void log.fetchNextPage()}
-            >
-              {t("activity.older")}
-            </button>
-          )}
-        </section>
+        <div className="flex min-w-0 flex-col gap-3">
+          <section
+            aria-labelledby={`${id}-found`}
+            className="flex min-w-0 flex-col gap-1.5 rounded-2xl border bg-card p-3.5 md:p-4.5"
+          >
+            <p id={`${id}-found`} role="status" className="text-sm font-semibold text-muted-foreground">
+              {log.isSuccess &&
+                t(filtered ? "activity.foundFiltered" : "activity.found", { count: format.number(total) })}
+            </p>
+            {days.map(([day, items]) => (
+              <div key={day}>
+                <h2 className="mt-2 mb-1 flex items-baseline gap-2 font-bold">
+                  {dayLabel(day)}
+                  <span className="text-[13px] font-semibold text-muted-foreground">{count(items.length)}</span>
+                </h2>
+                <ol>
+                  {items.map((entry) => (
+                    <Row key={entry.id} entry={entry} myId={me.id} />
+                  ))}
+                </ol>
+              </div>
+            ))}
+            {log.isSuccess && entries.length === 0 && (
+              <div className="flex flex-col items-center gap-2.5 px-3 py-7 text-center">
+                <span aria-hidden="true" className="flex size-13 items-center justify-center rounded-[14px] bg-accent">
+                  <Clock className="size-6.5 text-primary" />
+                </span>
+                {filtered || period !== "all" ? (
+                  <>
+                    <p className="text-[17px] font-bold">{t("activity.none")}</p>
+                    <button
+                      type="button"
+                      className="min-h-11 cursor-pointer rounded-[10px] border-[1.5px] border-primary px-4 text-[15px] font-bold text-primary hover:bg-accent"
+                      onClick={() => void navigate({ search: { period: "all" }, replace: true })}
+                    >
+                      {t("activity.seeAll")}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[17px] font-bold">{t("activity.empty")}</p>
+                    <p className="max-w-sm text-sm text-muted-foreground">{t("activity.emptyHint")}</p>
+                  </>
+                )}
+              </div>
+            )}
+          </section>
+          {entries.length > 0 && <AddressPagination result={log.data} />}
+        </div>
         {summary && summary.lastSevenDays > 0 && (
           <aside
             aria-labelledby={`${id}-people`}

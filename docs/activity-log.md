@@ -36,3 +36,5 @@ To stay within the 250 KB first-visit budget, the activity log's and the team pa
 (`src/i18n/pages.ts`, `loadPageTexts`); they use `useLooseT` since their keys are outside the typed
 main file. The Bangla review list and the translation tests include them. The budget has about
 0.7 KB left: a big new block of text for one page belongs there too.
+
+- Nov 4, 2026: the list now has numbered pages kept in the address (the shared pager, 20/50/100 rows), instead of a "load older" button. A new filter goes back to page 1.

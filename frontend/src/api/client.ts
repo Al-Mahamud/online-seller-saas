@@ -1,5 +1,6 @@
 import createClient, { type Middleware } from "openapi-fetch";
 import { currentLanguage } from "@/i18n";
+import { randomId } from "@/lib/ids";
 import { ApiError, NetworkError } from "./errors";
 import type { paths } from "./schema";
 
@@ -126,5 +127,5 @@ export async function call<T>(request: Promise<Result<T>>): Promise<T> {
  * the action and reuse it for every retry of that action.
  */
 export function newIdempotencyKey(): string {
-  return crypto.randomUUID();
+  return randomId();
 }
