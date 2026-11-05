@@ -80,8 +80,11 @@ class GatewayCallbackController {
     }
 
     /**
-     * The browser coming back (success, fail or cancel). Proves nothing: it is stored, and the
-     * browser goes on to the web app, which waits for the invoice's status.
+     * The browser coming back (success, fail or cancel). Proves nothing by itself: it is stored, and
+     * the browser goes on to the web app, which waits for the invoice's status. On success its
+     * val_id is asked of the Validation API at once, as an IPN's is, so the invoice need not wait
+     * for the IPN (which never reaches a local run). Only the gateway's own "paid" for this
+     * attempt's tran_id is applied; anything else is left to the IPN and the pending check.
      */
     @RequestMapping(path = "/api/v1/public/gateway/sslcommerz/return/{result}", method = {RequestMethod.GET, RequestMethod.POST})
     ResponseEntity<Void> back(@PathVariable String result, @RequestParam(required = false) UUID invoice,
@@ -91,9 +94,46 @@ class GatewayCallbackController {
             default -> "fail";
         };
         Map<String, String> fields = fields(request);
-        store(outcome.toUpperCase(), fields.getOrDefault("tran_id", ""), fields);
+        String tranId = fields.getOrDefault("tran_id", "");
+        store(outcome.toUpperCase(), tranId, fields);
+        if (outcome.equals("success")) {
+            confirmOnReturn(tranId, fields.getOrDefault("val_id", ""));
+        }
         String target = webBaseUrl + "/billing/return?result=" + outcome + (invoice == null ? "" : "&invoice=" + invoice);
         return ResponseEntity.status(HttpStatus.SEE_OTHER).location(URI.create(target)).build();
+    }
+
+    private void confirmOnReturn(String tranId, String valId) {
+        if (valId.isBlank()) {
+            return;
+        }
+        Optional<AttemptRef> attempt = pendingAttempt(tranId);
+        if (attempt.isEmpty()) {
+            return;
+        }
+        try {
+            SslCommerzClient.Payment validated = gateway.validate(valId);
+            if (validated.paid() && tranId.equals(validated.tranId())) {
+                confirmations.confirm(attempt.get().businessId(), tranId, validated);
+            }
+        } catch (RuntimeException e) {
+            // The browser still goes on; the IPN or the pending check will apply the payment.
+            log.warn("Checking payment {} on the browser's return failed", tranId, e);
+        }
+    }
+
+    /** An SSLCommerz attempt still waiting for the gateway's word. */
+    private Optional<AttemptRef> pendingAttempt(String tranId) {
+        if (tranId.isEmpty()) {
+            return Optional.empty();
+        }
+        return database.jdbc().sql("""
+                        select business_id, invoice_id from payment_attempts
+                        where tran_id = ? and gateway = 'SSLCOMMERZ' and status = 'PENDING'
+                        """)
+                .param(tranId)
+                .query((rs, n) -> new AttemptRef(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class)))
+                .optional();
     }
 
     private void store(String kind, String tranId, Map<String, String> fields) {

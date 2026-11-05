@@ -41,6 +41,13 @@ export class ApiError extends Error {
   }
 }
 
+/** The server's ID for the request that failed, to find it in its logs; shown with unexpected errors. */
+export function requestIdOf(error: unknown): string | null {
+  return error instanceof ApiError && typeof error.properties.requestId === "string"
+    ? error.properties.requestId
+    : null;
+}
+
 /** The request never got an answer: offline, or the server is down. */
 export class NetworkError extends Error {
   constructor(cause: unknown) {

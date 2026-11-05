@@ -35,7 +35,8 @@ import tools.jackson.databind.exc.MismatchedInputException;
 /**
  * Turns every error into an RFC 9457 problem response ({@code application/problem+json}) with a
  * {@code code} property from {@link ErrorCode} and a {@code detail} in the request's language.
- * Validation errors add {@code errors}: a list of {@code {field, message}}.
+ * Validation errors add {@code errors}: a list of {@code {field, message}}. Every error carries the
+ * request's {@code requestId} ({@link RequestIdFilter}), to find it in the logs.
  */
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
@@ -160,6 +161,9 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             problem.setProperty("code", code.code());
             problem.setDetail(message(code.messageKey()));
         }
+        if (body instanceof ProblemDetail problem) {
+            withRequestId(problem);
+        }
         return super.createResponseEntity(body, headers, statusCode, request);
     }
 
@@ -199,6 +203,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     private ProblemDetail problem(ErrorCode code, Object... args) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(code.status(), message(code.messageKey(), args));
         problem.setProperty("code", code.code());
+        return withRequestId(problem);
+    }
+
+    private static ProblemDetail withRequestId(ProblemDetail problem) {
+        String id = RequestIdFilter.current();
+        if (id != null) {
+            problem.setProperty("requestId", id);
+        }
         return problem;
     }
 

@@ -2,7 +2,7 @@ import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import i18n from "@/i18n";
 import { reportError } from "@/lib/reporting";
-import { ApiError, errorAction, NetworkError } from "./errors";
+import { ApiError, errorAction, NetworkError, requestIdOf } from "./errors";
 
 /** What to say about an error that has no better place: the server's message, or our own when it sent none. */
 export function errorText(error: unknown): string {
@@ -35,7 +35,9 @@ export function errorMessages(error: unknown): string {
 function showError(error: unknown) {
   const { kind } = errorAction(error);
   if (kind === "network" || kind === "rate-limited" || kind === "message") {
-    toast.error(errorText(error));
+    // A server fault comes with its request's ID, for the owner to send to support.
+    const id = error instanceof ApiError && error.status >= 500 ? requestIdOf(error) : null;
+    toast.error(errorText(error), id ? { description: i18n.t("error.code", { code: id }) } : undefined);
   }
   // Every screen's requests can be refused together, and one message says it all.
   if (kind === "read-only") {

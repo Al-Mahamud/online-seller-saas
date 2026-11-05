@@ -2215,6 +2215,7 @@ export interface components {
             at: string;
             /** Format: uuid */
             businessId: string | null;
+            businessName: string | null;
             details: {
                 [key: string]: unknown;
             };
@@ -2243,6 +2244,7 @@ export interface components {
             /** Format: date-time */
             periodEnd: string;
             planCode: string;
+            reason?: string;
         };
         AdminBusinessReasonRequest: {
             reason: string;
@@ -2266,9 +2268,14 @@ export interface components {
             /** Format: int64 */
             everPaid: number;
             /** Format: int64 */
+            grace: number;
+            /** Format: int64 */
             mrrPoisha: number;
+            /** Format: date-time */
+            oldestWaiting: string | null;
             /** Format: int64 */
             paying: number;
+            plans: components["schemas"]["BillingAdministrationPlanCount"][];
             /** Format: int64 */
             readOnly: number;
             /** Format: int64 */
@@ -2281,6 +2288,10 @@ export interface components {
             trialing: number;
             /** Format: int64 */
             users: number;
+            /** Format: int64 */
+            waitingPoisha: number;
+            /** Format: int64 */
+            waitingTransfers: number;
             /** Format: int64 */
             weeklyActive: number;
         };
@@ -2398,6 +2409,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             kind: string;
+            /** Format: int32 */
+            months: number;
             number: string;
             payBy: string;
             planCode: string;
@@ -2414,6 +2427,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             kind: string;
+            /** Format: int32 */
+            months: number;
             number: string;
             /** Format: date-time */
             paidAt: string | null;
@@ -2434,6 +2449,11 @@ export interface components {
             usage: {
                 [key: string]: components["schemas"]["BillingAdministrationUsage"];
             };
+        };
+        BillingAdministrationPlanCount: {
+            /** Format: int64 */
+            businesses: number;
+            code: string;
         };
         BillingAdministrationPlanInfo: {
             code: string;
@@ -2542,6 +2562,7 @@ export interface components {
             id: string;
             name: string;
             phone: string | null;
+            userId: string;
         };
         BusinessLogoRequest: {
             /** Format: uuid */
@@ -4020,6 +4041,7 @@ export interface operations {
         parameters: {
             query?: {
                 businessId?: string;
+                action?: string[];
                 page?: number | null;
                 size?: number | null;
             };
@@ -4113,6 +4135,8 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
+                plan?: string;
+                state?: "ACTIVE" | "GRACE" | "READ_ONLY" | "SUSPENDED" | "TRIALING";
                 page?: number | null;
                 size?: number | null;
             };

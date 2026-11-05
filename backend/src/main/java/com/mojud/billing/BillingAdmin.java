@@ -61,7 +61,11 @@ class BillingAdmin implements BillingAdministration {
     @Override
     public Metrics metrics() {
         long[] m = system.metrics(clock.instant());
-        return new Metrics(m[0], m[1], m[2], m[3], m[4], m[5], m[6]);
+        List<PlanCount> counts = system.planCounts().entrySet().stream()
+                .map(entry -> new PlanCount(entry.getKey(), entry.getValue())).toList();
+        BillingSystemQueries.Waiting waiting = system.waitingTransfers();
+        return new Metrics(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], counts, waiting.count(), waiting.amount(),
+                waiting.oldest());
     }
 
     @Override
@@ -83,12 +87,12 @@ class BillingAdmin implements BillingAdministration {
                     plan.limit(Metric.ORDERS_PER_MONTH)));
             usage.put(Metric.STAFF_SEATS.key(), new Usage(team.staffSeatsUsed(), plan.limit(Metric.STAFF_SEATS)));
             List<InvoiceSummary> invoices = jdbc.sql("""
-                            select id, number, kind, plan_code, amount, status, pay_by, created_at, paid_at from invoices
+                            select id, number, kind, plan_code, amount, status, pay_by, created_at, paid_at, months from invoices
                             where business_id = ? order by created_at desc limit 20
                             """)
                     .param(businessId)
                     .query((rs, n) -> new InvoiceSummary(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                            rs.getString(4), rs.getLong(5), rs.getString(6), rs.getString(7), rs.getTimestamp(8).toInstant(),
+                            rs.getString(4), rs.getInt(10), rs.getLong(5), rs.getString(6), rs.getString(7), rs.getTimestamp(8).toInstant(),
                             rs.getTimestamp(9) == null ? null : rs.getTimestamp(9).toInstant()))
                     .list();
             String suspendedFrom = jdbc.sql("select suspended_from from subscriptions where business_id = ?").param(businessId)

@@ -1,6 +1,10 @@
 # Local development only. Never enable this profile on a server.
 
 mojud:
+  admin:
+    # The admin area without two-step sign-in, while it is set up (Al Mahamud, Nov 5, 2026). A
+    # server refuses to start with this (ProductionChecks).
+    require-two-factor: false
   security:
     # A fixed key for local runs only (SecretBox); servers set ENCRYPTION_KEY.
     encryption-key: 8ArFd5N5pBs+nsPRMVSU711bIi69acPf+4Pu3NGCL68=
@@ -33,7 +37,7 @@ server:
       suffix: ""
       file-date-format: ""
       buffered: false
-      pattern: "API %m %U -> %s (%{ms}T ms)"
+      pattern: "API %m %U -> %s (%{ms}T ms) [%{X-Request-Id}o]"
 
 springdoc:
   api-docs:

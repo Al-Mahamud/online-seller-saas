@@ -136,6 +136,9 @@
             "format" : "uuid",
             "type" : [ "string", "null" ]
           },
+          "businessName" : {
+            "type" : [ "string", "null" ]
+          },
           "details" : {
             "additionalProperties" : { },
             "type" : "object"
@@ -151,7 +154,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "action", "adminId", "adminName", "at", "businessId", "details", "id", "targetId", "targetType" ],
+        "required" : [ "action", "adminId", "adminName", "at", "businessId", "businessName", "details", "id", "targetId", "targetType" ],
         "type" : "object"
       },
       "AdminBusinessDetail" : {
@@ -215,6 +218,11 @@
           "planCode" : {
             "minLength" : 1,
             "type" : "string"
+          },
+          "reason" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
           }
         },
         "required" : [ "periodEnd", "planCode" ],
@@ -276,13 +284,27 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "grace" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "mrrPoisha" : {
             "format" : "int64",
             "type" : "integer"
           },
+          "oldestWaiting" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
           "paying" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "plans" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BillingAdministrationPlanCount"
+            },
+            "type" : "array"
           },
           "readOnly" : {
             "format" : "int64",
@@ -308,12 +330,20 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "waitingPoisha" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "waitingTransfers" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "weeklyActive" : {
             "format" : "int64",
             "type" : "integer"
           }
         },
-        "required" : [ "at", "businesses", "businesses7d", "conversion", "everPaid", "mrrPoisha", "paying", "readOnly", "signUps30d", "signUps7d", "suspended", "trialing", "users", "weeklyActive" ],
+        "required" : [ "at", "businesses", "businesses7d", "conversion", "everPaid", "grace", "mrrPoisha", "oldestWaiting", "paying", "plans", "readOnly", "signUps30d", "signUps7d", "suspended", "trialing", "users", "waitingPoisha", "waitingTransfers", "weeklyActive" ],
         "type" : "object"
       },
       "AuditLogActor" : {
@@ -660,6 +690,10 @@
           "kind" : {
             "type" : "string"
           },
+          "months" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "number" : {
             "type" : "string"
           },
@@ -673,7 +707,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "businessId", "businessName", "createdAt", "id", "kind", "number", "payBy", "planCode", "status" ],
+        "required" : [ "amount", "businessId", "businessName", "createdAt", "id", "kind", "months", "number", "payBy", "planCode", "status" ],
         "type" : "object"
       },
       "BillingAdminMarkPaidRequest" : {
@@ -704,6 +738,10 @@
           "kind" : {
             "type" : "string"
           },
+          "months" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "number" : {
             "type" : "string"
           },
@@ -721,7 +759,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "createdAt", "id", "kind", "number", "paidAt", "payBy", "planCode", "status" ],
+        "required" : [ "amount", "createdAt", "id", "kind", "months", "number", "paidAt", "payBy", "planCode", "status" ],
         "type" : "object"
       },
       "BillingAdministrationOverview" : {
@@ -760,6 +798,19 @@
           }
         },
         "required" : [ "currentPeriodEnd", "invoices", "pendingPlanCode", "planCode", "status", "suspendedFrom", "trialEndsAt", "usage" ],
+        "type" : "object"
+      },
+      "BillingAdministrationPlanCount" : {
+        "properties" : {
+          "businesses" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "code" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "businesses", "code" ],
         "type" : "object"
       },
       "BillingAdministrationPlanInfo" : {
@@ -1047,9 +1098,12 @@
           },
           "phone" : {
             "type" : [ "string", "null" ]
+          },
+          "userId" : {
+            "type" : "string"
           }
         },
-        "required" : [ "email", "id", "name", "phone" ],
+        "required" : [ "email", "id", "name", "phone", "userId" ],
         "type" : "object"
       },
       "BusinessLogoRequest" : {
@@ -5042,6 +5096,16 @@
           }
         }, {
           "in" : "query",
+          "name" : "action",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
           "name" : "page",
           "required" : false,
           "schema" : {
@@ -5178,6 +5242,21 @@
           "name" : "q",
           "required" : false,
           "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "plan",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "state",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "ACTIVE", "GRACE", "READ_ONLY", "SUSPENDED", "TRIALING" ],
             "type" : "string"
           }
         }, {

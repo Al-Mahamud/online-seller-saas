@@ -300,7 +300,7 @@ class AuthTests {
         ApiResponse stranger = client().post("/api/v1/auth/user-id/recover", Map.of("to", unknown, "code", "000000"))
                 .expectError(400, "otp.invalid");
 
-        assertThat(stranger.body()).isEqualTo(known.body());
+        assertThat(stranger.bodyWithoutRequestId()).isEqualTo(known.bodyWithoutRequestId());
     }
 
     @Test
@@ -363,8 +363,8 @@ class AuthTests {
                 .post("/api/v1/auth/login", Map.of("userId", "not an id!", "password", "wrong password"))
                 .expectError(401, "auth.invalid_credentials");
 
-        assertThat(unknown.body()).isEqualTo(wrongPassword.body());
-        assertThat(notEvenAnId.body()).isEqualTo(wrongPassword.body());
+        assertThat(unknown.bodyWithoutRequestId()).isEqualTo(wrongPassword.bodyWithoutRequestId());
+        assertThat(notEvenAnId.bodyWithoutRequestId()).isEqualTo(wrongPassword.bodyWithoutRequestId());
     }
 
     @Test

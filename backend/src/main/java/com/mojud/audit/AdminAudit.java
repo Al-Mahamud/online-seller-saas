@@ -21,14 +21,17 @@ public interface AdminAudit {
      */
     void record(UUID adminId, String action, String targetType, String targetId, UUID businessId, Object... details);
 
-    /** {@code adminName}: null once the person's account is gone. */
+    /** {@code adminName}: null once the person's account is gone; {@code businessName}, once the business is. */
     record Entry(UUID id, UUID adminId, @Nullable String adminName, String action, String targetType, String targetId,
-            @Nullable UUID businessId, Map<String, Object> details, Instant at) {
+            @Nullable UUID businessId, @Nullable String businessName, Map<String, Object> details, Instant at) {
     }
 
     /** The latest few, newest first; {@code businessId} null for every entry. */
     List<Entry> recent(UUID businessId, int limit);
 
-    /** A page of them, newest first; {@code businessId} null for every entry. */
-    PagedResult<Entry> page(UUID businessId, PageQuery paging);
+    /**
+     * A page of them, newest first; {@code businessId} null for every entry, {@code actions} empty
+     * for every kind.
+     */
+    PagedResult<Entry> page(UUID businessId, List<String> actions, PageQuery paging);
 }

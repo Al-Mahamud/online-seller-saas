@@ -169,10 +169,18 @@ sentry:
   release: ${APP_VERSION:dev}
   # No IP addresses, cookies or request bodies: customers' phone numbers and addresses are in them.
   send-default-pii: false
+  # Each error is tagged with the request's ID (RequestIdFilter), the one the app shows.
+  context-tags: requestId
   logging:
     # Every log.error (unhandled API errors, failed jobs, failed emails) becomes an event.
     minimum-event-level: error
     minimum-breadcrumb-level: info
+
+logging:
+  pattern:
+    # Each line written while serving a request shows its ID (RequestIdFilter); server logs are
+    # JSON (application-prod.yml), where it is the requestId field.
+    correlation: "%correlationId{requestId(12)}"
 
 management:
   endpoints:

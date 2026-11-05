@@ -86,3 +86,25 @@ test("fits the screen without sideways scrolling", async ({ page }) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test("a fault on the server shows the request's code, to find it in the server's log", async ({ page }) => {
+  await page.route(
+    (url) => url.pathname === "/api/v1/customers",
+    (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/problem+json",
+        headers: { "X-Request-Id": "7f3a9c2e1b4d" },
+        body: JSON.stringify({
+          status: 500,
+          code: "server.error",
+          detail: "সার্ভারে সমস্যা হয়েছে।",
+          requestId: "7f3a9c2e1b4d",
+        }),
+      }),
+  );
+  await page.goto("/customers");
+
+  await expect(page.getByText("সার্ভারে সমস্যা হয়েছে।").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("কোড: 7f3a9c2e1b4d").first()).toBeVisible();
+});

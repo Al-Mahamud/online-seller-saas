@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -288,7 +289,7 @@ class CheckoutTests {
     }
 
     @Test
-    void theBrowsersReturnOnlyRedirects() {
+    void theBrowsersReturnProvesNothingByItself() {
         String invoice = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201)
                 .json("$.invoiceId");
         String tranId = gateway.tranIdOf(invoice);
@@ -299,7 +300,36 @@ class CheckoutTests {
         assertThat(back.status()).isEqualTo(303);
         assertThat(back.headers().firstValue("Location")).hasValue("http://localhost:5173/billing/return?result=success&invoice=" + invoice);
         assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.status")).isEqualTo("OPEN");
+        // Unlike a forged IPN, a made-up return doesn't spoil the attempt: the real payment can still come.
+        assertThat(attemptStatus(tranId)).isEqualTo("PENDING");
         assertThat(callbacks(tranId)).isEqualTo(1);
+    }
+
+    @Test
+    void aSuccessfulReturnPaysWithoutWaitingForTheIpn() {
+        String invoice = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201)
+                .json("$.invoiceId");
+        String tranId = gateway.tranIdOf(invoice);
+        // Paid at the gateway, whose IPN can't reach us (a local run against the sandbox).
+        String valId = gateway.pay(tranId, "499.00", "BDT", "VALID");
+
+        // Another payment's real val_id is not this attempt's.
+        String other = owner.post("/api/v1/billing/checkout", Map.of("planCode", "PRO", "months", 1)).expectStatus(201)
+                .json("$.invoiceId");
+        sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/return/success?invoice=" + other,
+                Map.of("status", "VALID", "tran_id", gateway.tranIdOf(other), "val_id", valId)).expectStatus(303);
+        assertThat(owner.get("/api/v1/billing/invoices/" + other).<String>json("$.status")).isEqualTo("OPEN");
+        assertThat(attemptStatus(gateway.tranIdOf(other))).isEqualTo("PENDING");
+
+        sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/return/success?invoice=" + invoice,
+                Map.of("status", "VALID", "tran_id", tranId, "val_id", valId, "amount", "499.00")).expectStatus(303);
+
+        assertThat(owner.get("/api/v1/billing/invoices/" + invoice).<String>json("$.status")).isEqualTo("PAID");
+        assertThat(attemptStatus(tranId)).isEqualTo("PAID");
+        // The IPN arriving after changes nothing more.
+        sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn", ipn(tranId, valId, "499.00")).expectStatus(200);
+        assertThat(owner.get("/api/v1/billing/invoices?size=20").<List<String>>json("$.items[?(@.status == 'PAID')].id"))
+                .containsExactly(invoice);
     }
 
     private static Map<String, String> ipn(String tranId, String valId, String amount) {

@@ -24,7 +24,6 @@ import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as AdminInvoicesRouteImport } from './routes/admin/invoices'
-import { Route as AdminMetricsRouteImport } from './routes/admin/metrics'
 import { Route as AdminPlansRouteImport } from './routes/admin/plans'
 import { Route as AppBillingIndexRouteImport } from './routes/_app/billing/index'
 import { Route as AppBillingReturnRouteImport } from './routes/_app/billing/return'
@@ -49,6 +48,7 @@ import { Route as AppSettingsDeliveryRouteImport } from './routes/_app/settings/
 import { Route as AppSettingsNotificationsRouteImport } from './routes/_app/settings/notifications'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 import { Route as AppSettingsStaffRouteImport } from './routes/_app/settings/staff'
+import { Route as AdminBusinessesIndexRouteImport } from './routes/admin/businesses/index'
 import { Route as AdminBusinessesBusinessIdRouteImport } from './routes/admin/businesses/$businessId'
 import { Route as AppBillingInvoicesInvoiceIdRouteImport } from './routes/_app/billing/invoices/$invoiceId'
 import { Route as AppOrdersOrderIdIndexRouteImport } from './routes/_app/orders/$orderId/index'
@@ -125,11 +125,6 @@ const AdminAuditRoute = AdminAuditRouteImport.update({
 const AdminInvoicesRoute = AdminInvoicesRouteImport.update({
   id: '/invoices',
   path: '/invoices',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminMetricsRoute = AdminMetricsRouteImport.update({
-  id: '/metrics',
-  path: '/metrics',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminPlansRoute = AdminPlansRouteImport.update({
@@ -253,6 +248,11 @@ const AppSettingsStaffRoute = AppSettingsStaffRouteImport.update({
   path: '/settings/staff',
   getParentRoute: () => AppRoute,
 } as any)
+const AdminBusinessesIndexRoute = AdminBusinessesIndexRouteImport.update({
+  id: '/businesses/',
+  path: '/businesses/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminBusinessesBusinessIdRoute =
   AdminBusinessesBusinessIdRouteImport.update({
     id: '/businesses/$businessId',
@@ -289,7 +289,6 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof AuthSignUpRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/invoices': typeof AdminInvoicesRoute
-  '/admin/metrics': typeof AdminMetricsRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/': typeof AdminIndexRoute
   '/billing/return': typeof AppBillingReturnRoute
@@ -316,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/orders/': typeof AppOrdersIndexRoute
   '/products/': typeof AppProductsIndexRoute
   '/reports/': typeof AppReportsIndexRoute
+  '/admin/businesses/': typeof AdminBusinessesIndexRoute
   '/billing/invoices/$invoiceId': typeof AppBillingInvoicesInvoiceIdRoute
   '/orders/$orderId/edit': typeof AppOrdersOrderIdEditRoute
   '/orders/$orderId/': typeof AppOrdersOrderIdIndexRoute
@@ -332,7 +332,6 @@ export interface FileRoutesByTo {
   '/sign-up': typeof AuthSignUpRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/invoices': typeof AdminInvoicesRoute
-  '/admin/metrics': typeof AdminMetricsRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin': typeof AdminIndexRoute
   '/billing/return': typeof AppBillingReturnRoute
@@ -359,6 +358,7 @@ export interface FileRoutesByTo {
   '/orders': typeof AppOrdersIndexRoute
   '/products': typeof AppProductsIndexRoute
   '/reports': typeof AppReportsIndexRoute
+  '/admin/businesses': typeof AdminBusinessesIndexRoute
   '/billing/invoices/$invoiceId': typeof AppBillingInvoicesInvoiceIdRoute
   '/orders/$orderId/edit': typeof AppOrdersOrderIdEditRoute
   '/orders/$orderId': typeof AppOrdersOrderIdIndexRoute
@@ -378,7 +378,6 @@ export interface FileRoutesById {
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/invoices': typeof AdminInvoicesRoute
-  '/admin/metrics': typeof AdminMetricsRoute
   '/admin/plans': typeof AdminPlansRoute
   '/_app/': typeof AppIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -406,6 +405,7 @@ export interface FileRoutesById {
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/products/': typeof AppProductsIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
+  '/admin/businesses/': typeof AdminBusinessesIndexRoute
   '/_app/billing/invoices/$invoiceId': typeof AppBillingInvoicesInvoiceIdRoute
   '/_app/orders/$orderId/edit': typeof AppOrdersOrderIdEditRoute
   '/_app/orders/$orderId/': typeof AppOrdersOrderIdIndexRoute
@@ -425,7 +425,6 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/admin/audit'
     | '/admin/invoices'
-    | '/admin/metrics'
     | '/admin/plans'
     | '/admin/'
     | '/billing/return'
@@ -452,6 +451,7 @@ export interface FileRouteTypes {
     | '/orders/'
     | '/products/'
     | '/reports/'
+    | '/admin/businesses/'
     | '/billing/invoices/$invoiceId'
     | '/orders/$orderId/edit'
     | '/orders/$orderId/'
@@ -468,7 +468,6 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/admin/audit'
     | '/admin/invoices'
-    | '/admin/metrics'
     | '/admin/plans'
     | '/admin'
     | '/billing/return'
@@ -495,6 +494,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/products'
     | '/reports'
+    | '/admin/businesses'
     | '/billing/invoices/$invoiceId'
     | '/orders/$orderId/edit'
     | '/orders/$orderId'
@@ -513,7 +513,6 @@ export interface FileRouteTypes {
     | '/_auth/sign-up'
     | '/admin/audit'
     | '/admin/invoices'
-    | '/admin/metrics'
     | '/admin/plans'
     | '/_app/'
     | '/admin/'
@@ -541,6 +540,7 @@ export interface FileRouteTypes {
     | '/_app/orders/'
     | '/_app/products/'
     | '/_app/reports/'
+    | '/admin/businesses/'
     | '/_app/billing/invoices/$invoiceId'
     | '/_app/orders/$orderId/edit'
     | '/_app/orders/$orderId/'
@@ -660,13 +660,6 @@ declare module '@tanstack/react-router' {
       path: '/invoices'
       fullPath: '/admin/invoices'
       preLoaderRoute: typeof AdminInvoicesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/metrics': {
-      id: '/admin/metrics'
-      path: '/metrics'
-      fullPath: '/admin/metrics'
-      preLoaderRoute: typeof AdminMetricsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/plans': {
@@ -837,6 +830,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsStaffRouteImport
       parentRoute: typeof AppRoute
     }
+    '/admin/businesses/': {
+      id: '/admin/businesses/'
+      path: '/businesses'
+      fullPath: '/admin/businesses/'
+      preLoaderRoute: typeof AdminBusinessesIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/businesses/$businessId': {
       id: '/admin/businesses/$businessId'
       path: '/businesses/$businessId'
@@ -951,19 +951,19 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 interface AdminRouteChildren {
   AdminAuditRoute: typeof AdminAuditRoute
   AdminInvoicesRoute: typeof AdminInvoicesRoute
-  AdminMetricsRoute: typeof AdminMetricsRoute
   AdminPlansRoute: typeof AdminPlansRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminBusinessesBusinessIdRoute: typeof AdminBusinessesBusinessIdRoute
+  AdminBusinessesIndexRoute: typeof AdminBusinessesIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAuditRoute: AdminAuditRoute,
   AdminInvoicesRoute: AdminInvoicesRoute,
-  AdminMetricsRoute: AdminMetricsRoute,
   AdminPlansRoute: AdminPlansRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminBusinessesBusinessIdRoute: AdminBusinessesBusinessIdRoute,
+  AdminBusinessesIndexRoute: AdminBusinessesIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

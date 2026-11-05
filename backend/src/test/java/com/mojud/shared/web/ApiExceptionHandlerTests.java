@@ -19,6 +19,9 @@ import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -144,6 +147,41 @@ class ApiExceptionHandlerTests {
     }
 
     @Test
+    void everyAnswerHasARequestIdAndEveryErrorRepeatsIt() throws Exception {
+        Problem fine = get("/test/page?limit=5", null);
+        assertThat(fine.status).isEqualTo(200);
+        assertThat(fine.requestId).matches("[0-9a-f]{12}");
+
+        for (String path : List.of("/test/boom", "/test/missing", "/test/page?limit=500", "/test/no-such-route")) {
+            Problem problem = get(path, null);
+            assertThat(problem.requestId).as(path).matches("[0-9a-f]{12}").isNotEqualTo(fine.requestId);
+            assertThat((String) problem.json.read("$.requestId")).as(path).isEqualTo(problem.requestId);
+        }
+    }
+
+    @Test
+    void aWellFormedIdFromTheCallerIsKeptAndAnyOtherReplaced() throws Exception {
+        Problem kept = send(request("/test/boom", null).header("X-Request-Id", "proxy-7f3a_9c2e").GET());
+        assertThat(kept.requestId).isEqualTo("proxy-7f3a_9c2e");
+        assertThat((String) kept.json.read("$.requestId")).isEqualTo("proxy-7f3a_9c2e");
+
+        for (String given : List.of("short", "has spaces in it", "x".repeat(65), "ok] [forged-id")) {
+            Problem replaced = send(request("/test/boom", null).header("X-Request-Id", given).GET());
+            assertThat(replaced.requestId).as(given).matches("[0-9a-f]{12}");
+        }
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void anUnexpectedErrorIsLoggedWithTheIdTheClientWasGiven(CapturedOutput output) throws Exception {
+        Problem problem = get("/test/boom", null);
+
+        assertThat(output.getAll().lines()
+                .filter(line -> line.contains("Unhandled error") && line.contains("[" + problem.requestId + "]")))
+                .hasSize(1);
+    }
+
+    @Test
     void frameworkErrorsGetCodesToo() throws Exception {
         Problem unknownRoute = get("/test/no-such-route", null);
         assertThat(unknownRoute.status).isEqualTo(404);
@@ -172,10 +210,11 @@ class ApiExceptionHandlerTests {
     private static Problem send(HttpRequest.Builder request) throws IOException, InterruptedException {
         HttpResponse<String> response = HTTP.send(request.build(), HttpResponse.BodyHandlers.ofString());
         return new Problem(response.statusCode(), response.headers().firstValue("Content-Type").orElse(""),
-                response.body(), JsonPath.parse(response.body()));
+                response.body(), JsonPath.parse(response.body()),
+                response.headers().firstValue("X-Request-Id").orElse(""));
     }
 
-    private record Problem(int status, String contentType, String body, DocumentContext json) {
+    private record Problem(int status, String contentType, String body, DocumentContext json, String requestId) {
 
         String code() {
             return json.read("$.code");

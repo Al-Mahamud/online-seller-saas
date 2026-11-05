@@ -16,6 +16,7 @@ export function AdminDialog({
   title,
   description,
   action,
+  danger,
   problem,
   pending,
   onSubmit,
@@ -25,6 +26,8 @@ export function AdminDialog({
   title: string;
   description?: string;
   action: string;
+  /** The action can't simply be undone, such as suspending: a red button. */
+  danger?: boolean;
   problem?: string;
   pending: boolean;
   onSubmit: () => void;
@@ -51,7 +54,11 @@ export function AdminDialog({
           <Button variant="outline" onClick={onClose}>
             {t("page.cancel")}
           </Button>
-          <Button disabled={pending} onClick={onSubmit}>
+          <Button
+            className={danger ? "bg-destructive text-white hover:bg-destructive/90" : undefined}
+            disabled={pending}
+            onClick={onSubmit}
+          >
             {action}
           </Button>
         </DialogFooter>

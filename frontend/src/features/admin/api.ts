@@ -2,6 +2,9 @@ import { queryOptions } from "@tanstack/react-query";
 import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";
 import { type Paging, pagedQuery } from "@/lib/paging";
+import { AUDIT_KINDS, type AuditKind, type BusinessState } from "./search";
+
+export { AUDIT_KINDS, type AuditKind, type BusinessState };
 
 export type AdminBusiness = components["schemas"]["AdminBusinessDetail"];
 export type AdminPlan = components["schemas"]["BillingAdministrationPlanInfo"];
@@ -16,10 +19,22 @@ export const metricsQuery = queryOptions({
   meta: { showsOwnErrors: true },
 });
 
-export const businessesQuery = (q: string | undefined, paging: Paging) =>
-  pagedQuery(["admin", "businesses", q, paging], () =>
-    call(api.GET("/api/v1/admin/businesses", { params: { query: { q, ...paging } } })),
+export interface BusinessFilters extends Paging {
+  q?: string;
+  plan?: string;
+  state?: BusinessState;
+}
+
+export const businessesQuery = ({ q, plan, state, ...paging }: BusinessFilters) =>
+  pagedQuery(["admin", "businesses", q, plan, state, paging], () =>
+    call(api.GET("/api/v1/admin/businesses", { params: { query: { q, plan, state, ...paging } } })),
   );
+
+/** The few newest, for the overview. */
+export const newestBusinessesQuery = queryOptions({
+  queryKey: ["admin", "businesses", "newest"],
+  queryFn: () => call(api.GET("/api/v1/admin/businesses", { params: { query: { size: 5 } } })),
+});
 
 export const businessQuery = (id: string) =>
   queryOptions({
@@ -32,18 +47,24 @@ export const plansQuery = queryOptions({
   queryFn: () => call(api.GET("/api/v1/admin/plans")),
 });
 
-/** Bank transfers still to be seen arriving. */
-export const openInvoicesQuery = (paging: Paging) =>
-  pagedQuery(["admin", "invoices", paging], () =>
+/** Bank transfers still to be seen arriving ({@code OPEN}), or already marked paid. */
+export const transfersQuery = (status: "OPEN" | "PAID", paging: Paging) =>
+  pagedQuery(["admin", "invoices", status, paging], () =>
     call(
       api.GET("/api/v1/admin/billing/invoices", {
-        params: { query: { status: "OPEN", payBy: "BANK_TRANSFER", ...paging } },
+        params: { query: { status, payBy: "BANK_TRANSFER", ...paging } },
       }),
     ),
   );
 
-export const auditQuery = (paging: Paging) =>
-  pagedQuery(["admin", "audit", paging], () => call(api.GET("/api/v1/admin/audit", { params: { query: paging } })));
+export const auditQuery = (kind: AuditKind | undefined, paging: Paging) =>
+  pagedQuery(["admin", "audit", kind, paging], () =>
+    call(
+      api.GET("/api/v1/admin/audit", {
+        params: { query: { action: kind ? [...AUDIT_KINDS[kind]] : undefined, ...paging } },
+      }),
+    ),
+  );
 
 /** Saved through the API client, so a refusal is an error like any other. */
 export async function downloadLedger(month: string) {

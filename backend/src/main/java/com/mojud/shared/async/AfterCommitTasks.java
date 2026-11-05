@@ -33,6 +33,7 @@ public class AfterCommitTasks implements DisposableBean {
         if (background) {
             pool = new ThreadPoolTaskExecutor();
             pool.setThreadNamePrefix("after-commit-");
+            pool.setTaskDecorator(LogContext::carrying);
             pool.setCorePoolSize(2);
             pool.setMaxPoolSize(4);
             pool.setQueueCapacity(1000);

@@ -11,7 +11,8 @@ import org.jspecify.annotations.Nullable;
 /** Businesses across the platform, for platform administration (the system role reads them). */
 public interface BusinessDirectory {
 
-    record Owner(UUID id, String name, @Nullable String phone, @Nullable String email) {
+    /** {@code userId}: what the owner signs in with. */
+    record Owner(UUID id, String name, @Nullable String phone, @Nullable String email, String userId) {
     }
 
     /** {@code members}: active members, the owner included. */
@@ -23,7 +24,13 @@ public interface BusinessDirectory {
      * Newest first, up to {@code limit}. {@code q}: part of the name, or an owner's phone or email
      * (written any way); blank lists them all.
      */
-    PagedResult<BusinessSummary> search(String q, PageQuery paging);
+    PagedResult<BusinessSummary> search(String q, Narrowing narrowing, PageQuery paging);
+
+    /** Only businesses on this plan ({@code planCode}) or in this subscription state; null for any. */
+    record Narrowing(@Nullable String planCode, @Nullable String state) {
+
+        public static final Narrowing NONE = new Narrowing(null, null);
+    }
 
     Optional<BusinessSummary> find(UUID businessId);
 

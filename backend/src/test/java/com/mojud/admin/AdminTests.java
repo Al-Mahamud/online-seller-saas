@@ -90,7 +90,18 @@ class AdminTests {
 
         ApiResponse row = admin.get("/api/v1/admin/businesses?q=" + ownerAccount.email());
         assertThat(row.<String>json("$.items[0].business.owner.email")).isEqualTo(ownerAccount.email());
+        assertThat(row.<String>json("$.items[0].business.owner.userId")).isEqualTo(ownerAccount.userId());
         assertThat(row.<String>json("$.items[0].subscription.status")).isEqualTo("ACTIVE");
+
+        // Narrowed by plan and by state, with or without words.
+        String mine = "/api/v1/admin/businesses?q=" + ownerAccount.email();
+        assertThat(ids(admin.get(mine + "&plan=FREE&state=ACTIVE"))).containsExactly(business.toString());
+        assertThat(ids(admin.get(mine + "&plan=PRO"))).isEmpty();
+        assertThat(ids(admin.get(mine + "&state=SUSPENDED"))).isEmpty();
+        assertThat(ids(admin.get("/api/v1/admin/businesses?plan=FREE&size=100"))).contains(business.toString());
+        assertThat(ids(admin.get("/api/v1/admin/businesses?plan=PRO&size=100"))).doesNotContain(business.toString());
+        admin.get("/api/v1/admin/businesses?plan=NOPE").expectError(400, "validation.failed");
+        admin.get("/api/v1/admin/businesses?state=SLEEPING").expectError(400, "validation.failed");
 
         ApiResponse detail = admin.get("/api/v1/admin/businesses/" + business).expectStatus(200);
         assertThat(detail.<Integer>json("$.business.members")).isEqualTo(1);
@@ -178,6 +189,54 @@ class AdminTests {
         admin.post("/api/v1/admin/billing/invoices/" + invoice + "/mark-paid", Map.of("reference", "DBBL-1")).expectStatus(200);
 
         assertThat(actions()).first().isEqualTo("invoice.marked_paid");
+        ApiResponse entry = admin.get("/api/v1/admin/audit?businessId=" + business + "&action=invoice.marked_paid");
+        assertThat(entry.<String>json("$.items[0].details.number")).startsWith("MJ-");
+        assertThat(entry.<String>json("$.items[0].details.amount")).matches("[1-9][0-9]*");
+        assertThat(admin.get("/api/v1/admin/billing/invoices?status=PAID&size=100")
+                .<List<Integer>>json("$.items[?(@.id == '" + invoice + "')].months")).containsExactly(1);
+        // The log narrowed to some kinds of action.
+        String log = "/api/v1/admin/audit?businessId=" + business;
+        assertThat(admin.get(log + "&action=invoice.marked_paid").<List<String>>json("$.items[*].action"))
+                .containsOnly("invoice.marked_paid").isNotEmpty();
+        assertThat(admin.get(log + "&action=business.suspended&action=business.unsuspended").<List<String>>json("$.items"))
+                .isEmpty();
+    }
+
+    @Test
+    void aPlanGivenWithAReasonKeepsItInTheLog() {
+        Instant until = Instant.now().plus(Duration.ofDays(30)).truncatedTo(ChronoUnit.SECONDS);
+        admin.put("/api/v1/admin/businesses/" + business + "/plan",
+                Map.of("planCode", "STARTER", "periodEnd", until.toString(), "reason", "  Courtesy after an outage ")).expectStatus(200);
+
+        ApiResponse log = admin.get("/api/v1/admin/audit?businessId=" + business + "&action=plan.set");
+        assertThat(log.<String>json("$.items[0].details.reason")).isEqualTo("Courtesy after an outage");
+        assertThat(log.<String>json("$.items[0].details.plan")).isEqualTo("STARTER");
+        assertThat(log.<String>json("$.items[0].businessName")).isEqualTo(owner.get("/api/v1/business").<String>json("$.name"));
+    }
+
+    @Test
+    void waitingBankTransfersAreCountedUntilMarkedPaid() {
+        ApiResponse before = admin.get("/api/v1/admin/metrics").expectStatus(200);
+        String invoice = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1, "payBy", "BANK_TRANSFER"))
+                .expectStatus(201).json("$.invoiceId");
+        ApiResponse waiting = admin.get("/api/v1/admin/metrics").expectStatus(200);
+        assertThat(waiting.<Integer>json("$.waitingTransfers") - before.<Integer>json("$.waitingTransfers")).isEqualTo(1);
+        assertThat(waiting.<String>json("$.oldestWaiting")).isNotNull();
+        assertThat(waiting.<List<String>>json("$.plans[*].code")).contains("FREE", "STARTER", "PRO");
+        // A hidden plan, such as the old trial, is listed only while a business is on it.
+        assertThat(waiting.<List<Number>>json("$.plans[?(@.code == 'TRIAL')].businesses"))
+                .allSatisfy(count -> assertThat(count.longValue()).isPositive());
+
+        admin.post("/api/v1/admin/billing/invoices/" + invoice + "/mark-paid", Map.of("reference", "DBBL-2")).expectStatus(200);
+        ApiResponse paid = admin.get("/api/v1/admin/metrics").expectStatus(200);
+        assertThat(paid.<Integer>json("$.waitingTransfers")).isEqualTo(before.<Integer>json("$.waitingTransfers"));
+        assertThat(planCount(paid, "STARTER") - planCount(waiting, "STARTER")).isEqualTo(1);
+        assertThat(planCount(paid, "FREE") - planCount(waiting, "FREE")).isEqualTo(-1);
+    }
+
+    private static long planCount(ApiResponse metrics, String code) {
+        List<Number> counts = metrics.json("$.plans[?(@.code == '" + code + "')].businesses");
+        return counts.get(0).longValue();
     }
 
     private List<String> actions() {

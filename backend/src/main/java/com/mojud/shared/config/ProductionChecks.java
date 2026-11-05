@@ -21,6 +21,9 @@ class ProductionChecks {
 
     private static final Logger log = LoggerFactory.getLogger(ProductionChecks.class);
 
+    /** SslCommerzClient's address when none is set. */
+    private static final String SANDBOX = "https://sandbox.sslcommerz.com";
+
     ProductionChecks(Environment environment) {
         List<String> problems = problems(environment);
         if (!problems.isEmpty()) {
@@ -49,6 +52,9 @@ class ProductionChecks {
                 problems.add(channel[1] + "=log would write sign-in codes to the log");
             }
         }
+        if ("false".equals(environment.getProperty("mojud.admin.require-two-factor"))) {
+            problems.add("mojud.admin.require-two-factor=false would open the admin area without two-step sign-in");
+        }
         return problems;
     }
 
@@ -60,6 +66,8 @@ class ProductionChecks {
         }
         if (blank(environment, "mojud.billing.sslcommerz.store-id")) {
             warnings.add("No SSLCommerz store (SSLCOMMERZ_STORE_ID): plans can only be paid by bank transfer");
+        } else if (environment.getProperty("mojud.billing.sslcommerz.base-url", SANDBOX).contains("sandbox")) {
+            warnings.add("SSLCOMMERZ_BASE_URL is the sandbox: card and bKash payments are tests, and no money arrives");
         }
         if (blank(environment, "sentry.dsn")) {
             warnings.add("No SENTRY_DSN: errors are only in the log");

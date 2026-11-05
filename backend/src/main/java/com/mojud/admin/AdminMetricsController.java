@@ -9,6 +9,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,11 +24,14 @@ class AdminMetricsController {
     /**
      * {@code conversion}: paying now ÷ businesses whose trial has ended (null before any has);
      * {@code mrrPoisha}: paying businesses' monthly prices; {@code weeklyActive}: businesses where a
-     * member changed something in the last 7 days.
+     * member changed something in the last 7 days; {@code grace}: paid plans past their end, in their
+     * week of grace; {@code plans}: businesses on each plan; {@code waitingTransfers},
+     * {@code waitingPoisha}, {@code oldestWaiting}: bank transfers not yet marked paid.
      */
     record Metrics(long users, long signUps7d, long signUps30d, long businesses, long businesses7d, long trialing, long paying,
             long readOnly, long suspended, long everPaid, @Nullable BigDecimal conversion, long mrrPoisha, long weeklyActive,
-            Instant at) {
+            long grace, List<BillingAdministration.PlanCount> plans, long waitingTransfers, long waitingPoisha,
+            @Nullable Instant oldestWaiting, Instant at) {
     }
 
     private final UserMetrics users;
@@ -54,6 +58,7 @@ class AdminMetricsController {
                 : BigDecimal.valueOf(money.paying()).divide(BigDecimal.valueOf(money.trialsEnded()), 4, RoundingMode.HALF_UP);
         return new Metrics(users.users(), users.signUpsSince(week), users.signUpsSince(now.minus(Duration.ofDays(30))),
                 businesses.businesses(), businesses.createdSince(week), money.trialing(), money.paying(), money.readOnly(),
-                money.suspended(), money.everPaid(), conversion, money.mrr(), activity.activeBusinessesSince(week), now);
+                money.suspended(), money.everPaid(), conversion, money.mrr(), activity.activeBusinessesSince(week),
+                money.grace(), money.plans(), money.waitingTransfers(), money.waitingAmount(), money.oldestWaiting(), now);
     }
 }
