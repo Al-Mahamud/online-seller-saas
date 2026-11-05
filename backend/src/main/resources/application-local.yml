@@ -33,7 +33,7 @@ server:
       suffix: ""
       file-date-format: ""
       buffered: false
-      pattern: "API %m %U -> %s (%{ms}T ms)"
+      pattern: "API %m %U -> %s (%{ms}T ms) [%{X-Request-Id}o]"
 
 springdoc:
   api-docs:

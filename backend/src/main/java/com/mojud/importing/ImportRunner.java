@@ -7,6 +7,7 @@ import com.mojud.inventory.StockLevel;
 import com.mojud.inventory.StockQueries;
 import com.mojud.inventory.StockService;
 import com.mojud.notifications.Notifier;
+import com.mojud.shared.async.LogContext;
 import com.mojud.shared.audit.AuditTrail;
 import com.mojud.shared.error.ApiException;
 import com.mojud.shared.error.ErrorCode;
@@ -87,6 +88,7 @@ class ImportRunner implements ImportResumer, DisposableBean {
             // Its own threads: a long import must not hold up the after-commit pool (sign-in codes).
             pool = new ThreadPoolTaskExecutor();
             pool.setThreadNamePrefix("import-");
+            pool.setTaskDecorator(LogContext::carrying);
             pool.setCorePoolSize(2);
             pool.setMaxPoolSize(2);
             pool.setQueueCapacity(100);

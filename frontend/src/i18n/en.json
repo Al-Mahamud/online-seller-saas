@@ -212,7 +212,8 @@
   "error": {
     "network": "Can't reach the server. Check your internet connection and try again.",
     "rateLimited": "Too many tries. Try again in {{seconds}} seconds.",
-    "unexpected": "Something went wrong. Please try again."
+    "unexpected": "Something went wrong. Please try again.",
+    "code": "Code: {{code}}"
   },
   "account": {
     "signOut": "Sign out",

@@ -76,8 +76,16 @@ Rotate a secret when someone who knew it leaves, when it may have leaked, and on
 - `Unsafe production settings: ...` lists every missing or unsafe value in `.env`.
 - Database errors usually mean the `db` container is not healthy: run `docker compose ps`.
 
+**A seller sends an error with a code** ("কোড: 7f3a9c2e1b4d"):
+- Every API request gets a 12-character ID. The app shows it under a server error's message and on the error page; it is also the `X-Request-Id` header and the `requestId` of every error body.
+- Find that request's log lines, its error first: `docker compose logs --since 24h app | grep 7f3a9c2e1b4d`. Each line is JSON, with the ID as `requestId`.
+- In Sentry, search `requestId:7f3a9c2e1b4d`.
+- What the request started in the background (an SMS, an email, an import) logs with the same ID.
+- A well-formed ID sent by a proxy in `X-Request-Id` is kept, so the proxy's log and the app's match.
+- On a local run the ID is in brackets after the thread name, and at the end of each `API ...` line.
+
 **Errors in Sentry.**
-- Each event has the request path and the error, but no customer details.
+- Each event has the request path, the request's ID (tag `requestId`) and the error, but no customer details.
 - "Stock cache differs from the ledger" is a bug, not bad luck. Keep the event and report it. Do not edit stock by hand.
 
 **A night's backup is missing.**

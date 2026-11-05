@@ -9,6 +9,13 @@ test("reaches the API on the app's own origin", async ({ request }) => {
   expect(await options.json()).toHaveProperty("otpChannels");
 });
 
+test("gives every answer an ID, to find its lines in the server's log", async ({ request }) => {
+  const answer = await request.get("/api/v1/me");
+  const id = answer.headers()["x-request-id"];
+  expect(id).toMatch(/^[0-9a-f]{12}$/);
+  expect((await answer.json()).requestId).toBe(id);
+});
+
 test("signs up and stays signed in with the session cookie", async ({ request }) => {
   const account = await signUp(request);
 

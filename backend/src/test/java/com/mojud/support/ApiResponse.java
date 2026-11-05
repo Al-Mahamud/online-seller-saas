@@ -22,6 +22,14 @@ public record ApiResponse(int status, String body, HttpHeaders headers) {
         return this;
     }
 
+    /**
+     * The body without the request's ID, which differs on every request: for checking that two
+     * answers say exactly the same thing, such as for a real and an unknown account.
+     */
+    public String bodyWithoutRequestId() {
+        return body.replaceAll(",?\"requestId\":\"[^\"]*\"", "");
+    }
+
     public <T> T json(String path) {
         return JsonPath.read(body, path);
     }

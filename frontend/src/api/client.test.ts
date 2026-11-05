@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setLanguage } from "@/i18n";
 import { call, createApi, setExpectedBusiness } from "./client";
-import { ApiError, errorAction, NetworkError } from "./errors";
+import { ApiError, errorAction, NetworkError, requestIdOf } from "./errors";
 
 function clearCookies() {
   for (const entry of document.cookie.split("; ")) {
@@ -211,5 +211,18 @@ describe("errorAction", () => {
   it("shows the server's message otherwise", () => {
     const error = ApiError.from(response(409), { code: "stock.insufficient", detail: "Not enough stock." });
     expect(errorAction(error)).toEqual({ kind: "message", detail: "Not enough stock." });
+  });
+});
+
+describe("requestIdOf", () => {
+  it("reads the server's ID for the failed request, and nothing from other errors", () => {
+    const error = ApiError.from(new Response(null, { status: 500 }), {
+      code: "server.error",
+      requestId: "7f3a9c2e1b4d",
+    });
+    expect(requestIdOf(error)).toBe("7f3a9c2e1b4d");
+    expect(requestIdOf(ApiError.from(new Response(null, { status: 500 }), {}))).toBeNull();
+    expect(requestIdOf(new NetworkError(null))).toBeNull();
+    expect(requestIdOf(new Error("boom"))).toBeNull();
   });
 });

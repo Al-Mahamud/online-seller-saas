@@ -198,7 +198,7 @@ class AccountTests {
                 Map.of("userId", TestAccounts.newUserId(), "code", "000000", "newPassword", NEW_PASSWORD))
                 .expectError(400, "otp.invalid");
 
-        assertThat(unknown.body()).isEqualTo(known.body());
+        assertThat(unknown.bodyWithoutRequestId()).isEqualTo(known.bodyWithoutRequestId());
     }
 
     @Test

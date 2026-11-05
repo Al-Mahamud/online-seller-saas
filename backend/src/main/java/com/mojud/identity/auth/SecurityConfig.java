@@ -116,6 +116,8 @@ class SecurityConfig {
             cors.setAllowedOrigins(web.allowedOrigins());
             cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
             cors.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "Idempotency-Key", "Accept-Language", "X-Business-Id"));
+            // The app reads the request's ID to show with an error (RequestIdFilter).
+            cors.setExposedHeaders(List.of("X-Request-Id"));
             cors.setAllowCredentials(true);
             source.registerCorsConfiguration("/api/**", cors);
         }
