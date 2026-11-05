@@ -12,8 +12,20 @@ class ProductionChecksTests {
     void aCompleteServerStarts() {
         assertThat(ProductionChecks.problems(complete())).isEmpty();
         assertThat(ProductionChecks.warnings(complete().withProperty("mojud.email.provider", "smtp")
-                .withProperty("mojud.billing.sslcommerz.store-id", "store").withProperty("sentry.dsn", "https://k@sentry.io/1")
+                .withProperty("mojud.billing.sslcommerz.store-id", "store")
+                .withProperty("mojud.billing.sslcommerz.base-url", "https://securepay.sslcommerz.com")
+                .withProperty("sentry.dsn", "https://k@sentry.io/1")
                 .withProperty("mojud.storage.provider", "s3"))).isEmpty();
+    }
+
+    @Test
+    void aStoreOnTheSandboxIsAWarning() {
+        MockEnvironment sandbox = complete().withProperty("mojud.billing.sslcommerz.store-id", "testbox");
+        assertThat(ProductionChecks.warnings(sandbox)).contains(
+                "SSLCOMMERZ_BASE_URL is the sandbox: card and bKash payments are tests, and no money arrives");
+        assertThat(ProductionChecks.warnings(sandbox.withProperty("mojud.billing.sslcommerz.base-url",
+                "https://sandbox.sslcommerz.com"))).anyMatch(warning -> warning.contains("sandbox"));
+        assertThat(ProductionChecks.problems(sandbox)).isEmpty();
     }
 
     @Test

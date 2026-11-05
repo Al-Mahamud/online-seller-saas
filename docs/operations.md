@@ -51,7 +51,7 @@ They run inside the app (at most one instance at a time), in Dhaka time.
 | subscription-lifecycle | 09:00 | Trials and plans move along; reminders. |
 | data-deletion | 09:30 | Businesses read-only for 90 days. **Off** (`mojud.billing.data-deletion.enabled`) until the warnings' wording is approved. |
 | import-sweeper | Every minute | Picks up and resumes product imports. |
-| pending-payments | Every 15 minutes | Asks SSLCommerz about payments whose callback never came. |
+| pending-payments | Every 15 minutes | Asks SSLCommerz about payments whose callback never came (and whose browser didn't come back either; see docs/plans-and-payment.md, "sandbox"). |
 | backup (separate container) | 02:30 (`BACKUP_AT=20:30` UTC) | Encrypted database backup to R2. |
 
 ## Rotating secrets

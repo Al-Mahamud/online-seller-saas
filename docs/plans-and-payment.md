@@ -35,6 +35,35 @@ Plan band (name, state, dates, the one thing to do), usage (with "just you" for 
 - **Bank details** are the server's text, shown as it is.
 - **Payment method on invoices:** online or bank transfer; the gateway doesn't say which wallet.
 
+## Trying payments in the SSLCommerz sandbox
+
+The sandbox is SSLCommerz's test gateway: its pages look real, but no money moves. Mojud uses it
+whenever `SSLCOMMERZ_BASE_URL` isn't set, so going live is only a change of address and store.
+
+1. **Get a sandbox store:** register at https://developer.sslcommerz.com/registration/. SSLCommerz
+   emails a Store ID and Store Password (for the sandbox only).
+2. **Local run (IntelliJ):** in the backend's run configuration, add the environment variables
+   `SSLCOMMERZ_STORE_ID` and `SSLCOMMERZ_STORE_PASSWORD`, then restart. IntelliJ keeps them in
+   `backend/.idea/workspace.xml`, which git ignores. Never put them in `application-local.yml`.
+3. **Pay:** sign in as an owner, choose a plan and "pay online". SSLCommerz's sandbox page opens.
+   Pay with a test card from SSLCommerz's developer docs (at the time of writing: VISA
+   `4111 1111 1111 1111`, Mastercard `5111 1111 1111 1111`, any future expiry, CVV `111`; mobile OTP
+   `111111` or `123456`), or pick a test wallet.
+4. **Back in Mojud** the invoice turns paid within seconds.
+
+**How it confirms:** SSLCommerz's IPN can't reach `localhost`, so on a local run the payment is
+confirmed when the browser comes back: the backend asks SSLCommerz's Validation API about that
+`val_id` and applies it only if the gateway says this attempt's `tran_id` was paid with the right
+amount (since Nov 5, 2026; servers benefit too when an IPN is slow). If the browser never comes
+back, the pending check asks the gateway after 30 minutes.
+
+**Not the sandbox:** browser and backend tests (`spring-boot:test-run`, `TestMojudApplication`) use
+the stand-in gateway in test sources (`FakeSslCommerz`), so they never need SSLCommerz.
+
+**A server on the sandbox** (a staging server) starts with the warning "SSLCOMMERZ_BASE_URL is the
+sandbox". Going live: `SSLCOMMERZ_BASE_URL=https://securepay.sslcommerz.com` and the live store's
+ID and password in `.env` (deploy/.env.example).
+
 ## Known limits
 
 - **Old prices:** invoices paid before keep their amounts; a paid period running at the old price runs to its end, then renews at the new one.
@@ -46,3 +75,4 @@ Plan band (name, state, dates, the one thing to do), usage (with "just you" for 
 
 - **Nov 2, 2026:** three plans, no trial; plan and payment pages redesigned.
 - **Nov 5, 2026:** the trial promise left on sign-in and sign-up is gone. The admin overview drops its "on trial" and "trial to paying" tiles. A business still on a trial from before (none exist yet) can still have it extended from its admin page.
+- **Nov 5, 2026:** the SSLCommerz sandbox works on a local run: a payment is confirmed when the browser returns from the gateway (validated with SSLCommerz), not only by the IPN. Servers on the sandbox warn at start.
