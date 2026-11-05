@@ -27,7 +27,8 @@ Dark header with today's and 7 days' counts; search, person, period (default 7 d
 kept in the address. Entries grouped by day, each a sentence (`activity.verb.<group>.<name>`, with
 the action code as a fallback for one not yet worded), linking to the order or invoice, with a
 coloured kind and a short detail; "কী বদলেছে" opens before → after for changes. A side panel on
-laptop (who and what, 7 days) filters when tapped. "আগের কাজ দেখুন" loads older pages.
+laptop (who and what, 7 days) filters when tapped. Numbered pages below the list, kept in the
+address (the shared pager, `docs/pagination.md`); a new filter goes back to page 1.
 
 ## Texts that load with their page
 
@@ -37,4 +38,6 @@ To stay within the 250 KB first-visit budget, the activity log's and the team pa
 main file. The Bangla review list and the translation tests include them. The budget has about
 0.7 KB left: a big new block of text for one page belongs there too.
 
-- Nov 4, 2026: the list now has numbered pages kept in the address (the shared pager, 20/50/100 rows), instead of a "load older" button. A new filter goes back to page 1.
+## Change log
+
+- Nov 4, 2026: numbered pages (20, 50 or 100 rows) instead of the "আগের কাজ দেখুন" button.

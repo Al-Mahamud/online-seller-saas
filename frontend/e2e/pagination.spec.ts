@@ -106,3 +106,35 @@ test("an empty list has no pager at all", async ({ page }) => {
   await expect(page.getByText("এখনো কোনো গ্রাহক নেই।")).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "মোট" })).toHaveCount(0);
 });
+
+test("the activity log goes page by page, and a new filter starts again from the first", async ({ page }) => {
+  await signUpWithBusiness(page.request);
+  // Adding a customer isn't logged; deleting one is.
+  const token = (await page.request.storageState()).cookies.find((cookie) => cookie.name === "XSRF-TOKEN")?.value ?? "";
+  for (let index = 0; index < 25; index++) {
+    const added = await page.request.post("/api/v1/customers", {
+      headers: { "X-XSRF-TOKEN": token },
+      data: { name: `গ্রাহক ${index + 1}`, phone: `0181${String(1000000 + index)}` },
+    });
+    expect(added.ok(), await added.text()).toBe(true);
+    const { id } = await added.json();
+    const deleted = await page.request.delete(`/api/v1/customers/${id}`, { headers: { "X-XSRF-TOKEN": token } });
+    expect(deleted.ok(), await deleted.text()).toBe(true);
+  }
+  await page.goto("/settings/audit-log");
+  // The list itself, not the laptop's side panel of who and what.
+  const entries = page.getByRole("region", { name: /টি কাজ/ }).getByRole("listitem");
+
+  await showing(page, "২৬টি কাজ");
+  await expect(entries).toHaveCount(20);
+  await pager(page).getByRole("button", { name: "পরের" }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(entries).toHaveCount(6);
+  await expectAccessible(page);
+
+  // A kind chip goes back to the first page.
+  await page.getByRole("group", { name: "কোন কাজ" }).getByRole("button", { name: "গ্রাহক" }).click();
+  await expect(page).toHaveURL(/kind=CUSTOMERS/);
+  await expect(page).not.toHaveURL(/page=/);
+  await showing(page, "এই খোঁজে ২৫টি কাজ");
+});
