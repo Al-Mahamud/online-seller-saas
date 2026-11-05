@@ -34,12 +34,6 @@ export function MetricsPage() {
           value={count(data.paying)}
           note={text.metrics.everPaid(count(data.everPaid))}
         />
-        <Tile
-          label={text.metrics.conversion}
-          value={data.conversion === null ? "–" : `${count(Math.round(data.conversion * 100))}%`}
-          note={data.conversion === null ? text.metrics.noConversion : undefined}
-        />
-        <Tile label={text.metrics.trialing} value={count(data.trialing)} />
         <Tile label={text.metrics.readOnly} value={count(data.readOnly)} />
         <Tile label={text.metrics.suspended} value={count(data.suspended)} />
         <Tile

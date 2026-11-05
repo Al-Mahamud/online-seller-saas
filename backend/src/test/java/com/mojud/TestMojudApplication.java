@@ -17,6 +17,8 @@ public class TestMojudApplication {
         "--mojud.billing.sslcommerz.base-url=http://localhost:${server.port:8080}/api/v1/public/gateway/fake-sslcommerz",
         "--mojud.billing.sslcommerz.store-id=test-store",
         "--mojud.billing.sslcommerz.store-password=test-password",
+        // The local profile opens the admin area without two-step sign-in; the browser tests check the real rule.
+        "--mojud.admin.require-two-factor=true",
     };
 
     public static void main(String[] args) {

@@ -293,7 +293,7 @@
       "subtitle": "Your stock, orders and deliveries in one place.",
       "submit": "Sign in",
       "forgot": "Forgot your password?",
-      "newHere": "New here? Try Pro free for 14 days.",
+      "newHere": "New here? Start for free.",
       "createAccount": "Create an account"
     },
     "twoStep": {
@@ -304,7 +304,7 @@
     },
     "signUp": {
       "title": "New account",
-      "subtitle": "Try Pro free for 14 days.",
+      "subtitle": "Start for free. Move to Starter or Pro as your business grows.",
       "name": "Your name",
       "emailOptional": "Email (optional)",
       "passwordHint": "At least 8 characters",

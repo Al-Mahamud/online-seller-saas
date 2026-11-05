@@ -45,3 +45,4 @@ Plan band (name, state, dates, the one thing to do), usage (with "just you" for 
 ## Change log
 
 - **Nov 2, 2026:** three plans, no trial; plan and payment pages redesigned.
+- **Nov 5, 2026:** the trial promise left on sign-in and sign-up is gone. The admin overview drops its "on trial" and "trial to paying" tiles. A business still on a trial from before (none exist yet) can still have it extended from its admin page.

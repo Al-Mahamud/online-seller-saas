@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -46,10 +47,17 @@ class LoginSessions {
     private final SecurityContextHolderStrategy holder = SecurityContextHolder.getContextHolderStrategy();
     private final FindByIndexNameSessionRepository<? extends Session> sessions;
     private final Clock clock;
+    private final boolean adminNeedsTwoFactor;
 
-    LoginSessions(FindByIndexNameSessionRepository<? extends Session> sessions, Clock clock) {
+    /**
+     * {@code mojud.admin.require-two-factor=false} (local runs only; a server refuses it,
+     * ProductionChecks) gives admin rights without two-step sign-in.
+     */
+    LoginSessions(FindByIndexNameSessionRepository<? extends Session> sessions, Clock clock,
+            @Value("${mojud.admin.require-two-factor:true}") boolean adminNeedsTwoFactor) {
         this.sessions = sessions;
         this.clock = clock;
+        this.adminNeedsTwoFactor = adminNeedsTwoFactor;
     }
 
     /** Signs the user in on this device, in their saved language. */
@@ -142,8 +150,8 @@ class LoginSessions {
     }
 
     /** Admin rights only with two-step sign-in; SecurityConfig tells an admin without it what to do. */
-    private static Authentication authentication(AuthenticatedUser user) {
-        List<GrantedAuthority> authorities = user.platformAdmin() && user.twoFactor()
+    private Authentication authentication(AuthenticatedUser user) {
+        List<GrantedAuthority> authorities = user.platformAdmin() && (user.twoFactor() || !adminNeedsTwoFactor)
                 ? List.of(new SimpleGrantedAuthority("ROLE_PLATFORM_ADMIN"))
                 : List.of();
         return UsernamePasswordAuthenticationToken.authenticated(user, null, authorities);

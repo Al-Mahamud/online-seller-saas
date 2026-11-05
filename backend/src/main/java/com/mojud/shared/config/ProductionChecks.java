@@ -49,6 +49,9 @@ class ProductionChecks {
                 problems.add(channel[1] + "=log would write sign-in codes to the log");
             }
         }
+        if ("false".equals(environment.getProperty("mojud.admin.require-two-factor"))) {
+            problems.add("mojud.admin.require-two-factor=false would open the admin area without two-step sign-in");
+        }
         return problems;
     }
 
