@@ -20,7 +20,7 @@ public interface BillingAdministration {
     record Usage(long used, @Nullable Integer limit) {
     }
 
-    record InvoiceSummary(UUID id, String number, String kind, String planCode, long amount, String status, String payBy,
+    record InvoiceSummary(UUID id, String number, String kind, String planCode, int months, long amount, String status, String payBy,
             Instant createdAt, @Nullable Instant paidAt) {
     }
 
@@ -38,7 +38,12 @@ public interface BillingAdministration {
      * trial has ended (paying or not), for conversion; {@code mrr}: the paying businesses' monthly
      * prices, in poisha.
      */
-    record Metrics(long trialing, long paying, long readOnly, long suspended, long trialsEnded, long everPaid, long mrr) {
+    record Metrics(long trialing, long paying, long readOnly, long suspended, long trialsEnded, long everPaid, long mrr,
+            long grace, List<PlanCount> plans, long waitingTransfers, long waitingAmount, @Nullable Instant oldestWaiting) {
+    }
+
+    /** How many businesses are on one plan. */
+    record PlanCount(String code, long businesses) {
     }
 
     Metrics metrics();

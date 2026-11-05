@@ -39,8 +39,8 @@ class BillingAdminController {
 
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(DhakaTime.ZONE);
 
-    record AdminInvoice(UUID id, String number, UUID businessId, String businessName, String kind, String planCode, long amount, String status,
-            String payBy, Instant createdAt) {
+    record AdminInvoice(UUID id, String number, UUID businessId, String businessName, String kind, String planCode, int months,
+            long amount, String status, String payBy, Instant createdAt) {
     }
 
     record MarkPaidRequest(@NotBlank @Size(max = 100) String reference) {
@@ -66,13 +66,14 @@ class BillingAdminController {
         String wantedPayBy = payBy == null ? "" : payBy;
         String where = "where (? = '' or i.status = ?) and (? = '' or i.pay_by = ?) ";
         List<AdminInvoice> rows = database.jdbc().sql("""
-                        select i.id, i.number, i.business_id, b.name, i.kind, i.plan_code, i.amount, i.status, i.pay_by, i.created_at
+                        select i.id, i.number, i.business_id, b.name, i.kind, i.plan_code, i.amount, i.status, i.pay_by, i.created_at,
+                               i.months
                         from invoices i join businesses b on b.id = i.business_id
                         """ + where + "order by i.created_at desc, i.id desc limit ? offset ?")
                 .params(wantedStatus, wantedStatus, wantedPayBy, wantedPayBy, paging.limit(), paging.offset())
                 .query((rs, n) -> new AdminInvoice(rs.getObject(1, UUID.class), rs.getString(2), rs.getObject(3, UUID.class),
-                        rs.getString(4), rs.getString(5), rs.getString(6), rs.getLong(7), rs.getString(8), rs.getString(9),
-                        rs.getTimestamp(10).toInstant()))
+                        rs.getString(4), rs.getString(5), rs.getString(6), rs.getInt(11), rs.getLong(7), rs.getString(8),
+                        rs.getString(9), rs.getTimestamp(10).toInstant()))
                 .list();
         long total = database.jdbc().sql("select count(*) from invoices i " + where)
                 .params(wantedStatus, wantedStatus, wantedPayBy, wantedPayBy).query(Long.class).single();
@@ -83,10 +84,14 @@ class BillingAdminController {
     @PostMapping("/api/v1/admin/billing/invoices/{id}/mark-paid")
     void markPaid(@PathVariable UUID id, @Valid @RequestBody MarkPaidRequest body,
             @AuthenticationPrincipal AuthenticatedUser admin) {
-        UUID business = database.jdbc().sql("select business_id from invoices where id = ?").param(id)
-                .query(UUID.class).optional().orElseThrow(ApiException::notFound);
-        confirmations.markBankTransfer(business, id, body.reference().strip(), admin.id());
-        audit.record(admin.id(), "invoice.marked_paid", "invoice", id.toString(), business, "reference", body.reference().strip());
+        record Found(UUID business, String number, long amount) {
+        }
+        Found invoice = database.jdbc().sql("select business_id, number, amount from invoices where id = ?").param(id)
+                .query((rs, n) -> new Found(rs.getObject(1, UUID.class), rs.getString(2), rs.getLong(3)))
+                .optional().orElseThrow(ApiException::notFound);
+        confirmations.markBankTransfer(invoice.business(), id, body.reference().strip(), admin.id());
+        audit.record(admin.id(), "invoice.marked_paid", "invoice", id.toString(), invoice.business(), "reference",
+                body.reference().strip(), "number", invoice.number(), "amount", invoice.amount());
     }
 
     /** One Dhaka month of the ledger (default this one), every business, for the accountant. Money in taka. */

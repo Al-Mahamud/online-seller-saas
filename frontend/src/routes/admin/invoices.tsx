@@ -1,8 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { InvoicesPage } from "@/features/admin/InvoicesPage";
-import { pagingSearch } from "@/lib/paging";
+import { type Paging, pagingSearch } from "@/lib/paging";
 
 export const Route = createFileRoute("/admin/invoices")({
-  validateSearch: pagingSearch,
+  validateSearch: (search: Record<string, unknown>): { tab?: "paid" } & Paging => ({
+    tab: search.tab === "paid" ? "paid" : undefined,
+    ...pagingSearch(search),
+  }),
   component: InvoicesPage,
 });

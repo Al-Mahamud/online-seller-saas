@@ -35,6 +35,12 @@ class SystemBusinessDirectory implements BusinessDirectory {
             from businesses b
             """;
 
+    /** The plan and state live with billing's subscriptions; read here so filtering and paging stay one query. */
+    private static final String NARROWED = """
+            and exists (select 1 from subscriptions s where s.business_id = b.id
+                        and (cast(? as text) is null or s.plan_code = ?) and (cast(? as text) is null or s.status = ?))
+            """;
+
     private final SystemDatabase database;
     private final UserDirectory users;
 
@@ -44,7 +50,7 @@ class SystemBusinessDirectory implements BusinessDirectory {
     }
 
     @Override
-    public PagedResult<BusinessSummary> search(String q, PageQuery paging) {
+    public PagedResult<BusinessSummary> search(String q, Narrowing narrowing, PageQuery paging) {
         String query = q == null ? "" : q.strip();
         Optional<UUID> owner = Optional.empty();
         if (!query.isEmpty()) {
@@ -59,18 +65,22 @@ class SystemBusinessDirectory implements BusinessDirectory {
         List<Row> rows;
         long total;
         if (owner.isPresent()) {
-            String where = "where b.id in (select business_id from memberships where user_id = ? and role = 'OWNER') ";
+            String where = "where b.id in (select business_id from memberships where user_id = ? and role = 'OWNER') " + NARROWED;
             rows = database.jdbc().sql(SELECT + where + "order by b.created_at desc, b.id desc limit ? offset ?")
-                    .params(owner.get(), paging.limit(), paging.offset()).query(this::row).list();
+                    .params(owner.get(), narrowing.planCode(), narrowing.planCode(), narrowing.state(), narrowing.state(),
+                            paging.limit(), paging.offset()).query(this::row).list();
             total = database.jdbc().sql("select count(*) from businesses b " + where)
-                    .params(owner.get()).query(Long.class).single();
+                    .params(owner.get(), narrowing.planCode(), narrowing.planCode(), narrowing.state(), narrowing.state())
+                    .query(Long.class).single();
         } else {
             String pattern = Text.containsPattern(query);
-            String where = "where lower(b.name) like ? ";
+            String where = "where lower(b.name) like ? " + NARROWED;
             rows = database.jdbc().sql(SELECT + where + "order by b.created_at desc, b.id desc limit ? offset ?")
-                    .params(pattern, paging.limit(), paging.offset()).query(this::row).list();
+                    .params(pattern, narrowing.planCode(), narrowing.planCode(), narrowing.state(), narrowing.state(),
+                            paging.limit(), paging.offset()).query(this::row).list();
             total = database.jdbc().sql("select count(*) from businesses b " + where)
-                    .params(pattern).query(Long.class).single();
+                    .params(pattern, narrowing.planCode(), narrowing.planCode(), narrowing.state(), narrowing.state())
+                    .query(Long.class).single();
         }
         return PagedResult.of(summaries(rows), paging, total);
     }
@@ -103,7 +113,7 @@ class SystemBusinessDirectory implements BusinessDirectory {
         return rows.stream().map(row -> {
             UserDirectory.UserSummary owner = row.ownerId() == null ? null : owners.get(row.ownerId());
             return new BusinessSummary(row.id(), row.name(), row.phone(), row.address(), row.status(), row.createdAt(),
-                    owner == null ? null : new Owner(owner.id(), owner.name(), owner.phone(), owner.email()), row.members());
+                    owner == null ? null : new Owner(owner.id(), owner.name(), owner.phone(), owner.email(), owner.loginId()), row.members());
         }).toList();
     }
 }

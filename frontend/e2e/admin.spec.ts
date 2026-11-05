@@ -8,6 +8,15 @@ const heading = (page: Page, name: string | RegExp) => page.getByRole("heading",
 const label = (scope: Page | ReturnType<Page["getByRole"]>, name: string) => scope.getByLabel(name, { exact: true });
 const adminNav = (page: Page) => page.getByRole("navigation", { name: "অ্যাডমিন" });
 
+/** An admin page from the menu: the sidebar on a laptop, behind ☰ on a phone. */
+async function openAdminPage(page: Page, name: string | RegExp) {
+  const menu = page.getByRole("button", { name: "মেনু" });
+  if (await menu.isVisible()) {
+    await menu.click();
+  }
+  await adminNav(page).getByRole("link", { name }).click();
+}
+
 async function xsrf(request: APIRequestContext): Promise<string> {
   await request.get("/api/v1/auth/csrf");
   return (await request.storageState()).cookies.find((cookie) => cookie.name === "XSRF-TOKEN")?.value ?? "";
@@ -83,15 +92,24 @@ test("finds a business, and suspending it shows that business the banner", async
   const { page: owner, account } = await seller(browser, shop);
   await admin(page);
   await page.goto("/admin");
+  await expect(heading(page, "সারসংক্ষেপ")).toBeVisible();
+  await openAdminPage(page, "ব্যবসা");
   await expect(heading(page, "ব্যবসা")).toBeVisible();
   await expectAccessible(page);
 
   // By the owner's phone, however it's written; by part of the name.
   const search = page.getByRole("searchbox", { name: "ব্যবসা খুঁজুন" });
   await search.fill(account.phone);
+  await search.press("Enter");
   await expect(page.getByRole("link", { name: new RegExp(shop) })).toBeVisible();
   await expect(page.getByRole("link", { name: /অ্যাডমিনের দোকান/ })).toHaveCount(0);
+  // Narrowed by plan: this one is on Pro.
+  await page.getByRole("group", { name: "প্ল্যান" }).getByRole("button", { name: "Free" }).click();
+  await expect(page).toHaveURL(/plan=FREE/);
+  await expect(page.getByText("কোনো ব্যবসা পাওয়া যায়নি।")).toBeVisible();
+  await page.getByRole("button", { name: "সব ব্যবসা দেখুন" }).click();
   await search.fill(shop.slice(-6));
+  await search.press("Enter");
   await page.getByRole("link", { name: new RegExp(shop) }).click();
   await expect(heading(page, shop)).toBeVisible();
   await expect(page.getByText("চালু", { exact: true }).first()).toBeVisible();
@@ -111,7 +129,8 @@ test("finds a business, and suspending it shows that business the banner", async
   await expectAccessible(page);
   await dialog.getByRole("button", { name: "স্থগিত করুন" }).click();
   await expect(page.getByText("ব্যবসাটি স্থগিত হয়েছে।")).toBeVisible();
-  await expect(page.getByText("reason: প্রতারণার অভিযোগ")).toBeVisible();
+  await expect(page.getByText("কারণ: “প্রতারণার অভিযোগ”")).toBeVisible();
+  await expectAccessible(page);
 
   await owner.goto("/");
   await expect(owner.getByText("এই ব্যবসাটি স্থগিত করা হয়েছে", { exact: false }).first()).toBeVisible();
@@ -132,7 +151,7 @@ test("extends a trial and sets a plan", async ({ page, browser }) => {
   expect((await owner.request.post(`/dev/subscription?businessId=${id}&status=TRIALING&days=14`)).status()).toBe(204);
   const before = (await (await owner.request.get("/api/v1/billing")).json()) as { trialEndsAt: string };
   await admin(page);
-  await page.goto(`/admin?q=${encodeURIComponent(shop)}`);
+  await page.goto(`/admin/businesses?q=${encodeURIComponent(shop)}`);
   await page.getByRole("link", { name: new RegExp(shop) }).click();
 
   await page.getByRole("button", { name: "ট্রায়াল বাড়ান" }).click();
@@ -143,9 +162,14 @@ test("extends a trial and sets a plan", async ({ page, browser }) => {
   expect(new Date(after.trialEndsAt).getTime() - new Date(before.trialEndsAt).getTime()).toBe(10 * 24 * 60 * 60_000);
 
   await page.getByRole("button", { name: "প্ল্যান দিন" }).click();
-  await label(page.getByRole("dialog"), "প্ল্যান").selectOption("PRO");
-  await page.getByRole("dialog").getByRole("button", { name: "প্ল্যান দিন" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("radio", { name: "Pro" }).check();
+  await dialog.getByRole("button", { name: "৩ মাস" }).click();
+  await label(dialog, "কারণ (ঐচ্ছিক)").fill("সৌজন্য");
+  await expectAccessible(page);
+  await dialog.getByRole("button", { name: "প্ল্যান দিন" }).click();
   await expect(page.getByText("প্ল্যান দেওয়া হয়েছে।")).toBeVisible();
+  await expect(page.getByText("কারণ: “সৌজন্য”")).toBeVisible();
   const billing = (await (await owner.request.get("/api/v1/billing")).json()) as {
     status: string;
     plan: { code: string };
@@ -165,7 +189,9 @@ test("marks a bank transfer paid, and the plan starts", async ({ page, browser }
   const { number } = (await opened.json()) as { number: string };
   await admin(page);
   await page.goto("/admin");
-  await adminNav(page).getByRole("link", { name: "ব্যাংক ট্রান্সফার" }).click();
+  // The overview counts it among what needs an admin.
+  await page.getByRole("link", { name: "মিলিয়ে দেখুন" }).click();
+  await expect(heading(page, "ব্যাংক ট্রান্সফার")).toBeVisible();
   await expect(page.getByRole("link", { name: shop })).toBeVisible();
   await expectAccessible(page);
 
@@ -191,8 +217,14 @@ test("marks a bank transfer paid, and the plan starts", async ({ page, browser }
   expect(file.suggestedFilename()).toMatch(/^ledger-\d{4}-\d{2}\.csv$/);
   await owner.context().close();
 
-  // And in the admin log, by whom.
-  await adminNav(page).getByRole("link", { name: "অ্যাডমিন লগ" }).click();
+  // Among the paid ones now.
+  await page.getByRole("button", { name: "পরিশোধিত", exact: true }).click();
+  await expect(page.getByRole("link", { name: shop })).toBeVisible();
+
+  // And in the admin log, by whom, narrowed to bank transfers.
+  await openAdminPage(page, "অ্যাডমিন লগ");
+  await page.getByRole("group", { name: "কোন কাজ" }).getByRole("button", { name: "ব্যাংক ট্রান্সফার" }).click();
+  await expect(page).toHaveURL(/kind=transfers/);
   const entry = page
     .getByRole("listitem")
     .filter({ hasText: "ব্যাংক ট্রান্সফার পরিশোধিত" })
@@ -202,18 +234,19 @@ test("marks a bank transfer paid, and the plan starts", async ({ page, browser }
   await expectAccessible(page);
 });
 
-test("shows the metrics, and edits a plan for those who choose one next", async ({ page }) => {
+test("shows the overview, and edits a plan for those who choose one next", async ({ page }) => {
   await admin(page);
-  await page.goto("/admin/metrics");
-  await expect(heading(page, "হিসাব")).toBeVisible();
+  await page.goto("/admin");
+  await expect(heading(page, "সারসংক্ষেপ")).toBeVisible();
   await expect(page.getByText("মাসিক আয় (MRR)")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "এখন যা দেখতে হবে" })).toBeVisible();
   await expectAccessible(page);
 
-  await adminNav(page).getByRole("link", { name: "প্ল্যান" }).click();
+  await openAdminPage(page, "প্ল্যান");
   await expect(heading(page, "প্ল্যান")).toBeVisible();
   await expectAccessible(page);
   await page.getByRole("button", { name: "বদলান: Starter" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("region", { name: "Starter বদলাচ্ছেন" });
   const price = label(dialog, "মাসিক দাম (৳)");
   const original = await price.inputValue();
   await price.fill("abc");
@@ -223,15 +256,15 @@ test("shows the metrics, and edits a plan for those who choose one next", async 
 
   // Same price, a changed limit that's put back: other tests share these plans.
   await price.fill(original);
-  const seats = label(dialog, "সদস্য");
+  const seats = label(dialog, "মালিক ছাড়া সদস্য");
   const seatsBefore = await seats.inputValue();
   await seats.fill(String(Number(seatsBefore) + 1));
   await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
   await expect(page.getByText("প্ল্যান সংরক্ষণ হয়েছে।")).toBeVisible();
 
   await page.getByRole("button", { name: "বদলান: Starter" }).click();
-  await expect(label(dialog, "সদস্য")).toHaveValue(String(Number(seatsBefore) + 1));
-  await label(dialog, "সদস্য").fill(seatsBefore);
+  await expect(label(dialog, "মালিক ছাড়া সদস্য")).toHaveValue(String(Number(seatsBefore) + 1));
+  await label(dialog, "মালিক ছাড়া সদস্য").fill(seatsBefore);
   await dialog.getByRole("button", { name: "সংরক্ষণ করুন" }).click();
   await expect(dialog).toHaveCount(0);
 });

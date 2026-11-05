@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -52,10 +53,22 @@ class AdminBusinessController {
         this.audit = audit;
     }
 
-    /** {@code q}: part of the name, or the owner's phone, email or User ID; newest first. */
+    /** The subscription states a business can be narrowed to. */
+    enum State { ACTIVE, GRACE, READ_ONLY, SUSPENDED, TRIALING }
+
+    /**
+     * {@code q}: part of the name, or the owner's phone, email or User ID; {@code plan}: a plan's
+     * code; {@code state}: the subscription's state. Newest first.
+     */
     @GetMapping("/api/v1/admin/businesses")
-    PagedResult<Row> search(@RequestParam(required = false) String q, @ParameterObject PageQuery paging) {
-        return businesses.search(q, paging).mapItems(found -> {
+    PagedResult<Row> search(@RequestParam(required = false) String q, @RequestParam(required = false) String plan,
+            @RequestParam(required = false) State state, @ParameterObject PageQuery paging) {
+        if (plan != null && !plan.isBlank() && billing.plans().stream().noneMatch(p -> p.code().equals(plan))) {
+            throw ApiException.invalidField("plan", "field.invalid_value");
+        }
+        BusinessDirectory.Narrowing narrowing = new BusinessDirectory.Narrowing(plan == null || plan.isBlank() ? null : plan,
+                state == null ? null : state.name());
+        return businesses.search(q, narrowing, paging).mapItems(found -> {
             Map<UUID, BillingAdministration.SubscriptionSummary> subscriptions = billing.subscriptions(
                     found.stream().map(BusinessDirectory.BusinessSummary::id).toList());
             return found.stream().map(business -> new Row(business, subscriptions.get(business.id()))).toList();
@@ -99,7 +112,8 @@ class AdminBusinessController {
         return get(id);
     }
 
-    record PlanRequest(@NotBlank String planCode, @NotNull Instant periodEnd) {
+    /** {@code reason}: why, for the admin log; optional. */
+    record PlanRequest(@NotBlank String planCode, @NotNull Instant periodEnd, @Size(max = 500) @Nullable String reason) {
     }
 
     /** A plan until {@code periodEnd}, without payment: a courtesy or a correction. */
@@ -107,7 +121,13 @@ class AdminBusinessController {
     Detail setPlan(@PathVariable UUID id, @Valid @RequestBody PlanRequest body, @AuthenticationPrincipal AuthenticatedUser admin) {
         exists(id);
         billing.setPlan(id, body.planCode(), body.periodEnd());
-        audit.record(admin.id(), "plan.set", "business", id.toString(), id, "plan", body.planCode(), "until", body.periodEnd());
+        String reason = body.reason() == null ? "" : body.reason().strip();
+        if (reason.isEmpty()) {
+            audit.record(admin.id(), "plan.set", "business", id.toString(), id, "plan", body.planCode(), "until", body.periodEnd());
+        } else {
+            audit.record(admin.id(), "plan.set", "business", id.toString(), id, "plan", body.planCode(), "until", body.periodEnd(),
+                    "reason", reason);
+        }
         return get(id);
     }
 
@@ -134,11 +154,18 @@ class AdminBusinessController {
         return updated;
     }
 
-    /** Recent admin actions, newest first; {@code businessId} narrows them to one business. */
+    /**
+     * Recent admin actions, newest first; {@code businessId} narrows them to one business,
+     * {@code action} (repeatable) to those actions, such as {@code invoice.marked_paid}.
+     */
     @GetMapping("/api/v1/admin/audit")
     PagedResult<AdminAudit.Entry> auditLog(@RequestParam(required = false) UUID businessId,
-            @ParameterObject PageQuery paging) {
-        return audit.page(businessId, paging);
+            @RequestParam(required = false) List<String> action, @ParameterObject PageQuery paging) {
+        List<String> actions = action == null ? List.of() : action.stream().filter(a -> !a.isBlank()).map(String::strip).toList();
+        if (actions.size() > 10 || actions.stream().anyMatch(a -> a.length() > 60)) {
+            throw ApiException.invalidField("action", "field.invalid_value");
+        }
+        return audit.page(businessId, actions, paging);
     }
 
     private void exists(UUID id) {
