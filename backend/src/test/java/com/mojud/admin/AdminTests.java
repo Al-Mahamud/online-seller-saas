@@ -222,7 +222,10 @@ class AdminTests {
         ApiResponse waiting = admin.get("/api/v1/admin/metrics").expectStatus(200);
         assertThat(waiting.<Integer>json("$.waitingTransfers") - before.<Integer>json("$.waitingTransfers")).isEqualTo(1);
         assertThat(waiting.<String>json("$.oldestWaiting")).isNotNull();
-        assertThat(waiting.<List<String>>json("$.plans[*].code")).contains("FREE", "STARTER", "PRO").doesNotContain("TRIAL");
+        assertThat(waiting.<List<String>>json("$.plans[*].code")).contains("FREE", "STARTER", "PRO");
+        // A hidden plan, such as the old trial, is listed only while a business is on it.
+        assertThat(waiting.<List<Number>>json("$.plans[?(@.code == 'TRIAL')].businesses"))
+                .allSatisfy(count -> assertThat(count.longValue()).isPositive());
 
         admin.post("/api/v1/admin/billing/invoices/" + invoice + "/mark-paid", Map.of("reference", "DBBL-2")).expectStatus(200);
         ApiResponse paid = admin.get("/api/v1/admin/metrics").expectStatus(200);
