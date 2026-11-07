@@ -29,11 +29,35 @@ Set in migration `V36__free_plan.sql`; an administrator can still edit plans.
 
 Plan band (name, state, dates, the one thing to do), usage (with "just you" for Free's members), the three plans with a 1 / 6 / 12 month switch, and invoices. The payment dialog picks months and how to pay (online or bank transfer) and shows the server's quote. The invoice page is a receipt; an unpaid bank transfer shows three steps. Banners on every page now include "near this month's order limit" for managers and owners.
 
+## bKash and Nagad in the pay dialog
+
+Added Nov 7, 2026, at Al Mahamud's request. Design: https://claude.ai/artifact/B2L7pZ3supqi3ZYoDjTAFQ
+(copy in `mojud-design-artifacts/26-bkash-and-nagad`).
+
+"কীভাবে দেবেন" has four choices: **bKash** and **Nagad** as two tiles (bKash chosen first), **card or
+another way** (Rocket, Upay, card, internet banking, chosen on SSLCommerz's page) and **bank transfer**.
+The pay button and the note under it name the wallet: "বিকাশে ৳… দিন".
+
+- **Server:** checkout and upgrade take an optional `wallet` (`BKASH` or `NAGAD`, with SSLCOMMERZ only;
+  with a bank transfer it is a 400). It becomes the session's `multi_card_name`, so SSLCommerz's page
+  opens on that wallet. The names are settings, `mojud.billing.sslcommerz.wallets.bkash` (`bkash`) and
+  `.nagad` (`mobilebank`). The wallet is kept in the activity log's "invoice opened" entry.
+- **Nagad:** SSLCommerz documents a name for bKash but none for Nagad (Nov 2026), so Nagad opens
+  SSLCommerz's mobile wallets and the seller taps Nagad there; its tile says so. If SSLCommerz gives
+  Nagad's own name, set `mojud.billing.sslcommerz.wallets.nagad`. SSLCommerz's docs also mark
+  `multi_card_name` "Do not Use!"; if the live gateway ignores it, its page simply shows every way.
+- **A wallet the gateway refuses:** the dialog says "নগদে এখন দেওয়া যাচ্ছে না…" and the tile shows
+  "এখন বন্ধ" until the dialog closes.
+- **Texts** load with the plan page (`src/i18n/pages/pay.*.json`), as the main file is at the size budget.
+
 ## Different from the drawing
 
 - **Upgrade breakdown:** the dialog shows the total and how it's worked out in words, not the two lines (the server's quote has only the total and VAT).
 - **Bank details** are the server's text, shown as it is.
-- **Payment method on invoices:** online or bank transfer; the gateway doesn't say which wallet.
+- **Payment method on invoices:** online or bank transfer, not which wallet paid (the gateway's answer has it; not shown yet).
+- **Wallet marks** (Nov 7): a letter on the wallet's colour (বি, ন), not the bKash and Nagad logos; their logo files come from the merchant kits, under their rules.
+- **Nagad's tile** (Nov 7) says "SSLCommerz-এর পাতায় নগদ বেছে নিন" rather than "সরাসরি নগদের পাতায়", as it opens the mobile wallets (above).
+- **A refused wallet** (Nov 7) is one line in the dialog's red box, not a heading and a line.
 
 ## Trying payments in the SSLCommerz sandbox
 
@@ -76,3 +100,4 @@ ID and password in `.env` (deploy/.env.example).
 - **Nov 2, 2026:** three plans, no trial; plan and payment pages redesigned.
 - **Nov 5, 2026:** the trial promise left on sign-in and sign-up is gone. The admin overview drops its "on trial" and "trial to paying" tiles. A business still on a trial from before (none exist yet) can still have it extended from its admin page.
 - **Nov 5, 2026:** the SSLCommerz sandbox works on a local run: a payment is confirmed when the browser returns from the gateway (validated with SSLCommerz), not only by the IPN. Servers on the sandbox warn at start.
+- **Nov 7, 2026:** bKash and Nagad as their own choices in the pay dialog.

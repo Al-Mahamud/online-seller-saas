@@ -3,6 +3,8 @@ import bn from "./bn.json";
 import en from "./en.json";
 import activityBn from "./pages/activity.bn.json";
 import activityEn from "./pages/activity.en.json";
+import payBn from "./pages/pay.bn.json";
+import payEn from "./pages/pay.en.json";
 import teamBn from "./pages/team.bn.json";
 import teamEn from "./pages/team.en.json";
 
@@ -21,10 +23,11 @@ describe("translations", () => {
   it("have the same keys in Bangla and English for texts that load with a page", () => {
     expect(keys(activityEn).sort()).toEqual(keys(activityBn).sort());
     expect(keys(teamEn).sort()).toEqual(keys(teamBn).sort());
+    expect(keys(payEn).sort()).toEqual(keys(payBn).sort());
   });
 
   it("have no empty text", () => {
-    for (const [language, texts] of Object.entries({ bn, en, activityBn, activityEn, teamBn, teamEn })) {
+    for (const [language, texts] of Object.entries({ bn, en, activityBn, activityEn, teamBn, teamEn, payBn, payEn })) {
       for (const key of keys(texts)) {
         const text = key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], texts);
         expect(text, `${language}: ${key}`).not.toBe("");

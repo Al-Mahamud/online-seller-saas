@@ -3,14 +3,24 @@ import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, call } from "@/api/client";
+import { ApiError } from "@/api/errors";
 import { errorMessages } from "@/api/query";
 import { LedgerDialog } from "@/components/layout/LedgerDialog";
+import { useLooseT } from "@/i18n/pages";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { type Billing, billingChanged, type PayBy, type Plan, quoteQuery, usePlanName } from "./api";
+import { type Billing, billingChanged, type Plan, quoteQuery, usePlanName } from "./api";
 import { MONTH_CHOICES, type Months, monthsPrice, periodEnd } from "./plans";
 
-const WAYS = ["bkash", "nagad", "rocket", "card"] as const;
+/** bKash and Nagad open on SSLCommerz's page for that wallet; "other" lets the seller choose there. */
+const WALLETS = ["bkash", "nagad"] as const;
+type Wallet = (typeof WALLETS)[number];
+type Way = Wallet | "other" | "bank";
+const OTHER_WAYS = ["rocket", "upay", "card", "netBanking"] as const;
+/** A letter on the wallet's colour, until the wallets' own logo files are in (docs/plans-and-payment.md). */
+const MARK: Record<Wallet, string> = { bkash: "bg-[#D6125F]", nagad: "bg-[#C2410C]" };
+
+const isWallet = (way: Way): way is Wallet => way === "bkash" || way === "nagad";
 
 /** A card that is a radio button, with what it means under its name. */
 function Option({
@@ -19,12 +29,14 @@ function Option({
   onChange,
   children,
   badge,
+  badgeTone = "primary",
 }: {
   name: string;
   checked: boolean;
   onChange: () => void;
   children: ReactNode;
   badge?: string;
+  badgeTone?: "primary" | "danger";
 }) {
   return (
     <label
@@ -42,7 +54,12 @@ function Option({
       />
       {children}
       {badge && (
-        <span className="absolute -top-2.5 right-2.5 rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground">
+        <span
+          className={cn(
+            "absolute -top-2.5 right-2.5 rounded-full px-2 text-xs font-bold",
+            badgeTone === "danger" ? "bg-danger-ink text-white" : "bg-primary text-primary-foreground",
+          )}
+        >
           {badge}
         </span>
       )}
@@ -74,16 +91,26 @@ export function PayDialog({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [months, setMonths] = useState<Months>(initialMonths);
-  const [payBy, setPayBy] = useState<PayBy>("SSLCOMMERZ");
+  const loose = useLooseT();
+  const [way, setWay] = useState<Way>("bkash");
+  // A wallet the gateway just refused: marked on its tile until the dialog closes.
+  const [off, setOff] = useState<Wallet>();
+  const payBy = way === "bank" ? "BANK_TRANSFER" : "SSLCOMMERZ";
+  const wallet = isWallet(way) ? (way.toUpperCase() as "BKASH" | "NAGAD") : undefined;
   const quote = useQuery(quoteQuery(plan.code, upgrade ? undefined : months));
   const pay = useMutation({
     mutationFn: () =>
       call(
         upgrade
-          ? api.POST("/api/v1/billing/upgrade", { body: { planCode: plan.code, payBy } })
-          : api.POST("/api/v1/billing/checkout", { body: { planCode: plan.code, months, payBy } }),
+          ? api.POST("/api/v1/billing/upgrade", { body: { planCode: plan.code, payBy, wallet } })
+          : api.POST("/api/v1/billing/checkout", { body: { planCode: plan.code, months, payBy, wallet } }),
       ),
     meta: { showsOwnErrors: true },
+    onError: (error) => {
+      if (isWallet(way) && error instanceof ApiError && error.code === "billing.gateway_error") {
+        setOff(way);
+      }
+    },
     onSuccess: async (checkout) => {
       billingChanged(queryClient);
       if (checkout.gatewayUrl) {
@@ -95,6 +122,13 @@ export function PayDialog({
     },
   });
   const problem = pay.error ?? quote.error;
+  // The gateway refusing a wallet says which, and what else will do.
+  const problemText =
+    pay.error && off && pay.error instanceof ApiError && pay.error.code === "billing.gateway_error"
+      ? loose(`pay.off.${off}`)
+      : problem
+        ? errorMessages(problem)
+        : undefined;
   // A renewal of the plan running now adds to its end; anything else starts today.
   const renewing =
     !upgrade &&
@@ -111,7 +145,6 @@ export function PayDialog({
       })
     : "";
   const total = quote.data ? format.taka(quote.data.amount) : "…";
-  const online = payBy === "SSLCOMMERZ";
   return (
     <LedgerDialog
       title={t(upgrade ? "billing.upgradeTitle" : "billing.payTitle", { plan: planName(plan) })}
@@ -124,9 +157,19 @@ export function PayDialog({
         { label: t("billing.payFigure"), value: total },
         ...(period ? [{ label: t("billing.periodFigure"), value: period }] : []),
       ]}
-      problem={problem ? errorMessages(problem) : undefined}
-      summary={online ? t("billing.onlineNext") : t("billing.bankNext")}
-      action={online && quote.data ? t("billing.payAmount", { amount: total }) : t("billing.getInstructions")}
+      problem={problemText}
+      summary={
+        isWallet(way) ? loose(`pay.next.${way}`) : way === "other" ? t("billing.onlineNext") : t("billing.bankNext")
+      }
+      action={
+        way === "bank"
+          ? t("billing.getInstructions")
+          : !quote.data
+            ? t("billing.payAmount", { amount: total })
+            : isWallet(way)
+              ? loose(`pay.payWith.${way}`, { amount: total })
+              : t("billing.payAmount", { amount: total })
+      }
       pending={pay.isPending || !quote.data}
       onSubmit={() => pay.mutate()}
       onClose={onClose}
@@ -172,18 +215,44 @@ export function PayDialog({
       <fieldset className="min-w-0">
         <legend className="mb-2 font-bold">{t("billing.payHow")}</legend>
         <div className="flex flex-col gap-2">
-          <Option name={`${id}-pay-by`} checked={online} onChange={() => setPayBy("SSLCOMMERZ")}>
-            <span className="font-bold">{t("billing.online")}</span>
-            <span className="text-sm text-muted-foreground">{t("billing.onlineHint")}</span>
+          <div className="grid grid-cols-2 gap-2">
+            {WALLETS.map((one) => (
+              <Option
+                key={one}
+                name={`${id}-pay-by`}
+                checked={way === one}
+                onChange={() => setWay(one)}
+                badge={off === one ? loose("pay.offNow") : undefined}
+                badgeTone="danger"
+              >
+                <span className="flex items-center gap-2.5">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "flex size-10 flex-none items-center justify-center rounded-xl text-[19px] leading-none font-bold text-white",
+                      MARK[one],
+                    )}
+                  >
+                    {loose(`pay.letter.${one}`)}
+                  </span>
+                  <span className="text-xl font-bold">{loose(`pay.wallet.${one}`)}</span>
+                </span>
+                <span className="mt-1.5 text-sm text-[#4A544E]">{loose(`pay.hint.${one}`)}</span>
+              </Option>
+            ))}
+          </div>
+          <Option name={`${id}-pay-by`} checked={way === "other"} onChange={() => setWay("other")}>
+            <span className="font-bold">{loose("pay.other")}</span>
+            <span className="text-sm text-muted-foreground">{loose("pay.otherHint")}</span>
             <span className="mt-1.5 flex flex-wrap gap-1.5">
-              {WAYS.map((way) => (
-                <span key={way} className="rounded-lg border bg-card px-2.5 text-[13px] font-bold text-[#3E4842]">
-                  {t(`billing.way.${way}`)}
+              {OTHER_WAYS.map((other) => (
+                <span key={other} className="rounded-lg border bg-card px-2.5 text-[13px] font-bold text-[#3E4842]">
+                  {loose(`pay.otherWays.${other}`)}
                 </span>
               ))}
             </span>
           </Option>
-          <Option name={`${id}-pay-by`} checked={!online} onChange={() => setPayBy("BANK_TRANSFER")}>
+          <Option name={`${id}-pay-by`} checked={way === "bank"} onChange={() => setWay("bank")}>
             <span className="font-bold">{t("billing.payBy.BANK_TRANSFER")}</span>
             <span className="text-sm text-muted-foreground">{t("billing.bankHint")}</span>
           </Option>

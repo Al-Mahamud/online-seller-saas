@@ -2487,6 +2487,8 @@ export interface components {
             /** @enum {string} */
             payBy?: "SSLCOMMERZ" | "BANK_TRANSFER";
             planCode: string;
+            /** @enum {string} */
+            wallet?: "BKASH" | "NAGAD";
         };
         BillingChooseRequest: {
             planCode: string;
@@ -2515,6 +2517,8 @@ export interface components {
             /** @enum {string} */
             payBy?: "SSLCOMMERZ" | "BANK_TRANSFER";
             planCode: string;
+            /** @enum {string} */
+            wallet?: "BKASH" | "NAGAD";
         };
         BillingUsage: {
             /** Format: int32 */

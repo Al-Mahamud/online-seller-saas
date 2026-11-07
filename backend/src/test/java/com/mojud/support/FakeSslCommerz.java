@@ -67,9 +67,11 @@ public class FakeSslCommerz {
                 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Test gateway</title>
                 <meta name="viewport" content="width=device-width, initial-scale=1"></head>
                 <body><h1>Test gateway</h1><p>Not real money: this page exists only in test runs.</p>
-                <p>Amount: BDT %s</p><p><a href="%s/pay">Pay</a></p><p><a href="%s/fail">Fail</a></p><p><a href="%s/cancel">Cancel</a></p>
+                <p>Amount: BDT %s</p><p>Opens on: %s</p>
+                <p><a href="%s/pay">Pay</a></p><p><a href="%s/fail">Fail</a></p><p><a href="%s/cancel">Cancel</a></p>
                 </body></html>
-                """.formatted(session.get("total_amount"), tranId, tranId, tranId);
+                """.formatted(session.get("total_amount"), session.getOrDefault("multi_card_name", "every way"), tranId,
+                tranId, tranId);
         return ResponseEntity.ok().contentType(new MediaType("text", "html", StandardCharsets.UTF_8))
                 .header("Content-Security-Policy", "default-src 'none'").body(page);
     }

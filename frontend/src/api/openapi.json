@@ -891,6 +891,10 @@
           },
           "planCode" : {
             "type" : "string"
+          },
+          "wallet" : {
+            "enum" : [ "BKASH", "NAGAD" ],
+            "type" : "string"
           }
         },
         "required" : [ "months", "planCode" ],
@@ -962,6 +966,10 @@
             "type" : "string"
           },
           "planCode" : {
+            "type" : "string"
+          },
+          "wallet" : {
+            "enum" : [ "BKASH", "NAGAD" ],
             "type" : "string"
           }
         },

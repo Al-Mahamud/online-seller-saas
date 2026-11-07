@@ -926,8 +926,6 @@
     },
     "eachMonth": "{{amount}} a month",
     "everyMonth": "Every month",
-    "online": "Online",
-    "onlineHint": "bKash, Nagad, Rocket or card, on SSLCommerz's secure page. On as soon as it's paid.",
     "bankHint": "You'll get the bank details. When the money arrives we turn the plan on and let you know.",
     "lineMonths": "{{plan}} × {{months}} months",
     "upgradeOnly": "Only the difference",
@@ -959,12 +957,6 @@
       "1": "1 month",
       "6": "6 months",
       "12": "12 months"
-    },
-    "way": {
-      "bkash": "bKash",
-      "nagad": "Nagad",
-      "rocket": "Rocket",
-      "card": "Visa / Mastercard"
     }
   },
   "planLimit": {

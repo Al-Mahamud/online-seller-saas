@@ -134,8 +134,12 @@ class BillingController {
         return billing();
     }
 
-    /** {@code payBy}: SSLCOMMERZ (default) or BANK_TRANSFER (paid when an admin sees it arrive). */
-    record CheckoutRequest(@NotNull String planCode, @NotNull Integer months, Invoices.PayBy payBy) {
+    /**
+     * {@code payBy}: SSLCOMMERZ (default) or BANK_TRANSFER (paid when an admin sees it arrive).
+     * {@code wallet} (BKASH or NAGAD, SSLCOMMERZ only): the gateway's page opens on that wallet.
+     */
+    record CheckoutRequest(@NotNull String planCode, @NotNull Integer months, Invoices.PayBy payBy,
+            Invoices.Wallet wallet) {
     }
 
     /**
@@ -147,10 +151,12 @@ class BillingController {
     @RequiresRole(BusinessRole.OWNER)
     @ResponseStatus(HttpStatus.CREATED)
     Invoices.Checkout checkout(@Valid @RequestBody CheckoutRequest body) {
-        return invoices.checkout(body.planCode(), body.months(), body.payBy() == null ? Invoices.PayBy.SSLCOMMERZ : body.payBy());
+        return invoices.checkout(body.planCode(), body.months(), body.payBy() == null ? Invoices.PayBy.SSLCOMMERZ : body.payBy(),
+                body.wallet());
     }
 
-    record UpgradeRequest(@NotNull String planCode, Invoices.PayBy payBy) {
+    /** {@code payBy} and {@code wallet} as for a checkout. */
+    record UpgradeRequest(@NotNull String planCode, Invoices.PayBy payBy, Invoices.Wallet wallet) {
     }
 
     /** A dearer plan for the rest of the running period, prorated; the plan changes when paid. */
@@ -158,7 +164,7 @@ class BillingController {
     @RequiresRole(BusinessRole.OWNER)
     @ResponseStatus(HttpStatus.CREATED)
     Invoices.Checkout upgrade(@Valid @RequestBody UpgradeRequest body) {
-        return invoices.upgrade(body.planCode(), body.payBy() == null ? Invoices.PayBy.SSLCOMMERZ : body.payBy());
+        return invoices.upgrade(body.planCode(), body.payBy() == null ? Invoices.PayBy.SSLCOMMERZ : body.payBy(), body.wallet());
     }
 
     @GetMapping("/api/v1/billing/invoices")

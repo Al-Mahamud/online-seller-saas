@@ -136,6 +136,28 @@ class CheckoutTests {
     }
 
     @Test
+    void aWalletPickedInMojudIsWhereTheGatewayOpens() {
+        String bkash = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1, "wallet", "BKASH"))
+                .expectStatus(201).json("$.invoiceId");
+        assertThat(gateway.session(gateway.tranIdOf(bkash))).containsEntry("multi_card_name", "bkash");
+
+        String nagad = owner.post("/api/v1/billing/checkout",
+                Map.of("planCode", "STARTER", "months", 1, "payBy", "SSLCOMMERZ", "wallet", "NAGAD")).expectStatus(201)
+                .json("$.invoiceId");
+        // SSLCommerz documents no name of Nagad's own: its page opens on the mobile wallets.
+        assertThat(gateway.session(gateway.tranIdOf(nagad))).containsEntry("multi_card_name", "mobilebank");
+
+        String any = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201)
+                .json("$.invoiceId");
+        assertThat(gateway.session(gateway.tranIdOf(any))).doesNotContainKey("multi_card_name");
+
+        owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1, "payBy", "BANK_TRANSFER",
+                "wallet", "BKASH")).expectStatus(400);
+        owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1, "wallet", "ROCKET"))
+                .expectStatus(400);
+    }
+
+    @Test
     void theStandInPagePaysAsTheGatewayWould() {
         ApiResponse checkout = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201);
         String invoice = checkout.json("$.invoiceId");

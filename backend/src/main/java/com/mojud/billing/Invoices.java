@@ -26,6 +26,7 @@ import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -58,6 +59,21 @@ class Invoices implements PaymentConfirmations {
 
     enum PayBy {
         SSLCOMMERZ, BANK_TRANSFER
+    }
+
+    /**
+     * A wallet the owner picked in Mojud, so SSLCommerz opens on it (its {@code multi_card_name},
+     * {@code mojud.billing.sslcommerz.wallets.*}): bKash has its own; SSLCommerz documents none for
+     * Nagad, so Nagad opens the mobile wallets, Nagad among them.
+     */
+    enum Wallet {
+        BKASH("bkash"), NAGAD("mobilebank");
+
+        final String gatewayDefault;
+
+        Wallet(String gatewayDefault) {
+            this.gatewayDefault = gatewayDefault;
+        }
     }
 
     /** Money in poisha. */
@@ -138,8 +154,16 @@ class Invoices implements PaymentConfirmations {
     }
 
     /** Pays for {@code months} of a plan: a renewal, a first paid plan after Free, or coming back from read-only. */
-    Checkout checkout(String planCode, int months, PayBy payBy) {
-        return open("SUBSCRIPTION", publicPlan(planCode), months, periodCharge(planCode, months), payBy);
+    Checkout checkout(String planCode, int months, PayBy payBy, @Nullable Wallet wallet) {
+        requireWalletOnline(payBy, wallet);
+        return open("SUBSCRIPTION", publicPlan(planCode), months, periodCharge(planCode, months), payBy, wallet);
+    }
+
+    /** A wallet is a way through the gateway, never with a bank transfer. */
+    private static void requireWalletOnline(PayBy payBy, @Nullable Wallet wallet) {
+        if (wallet != null && payBy != PayBy.SSLCOMMERZ) {
+            throw ApiException.invalidField("wallet", "field.invalid_value");
+        }
     }
 
     /** What {@link #checkout} (months given) or {@link #upgrade} (none) would charge now. */
@@ -179,8 +203,9 @@ class Invoices implements PaymentConfirmations {
      * A dearer plan for the rest of a running period: (new − old price) × days left ÷ days in the
      * period (backend-plan.md §9). The plan changes when this invoice is paid; the period end stays.
      */
-    Checkout upgrade(String planCode, PayBy payBy) {
-        return open("UPGRADE", publicPlan(planCode), 0, upgradeCharge(planCode), payBy);
+    Checkout upgrade(String planCode, PayBy payBy, @Nullable Wallet wallet) {
+        requireWalletOnline(payBy, wallet);
+        return open("UPGRADE", publicPlan(planCode), 0, upgradeCharge(planCode), payBy, wallet);
     }
 
     private long[] upgradeCharge(String planCode) {
@@ -211,7 +236,7 @@ class Invoices implements PaymentConfirmations {
      * Opens the invoice (committed first, so any later answer finds it), then for the gateway asks
      * for its page; a refusal marks the attempt failed.
      */
-    private Checkout open(String kind, Plans.Plan plan, int months, long[] price, PayBy payBy) {
+    private Checkout open(String kind, Plans.Plan plan, int months, long[] price, PayBy payBy, @Nullable Wallet wallet) {
         CurrentBusiness me = CurrentBusiness.require();
         if (payBy == PayBy.SSLCOMMERZ && !gateway.configured()) {
             throw new ApiException(ErrorCode.BILLING_GATEWAY_UNAVAILABLE);
@@ -238,7 +263,8 @@ class Invoices implements PaymentConfirmations {
                         .update();
             }
             audit.record(me.businessId(), me.userId(), "invoice.opened", "invoice", invoiceId, "number", invoiceNumber,
-                    "kind", kind, "plan", plan.code(), "months", months, "amount", price[0], "payBy", payBy.name());
+                    "kind", kind, "plan", plan.code(), "months", months, "amount", price[0], "payBy", payBy.name(),
+                    "wallet", wallet == null ? null : wallet.name());
             return invoiceNumber;
         });
         if (payBy == PayBy.BANK_TRANSFER) {
@@ -246,7 +272,7 @@ class Invoices implements PaymentConfirmations {
         }
         SslCommerzClient.Session session;
         try {
-            session = gateway.session(sessionFields(kind, plan, months, price[0], tranId, invoiceId, me));
+            session = gateway.session(sessionFields(kind, plan, months, price[0], tranId, invoiceId, me, wallet));
         } catch (RuntimeException e) {
             failed(me.businessId(), tranId, "FAILED");
             throw new ApiException(ErrorCode.BILLING_GATEWAY_ERROR);
@@ -263,7 +289,7 @@ class Invoices implements PaymentConfirmations {
     }
 
     private Map<String, String> sessionFields(String kind, Plans.Plan plan, int months, long amount, String tranId,
-            UUID invoiceId, CurrentBusiness me) {
+            UUID invoiceId, CurrentBusiness me, @Nullable Wallet wallet) {
         UserDirectory.UserSummary owner = users.summaries(List.of(me.userId())).get(me.userId());
         BusinessProfile.Profile business = profiles.current();
         // Read when used: in tests it names the app's own (random) port.
@@ -290,6 +316,10 @@ class Invoices implements PaymentConfirmations {
         fields.put("product_category", "Software");
         fields.put("product_profile", "non-physical-goods");
         fields.put("value_a", invoiceId.toString());
+        if (wallet != null) {
+            fields.put("multi_card_name", environment.getProperty(
+                    "mojud.billing.sslcommerz.wallets." + wallet.name().toLowerCase(Locale.ROOT), wallet.gatewayDefault));
+        }
         return fields;
     }
 

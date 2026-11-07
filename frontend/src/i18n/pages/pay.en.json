@@ -1,0 +1,21 @@
+{
+  "wallet": { "bkash": "bKash", "nagad": "Nagad" },
+  "letter": { "bkash": "b", "nagad": "N" },
+  "hint": {
+    "bkash": "Straight to bKash: your number, a code, then your PIN.",
+    "nagad": "Pick Nagad on SSLCommerz's page: your number, a code, then your PIN."
+  },
+  "offNow": "Off right now",
+  "other": "Card or another way",
+  "otherHint": "Choose on SSLCommerz's secure page.",
+  "otherWays": { "rocket": "Rocket", "upay": "Upay", "card": "Visa / Mastercard", "netBanking": "Internet banking" },
+  "payWith": { "bkash": "Pay {{amount}} with bKash", "nagad": "Pay {{amount}} with Nagad" },
+  "next": {
+    "bkash": "Finish on bKash's page and you'll come back here. Through SSLCommerz, securely.",
+    "nagad": "Finish paying with Nagad and you'll come back here. Through SSLCommerz, securely."
+  },
+  "off": {
+    "bkash": "bKash isn't taking payments right now. Pay with Nagad or a card, or try bKash again in a little while.",
+    "nagad": "Nagad isn't taking payments right now. Pay with bKash or a card, or try Nagad again in a little while."
+  }
+}
