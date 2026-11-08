@@ -21,13 +21,13 @@
         <!-- Agreed on Oct 25, 2026 (backend-plan.md §13). -->
         <java.version>17</java.version>
         <fastexcel.version>0.20.2</fastexcel.version>
-        <spring-modulith.version>2.1.1</spring-modulith.version>
-        <springdoc.version>3.1.1</springdoc.version>
+        <spring-modulith.version>2.1.2</spring-modulith.version>
+        <springdoc.version>3.2.0</springdoc.version>
         <db-scheduler.version>16.12.0</db-scheduler.version>
         <embedded-postgres.version>2.2.2</embedded-postgres.version>
         <greenmail.version>2.1.15</greenmail.version>
-        <awssdk.version>2.57.6</awssdk.version>
-        <sentry.version>8.62.0</sentry.version>
+        <awssdk.version>2.57.9</awssdk.version>
+        <sentry.version>8.63.0</sentry.version>
         <jib.version>3.5.2</jib.version>
         <!-- The commit an image is built from; CI passes it (-Dapp.version=...). -->
         <app.version>dev</app.version>
