@@ -111,19 +111,36 @@ class ReportTests {
     void salesByProductAndCategory() {
         ApiResponse products = owner.get("/api/v1/reports/sales?from=" + yesterday + "&to=" + today + "&groupBy=PRODUCT")
                 .expectStatus(200);
-        // Kept, at order prices: Kurti 2 + 0 + 1; Wallet 1 (O2) + 0 (O5) + 1 (O7); Scarf 2 - 1.
+        // Kept: Kurti 2 + 0 + 1; Wallet 1 (O2) + 0 (O5) + 1 (O7); Scarf 2 - 1. O1's ৳100 discount comes off
+        // its Kurtis (300000 - 10000), so the products add up to the days' 680000.
         assertThat(products.<List<String>>json("$.rows[*].label")).containsExactly("Kurti", "Wallet", "Scarf");
         assertThat(products.<List<Integer>>json("$.rows[*].quantity")).containsExactly(3, 2, 1);
-        assertThat(products.<List<Integer>>json("$.rows[*].value")).containsExactly(450000, 190000, 50000);
-        assertThat(products.<Integer>json("$.value")).isEqualTo(690000);
+        assertThat(products.<List<Integer>>json("$.rows[*].value")).containsExactly(440000, 190000, 50000);
+        assertThat(products.<Integer>json("$.value")).isEqualTo(680000);
 
         ApiResponse categories = owner.get("/api/v1/reports/sales?from=" + yesterday + "&to=" + today + "&groupBy=category")
                 .expectStatus(200);
         assertThat(categories.<List<String>>json("$.rows[*].label")).containsExactly("Women > Kurti", "Accessories", "Uncategorised");
-        assertThat(categories.<List<Integer>>json("$.rows[*].value")).containsExactly(450000, 190000, 50000);
+        assertThat(categories.<List<Integer>>json("$.rows[*].value")).containsExactly(440000, 190000, 50000);
 
         assertThat(owner.get("/api/v1/reports/sales?from=" + today + "&to=" + today + "&groupBy=product")
                 .<List<Integer>>json("$.rows[*].quantity")).containsExactly(3, 1, 1);
+    }
+
+    /** A discount over several items is shared by their value, to the paisa: ৳10 over ৳1,500 and ৳950 x 2. */
+    @Test
+    void aDiscountIsSharedOverItsItems() {
+        String id = order(Map.of("discount", 1000), item(kurti, 1), item(wallet, 2));
+        confirm(id);
+        ApiResponse products = owner.get("/api/v1/reports/sales?from=" + today + "&to=" + today + "&groupBy=product");
+        int dayValue = owner.get("/api/v1/reports/sales?from=" + today + "&to=" + today + "&groupBy=day").json("$.value");
+
+        assertThat(products.<Integer>json("$.value")).isEqualTo(dayValue);
+        // Kurti 150000 of 340000 takes 441.2 of the 1000 (441 or 442, by which item rounds first); the Wallets the rest.
+        assertThat(products.<List<String>>json("$.rows[*].label")).containsExactly("Kurti", "Wallet", "Scarf");
+        List<Integer> values = products.json("$.rows[*].value");
+        assertThat(values.get(0)).isIn(440000 + 150000 - 441, 440000 + 150000 - 442);
+        assertThat(values.get(0) + values.get(1)).isEqualTo(440000 + 150000 + 95000 + 190000 - 1000);
     }
 
     @Test

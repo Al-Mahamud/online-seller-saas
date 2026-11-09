@@ -33,7 +33,7 @@ address (the shared pager, `docs/pagination.md`); a new filter goes back to page
 ## Texts that load with their page
 
 To stay within the 250 KB first-visit budget, the activity log's and the team page's words live in
-`src/i18n/pages/activity.*.json` and `team.*.json`, loaded by those routes' loaders
+`src/i18n/pages/activity.*.json`, `team.*.json` and `pay.*.json` (the plan page's pay dialog), loaded by those routes' loaders
 (`src/i18n/pages.ts`, `loadPageTexts`); they use `useLooseT` since their keys are outside the typed
 main file. The Bangla review list and the translation tests include them. The budget has about
 0.7 KB left: a big new block of text for one page belongs there too.
@@ -41,3 +41,4 @@ main file. The Bangla review list and the translation tests include them. The bu
 ## Change log
 
 - Nov 4, 2026: numbered pages (20, 50 or 100 rows) instead of the "আগের কাজ দেখুন" button.
+- Nov 7, 2026: a stock change shows its reason in words ("দাগ বা রং নষ্ট"), not its code (STAIN).

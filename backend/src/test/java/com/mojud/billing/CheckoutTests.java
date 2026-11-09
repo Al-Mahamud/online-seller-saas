@@ -104,6 +104,12 @@ class CheckoutTests {
         sslcommerz.postForm("/api/v1/public/gateway/sslcommerz/ipn", ipn).expectStatus(200);
         assertThat(Instant.parse(owner.get("/api/v1/billing").json("$.currentPeriodEnd"))).isEqualTo(end);
         assertThat(callbacks(tranId)).isEqualTo(2);
+
+        // Read in Bangla, the plan and the date are in Bangla too.
+        owner.patch("/api/v1/me", Map.of("locale", "bn")).expectStatus(200);
+        String bangla = owner.get("/api/v1/notifications").json("$.items[0].title");
+        assertThat(bangla).startsWith("পেমেন্ট পাওয়া গেছে।").contains("স্টার্টার").doesNotContain("Starter")
+                .doesNotContainPattern("[0-9]");
     }
 
     @Test
@@ -133,6 +139,28 @@ class CheckoutTests {
         assertThat(billing.<String>json("$.plan.code")).isEqualTo("STARTER");
         assertThat(systemDatabase.jdbc().sql("select suspended_from from subscriptions where business_id = ?").param(business)
                 .query(String.class).single()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void aWalletPickedInMojudIsWhereTheGatewayOpens() {
+        String bkash = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1, "wallet", "BKASH"))
+                .expectStatus(201).json("$.invoiceId");
+        assertThat(gateway.session(gateway.tranIdOf(bkash))).containsEntry("multi_card_name", "bkash");
+
+        String nagad = owner.post("/api/v1/billing/checkout",
+                Map.of("planCode", "STARTER", "months", 1, "payBy", "SSLCOMMERZ", "wallet", "NAGAD")).expectStatus(201)
+                .json("$.invoiceId");
+        // SSLCommerz documents no name of Nagad's own: its page opens on the mobile wallets.
+        assertThat(gateway.session(gateway.tranIdOf(nagad))).containsEntry("multi_card_name", "mobilebank");
+
+        String any = owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1)).expectStatus(201)
+                .json("$.invoiceId");
+        assertThat(gateway.session(gateway.tranIdOf(any))).doesNotContainKey("multi_card_name");
+
+        owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1, "payBy", "BANK_TRANSFER",
+                "wallet", "BKASH")).expectStatus(400);
+        owner.post("/api/v1/billing/checkout", Map.of("planCode", "STARTER", "months", 1, "wallet", "ROCKET"))
+                .expectStatus(400);
     }
 
     @Test

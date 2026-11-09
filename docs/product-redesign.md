@@ -122,3 +122,5 @@ All of it is in `frontend/src/i18n/bn.json` and `en.json` under `products.varian
 - **Nov 1, 2026:** product detail page designed and built.
 - **Nov 1, 2026:** change stock dialog designed and built.
 - **Nov 1, 2026:** products list designed, with search and reset buttons added on review, and built.
+- **Nov 7, 2026:** generated SKUs of a product with a Bangla name keep one start: a variant added later reuses its product's code (P4PQZU-V4-S beside P4PQZU-V1-M), and a new product's code comes from its id rather than at random. Excel import recognises the app's own column names "বিক্রয় দাম" and "কম স্টকের সীমা", and either way of writing য়.
+- **Nov 9, 2026:** a price range is written the same way on the products list and the product page: "৳১,২০০ – ৳১,৩০০". A photo that is too small is now explained as "১০০ × ১০০ পিক্সেল".

@@ -17,13 +17,14 @@ enum ImportField {
             "প্রোডাক্ট", "প্রোডাক্টের নাম"),
     SKU("sku", "code", "product code", "item code", "sku code", "কোড", "পণ্য কোড", "পণ্যের কোড", "এসকেইউ"),
     PRICE("price", "selling price", "sale price", "sell price", "unit price", "mrp", "rate", "দাম", "মূল্য",
-            "বিক্রয় মূল্য", "বিক্রি মূল্য", "বিক্রয়মূল্য"),
+            "বিক্রয় মূল্য", "বিক্রি মূল্য", "বিক্রয়মূল্য", "বিক্রয় দাম", "বিক্রির দাম", "বিক্রি দাম", "বিক্রয়ের দাম"),
     COST_PRICE("cost", "cost price", "buying price", "purchase price", "buy price", "ক্রয় মূল্য", "ক্রয়মূল্য", "কেনা দাম",
             "কেনার দাম", "খরচ"),
     STOCK("stock", "quantity", "qty", "in stock", "on hand", "stock quantity", "inventory", "স্টক", "পরিমাণ", "মজুদ"),
     CATEGORY("category", "categories", "ক্যাটাগরি", "ক্যাটেগরি", "বিভাগ"),
     DESCRIPTION("description", "details", "বিবরণ", "বর্ণনা"),
-    LOW_STOCK_THRESHOLD("low stock alert", "low stock", "alert level", "reorder level", "সতর্কসীমা", "স্টক সতর্কসীমা"),
+    LOW_STOCK_THRESHOLD("low stock alert", "low stock", "alert level", "reorder level", "সতর্কসীমা", "স্টক সতর্কসীমা",
+            "কম স্টকের সীমা", "সতর্কতা সীমা"),
     /** A variant option; the column's mapping carries the option's name. */
     OPTION("size", "color", "colour", "material", "style", "pattern", "সাইজ", "মাপ", "রং", "রঙ", "কালার", "উপাদান",
             "ডিজাইন");
@@ -42,7 +43,8 @@ enum ImportField {
     static Optional<ImportField> recognise(String header) {
         String key = key(header);
         for (ImportField field : values()) {
-            if (field.headers.contains(key)) {
+            // Compared as keys: "য়" may be one character or two in the list and in the sheet.
+            if (field.headers.stream().anyMatch(name -> key(name).equals(key))) {
                 return Optional.of(field);
             }
         }

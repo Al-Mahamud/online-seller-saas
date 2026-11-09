@@ -74,7 +74,7 @@ class SystemBusinessDirectory implements BusinessDirectory {
                     .query(Long.class).single();
         } else {
             String pattern = Text.containsPattern(query);
-            String where = "where lower(b.name) like ? " + NARROWED;
+            String where = "where search_text(b.name) like ? " + NARROWED;
             rows = database.jdbc().sql(SELECT + where + "order by b.created_at desc, b.id desc limit ? offset ?")
                     .params(pattern, narrowing.planCode(), narrowing.planCode(), narrowing.state(), narrowing.state(),
                             paging.limit(), paging.offset()).query(this::row).list();

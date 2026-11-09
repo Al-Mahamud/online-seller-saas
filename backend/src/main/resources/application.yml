@@ -120,6 +120,12 @@ mojud:
       base-url: ${SSLCOMMERZ_BASE_URL:https://sandbox.sslcommerz.com}
       store-id: ${SSLCOMMERZ_STORE_ID:}
       store-password: ${SSLCOMMERZ_STORE_PASSWORD:}
+      # What the gateway's page opens on when the owner picks a wallet in Mojud (its multi_card_name).
+      # SSLCommerz documents "bkash"; for Nagad it documents no name, so Nagad opens the mobile wallets
+      # ("mobilebank"). If SSLCommerz gives Nagad's own name, set it here.
+      wallets:
+        bkash: bkash
+        nagad: mobilebank
     # Printed on Mojud's invoices to businesses (placeholders until the company's details are final).
     seller:
       name: Mojud

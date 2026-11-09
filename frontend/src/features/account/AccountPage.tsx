@@ -15,6 +15,7 @@ import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { name } from "@/features/auth/schemas";
 import { currentLanguage, type Language } from "@/i18n";
+import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ContactDialog, type ContactKind } from "./ContactDialog";
 import { LeaveBusiness } from "./LeaveBusiness";
@@ -108,6 +109,7 @@ function LanguageSection() {
 function ContactSection() {
   const { t } = useTranslation();
   const me = useMe();
+  const format = useFormat();
   const { data: options } = useQuery(authOptionsQuery);
   const [editing, setEditing] = useState<ContactKind>();
   const channels = options?.otpChannels ?? [];
@@ -115,7 +117,7 @@ function ContactSection() {
     <Section title={t("account.contact")}>
       <ContactRow
         label={t("account.phone")}
-        value={me.phone}
+        value={me.phone ? format.phone(me.phone) : me.phone}
         verified={me.phoneVerified}
         available={channels.includes("PHONE")}
         unavailableText={t("account.smsUnavailable")}

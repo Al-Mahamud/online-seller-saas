@@ -64,7 +64,29 @@ export function formatDate(at: string | Date, language: Language): string {
 }
 
 export function formatDateTime(at: string | Date, language: Language): string {
-  return dateFormat(language, true).format(typeof at === "string" ? new Date(at) : at);
+  const when = typeof at === "string" ? new Date(at) : at;
+  return language === "bn" ? `${formatDate(when, "bn")}, ${banglaTime(when)}` : dateFormat(language, true).format(when);
+}
+
+/**
+ * "বিকাল ৫:১৬": Bangla says the part of the day first, and has no AM or PM (which Intl gives). Worked
+ * out here rather than with Intl's dayPeriod, which older phones' browsers don't have.
+ */
+export function banglaTime(at: Date): string {
+  const hour = Number(dayFormat("en", { hour: "numeric", hourCycle: "h23" }).format(at)) % 24;
+  // Dhaka is a whole number of hours ahead of UTC, so the minutes are the same.
+  const minute = String(at.getUTCMinutes()).padStart(2, "0");
+  const part =
+    hour >= 4 && hour < 12
+      ? "সকাল"
+      : hour >= 12 && hour < 16
+        ? "দুপুর"
+        : hour >= 16 && hour < 18
+          ? "বিকাল"
+          : hour >= 18 && hour < 20
+            ? "সন্ধ্যা"
+            : "রাত";
+  return `${part} ${banglaDigits(`${hour % 12 || 12}:${minute}`)}`;
 }
 
 /** "+8801712345678" as people write it, "01712-345678". */
@@ -80,6 +102,9 @@ export function useFormat() {
   return {
     number: (value: number) => formatNumber(value, language),
     taka: (poisha: number) => formatTaka(poisha, language),
+    /** "৳১,২০০ – ৳১,৩০০", or one amount when both ends are the same. */
+    takaRange: (low: number, high: number) =>
+      low === high ? formatTaka(low, language) : `${formatTaka(low, language)} – ${formatTaka(high, language)}`,
     /** "৮৯.৯%": a share, to one decimal place. */
     percent: (value: number) => `${numberFormat(language, 1).format(value)}%`,
     date: (at: string | Date) => formatDate(at, language),
@@ -87,8 +112,11 @@ export function useFormat() {
     /** "শনি": a day's name, short, for a chart's axis. */
     weekday: (at: string) => dayFormat(language, { weekday: "short" }).format(new Date(at)),
     dayMonth: (at: string) => dayFormat(language, { day: "numeric", month: "short" }).format(new Date(at)),
-    /** "৩:৪২ PM": the time of day in Dhaka. */
-    time: (at: string) => dayFormat(language, { hour: "numeric", minute: "2-digit" }).format(new Date(at)),
+    /** "দুপুর ৩:৪২" or "3:42 pm": the time of day in Dhaka. */
+    time: (at: string) =>
+      language === "bn"
+        ? banglaTime(new Date(at))
+        : dayFormat(language, { hour: "numeric", minute: "2-digit" }).format(new Date(at)),
     /** "শনিবার, ৩১ অক্টোবর": a day in full. */
     fullDate: (at: string) =>
       dayFormat(language, { weekday: "long", day: "numeric", month: "long" }).format(new Date(at)),

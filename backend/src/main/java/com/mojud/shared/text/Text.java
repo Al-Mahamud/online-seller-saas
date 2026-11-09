@@ -35,11 +35,19 @@ public final class Text {
     }
 
     /**
-     * A LIKE pattern for text containing {@code value}, ignoring case: lower-cased, with LIKE's
+     * Text as search compares it: lower case and NFC, like the database's {@code search_text}, so
+     * য় typed as one character or two finds a name saved either way.
+     */
+    public static String searchable(String value) {
+        return Normalizer.normalize(value, Normalizer.Form.NFC).toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * A LIKE pattern for text containing {@code value}, as {@link #searchable} has it, with LIKE's
      * own characters (backslash, %, _) escaped.
      */
     public static String containsPattern(String value) {
-        return "%" + value.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        return "%" + searchable(value).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
     }
 
     /**

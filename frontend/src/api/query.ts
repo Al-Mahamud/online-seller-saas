@@ -1,6 +1,7 @@
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import i18n from "@/i18n";
+import { formatNumber } from "@/lib/format";
 import { reportError } from "@/lib/reporting";
 import { ApiError, errorAction, NetworkError, requestIdOf } from "./errors";
 
@@ -11,7 +12,11 @@ export function errorText(error: unknown): string {
     case "network":
       return i18n.t("error.network");
     case "rate-limited":
-      return action.seconds ? i18n.t("error.rateLimited", { seconds: action.seconds }) : i18n.t("error.unexpected");
+      return action.seconds
+        ? i18n.t("error.rateLimited", {
+            seconds: formatNumber(action.seconds, i18n.resolvedLanguage === "en" ? "en" : "bn"),
+          })
+        : i18n.t("error.unexpected");
     case "message":
       return action.detail ?? i18n.t("error.unexpected");
     case "fields":

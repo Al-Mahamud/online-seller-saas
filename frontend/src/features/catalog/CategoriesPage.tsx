@@ -15,6 +15,7 @@ import { BackToMore } from "@/components/layout/PageHeader";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useFormat } from "@/lib/format";
+import { containsText } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { type CategoryNode, categoriesQuery, type Tag, tagsQuery } from "./api";
 import { MENU_TRIGGER, type MenuAction } from "./categoryMenuParts";
@@ -186,7 +187,7 @@ function AddByName({
   );
 }
 
-const matches = (name: string, q: string) => !q.trim() || name.toLowerCase().includes(q.trim().toLowerCase());
+const matches = (name: string, q: string) => !q.trim() || containsText(name, q.trim());
 
 function Categories({ tree, q, className }: { tree?: CategoryNode[]; q: string; className?: string }) {
   const { t } = useTranslation();

@@ -24,3 +24,7 @@ saved together with `PUT /api/v1/delivery-zones`.
 Districts grouped by division, or one district's thanas; search in Bangla or English; tick many. A
 place already here is ticked and greyed; one in another zone says which, and picking it moves it
 here (a place is in one zone at most). A move shows under the card with "ফিরিয়ে দিন" until saved.
+
+## Change log
+
+- **Nov 7, 2026:** Chattogram city's thanas added (V39: 15 Chattogram Metropolitan Police thanas, ids 9101–9115, as METRO_THANA of Chattogram district), so a "Chattogram city" charge can be set. Karnaphuli was already there as an upazila. Other cities' thanas are still missing.

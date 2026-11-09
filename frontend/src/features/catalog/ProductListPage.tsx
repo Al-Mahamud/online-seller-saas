@@ -172,7 +172,7 @@ function usePriceText() {
     if (minPrice === null || maxPrice === null) {
       return "";
     }
-    return minPrice === maxPrice ? format.taka(minPrice) : `${format.taka(minPrice)} – ${format.taka(maxPrice)}`;
+    return format.takaRange(minPrice, maxPrice);
   };
 }
 

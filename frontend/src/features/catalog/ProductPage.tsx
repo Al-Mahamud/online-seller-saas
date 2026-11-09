@@ -103,12 +103,7 @@ function Totals({ product }: { product: Product }) {
   const prices = active.map((variant) => variant.price);
   const lowest = Math.min(...prices);
   const highest = Math.max(...prices);
-  const priceRange =
-    prices.length === 0
-      ? "–"
-      : lowest === highest
-        ? format.taka(lowest)
-        : `${format.taka(lowest)}–${format.taka(highest).replace("৳", "")}`;
+  const priceRange = prices.length === 0 ? "–" : format.takaRange(lowest, highest);
   return (
     <section
       aria-label={t("products.detail.summary")}

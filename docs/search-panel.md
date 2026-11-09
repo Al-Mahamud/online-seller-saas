@@ -39,3 +39,4 @@ Inside a dark header (phones, COD, Damaged goods) the ledger look has no ground 
 ## Change log
 
 - **Nov 2, 2026:** designed and built, with the ledger and mint looks.
+- **Nov 9, 2026:** search finds য়, ড় and ঢ় typed either way. Some keyboards type them as one character and others as two. Names are compared lower-case and Unicode-normalised (NFC): on the server by the `search_text` database function (migration V40), in the page by `containsText` in `src/lib/search.ts`.

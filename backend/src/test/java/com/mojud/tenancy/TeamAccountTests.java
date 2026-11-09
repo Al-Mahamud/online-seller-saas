@@ -73,6 +73,9 @@ class TeamAccountTests {
         assertThat(member.get("/api/v1/business").expectStatus(200).<String>json("$.name")).isEqualTo("Kurti House");
         assertThat(member.get("/api/v1/me").expectStatus(200).<Boolean>json("$.mustChangePassword")).isTrue();
         member.post("/api/v1/me/first-password", Map.of("newPassword", "short")).expectError(400, "validation.failed");
+        // Not the starting one again: the owner saw it, and it went out by SMS.
+        assertThat(member.post("/api/v1/me/first-password", Map.of("newPassword", starting))
+                .expectError(400, "validation.failed").<List<String>>json("$.errors[*].field")).containsExactly("newPassword");
 
         ApiResponse after = member.post("/api/v1/me/first-password", Map.of("newPassword", OWN_PASSWORD))
                 .expectStatus(200);

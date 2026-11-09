@@ -45,3 +45,4 @@ its figures are on the overview.
 ## Change log
 
 - **Nov 5, 2026:** built in the backend and the web app.
+- **Nov 7, 2026:** plan names in Bangla on a Bangla screen (ফ্রি, স্টার্টার, প্রো), and online payments read "অনলাইন (SSLCommerz)" rather than SSLCOMMERZ.

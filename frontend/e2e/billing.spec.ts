@@ -10,7 +10,8 @@ const banner = (page: Page) =>
     .filter({ hasText: /ট্রায়াল|প্ল্যান|স্থগিত/ })
     .first();
 const taka = (poisha: number) => `৳${new Intl.NumberFormat("bn-BD").format(poisha / 100)}`;
-const payButton = (page: Page) => page.getByRole("dialog").getByRole("button", { name: /পেমেন্ট করুন$/ });
+/** The dialog's own button: "বিকাশে ৳… দিন", "নগদে ৳… দিন" or "৳… পেমেন্ট করুন". */
+const payButton = (page: Page) => page.getByRole("dialog").getByRole("button", { name: /(পেমেন্ট করুন|দিন)$/ });
 
 async function businessId(request: APIRequestContext): Promise<string> {
   return ((await (await request.get("/api/v1/business")).json()) as { id: string }).id;
@@ -56,9 +57,11 @@ test("starts on Free, pays for Starter through the gateway, and the plan becomes
   await starter.card.getByRole("button", { name: "এই প্ল্যান নিন" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("radio", { name: /^৬ মাস/ })).toBeChecked();
-  await expect(payButton(page)).toHaveText(`${taka(starter.priceMonthly * 6)} পেমেন্ট করুন`);
+  // bKash first: most sellers pay with it.
+  await expect(dialog.getByRole("radio", { name: /বিকাশ/ })).toBeChecked();
+  await expect(payButton(page)).toHaveText(`বিকাশে ${taka(starter.priceMonthly * 6)} দিন`);
   await dialog.getByRole("radio", { name: /^১ মাস/ }).check();
-  await expect(payButton(page)).toHaveText(`${taka(starter.priceMonthly)} পেমেন্ট করুন`);
+  await expect(payButton(page)).toHaveText(`বিকাশে ${taka(starter.priceMonthly)} দিন`);
   await dialog.getByRole("radio", { name: /^৬ মাস/ }).check();
   await expectAccessible(page);
 
@@ -75,6 +78,7 @@ test("starts on Free, pays for Starter through the gateway, and the plan becomes
   });
   await payButton(page).click();
   await expect(page.getByRole("heading", { name: "Test gateway" })).toBeVisible();
+  await expect(page.getByText("Opens on: bkash")).toBeVisible();
   await page.getByRole("link", { name: "Pay", exact: true }).click();
   await expect(page).toHaveURL(/\/billing\/return\?result=success/);
   await expect(page.getByText("পেমেন্ট নিশ্চিত হওয়ার অপেক্ষায় আছি।", { exact: false })).toBeVisible();
@@ -126,6 +130,44 @@ test("a failed or cancelled payment changes nothing, and says so", async ({ page
   await expect(page.getByText("এই পেমেন্ট সম্পন্ন হয়নি।", { exact: false })).toBeVisible();
 });
 
+test("a wallet the gateway refuses says so, and a card or another way is chosen on the gateway's page", async ({
+  page,
+}) => {
+  await signUpWithBusiness(page.request, { plan: "FREE" });
+  await page.goto("/billing");
+  const starter = await planCard(page, "STARTER");
+  await starter.card.getByRole("button", { name: "এই প্ল্যান নিন" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("radio", { name: /নগদ/ }).check();
+  await expect(payButton(page)).toHaveText(`নগদে ${taka(starter.priceMonthly * 10)} দিন`);
+
+  await page.route("**/api/v1/billing/checkout", (route) =>
+    route.fulfill({
+      status: 502,
+      contentType: "application/problem+json",
+      json: {
+        status: 502,
+        title: "Bad Gateway",
+        detail: "The payment could not be started.",
+        code: "billing.gateway_error",
+      },
+    }),
+  );
+  await payButton(page).click();
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "নগদে এখন দেওয়া যাচ্ছে না। বিকাশ বা কার্ডে দিন, অথবা একটু পরে আবার নগদে চেষ্টা করুন।",
+  );
+  await expect(dialog.getByText("এখন বন্ধ")).toBeVisible();
+  await expectAccessible(page);
+  await page.unroute("**/api/v1/billing/checkout");
+
+  await dialog.getByRole("radio", { name: /^কার্ড বা অন্য উপায়ে/ }).check();
+  await expect(dialog.getByText("পরের পাতায় পেমেন্ট শেষ করে আবার এখানে ফিরবেন।")).toBeVisible();
+  await expect(payButton(page)).toHaveText(`${taka(starter.priceMonthly * 10)} পেমেন্ট করুন`);
+  await payButton(page).click();
+  await expect(page.getByText("Opens on: every way")).toBeVisible();
+});
+
 test("a bank transfer gives the steps, and they're still there later", async ({ page }) => {
   await signUpWithBusiness(page.request, { plan: "FREE" });
   await page.goto("/billing");
@@ -161,8 +203,14 @@ test("upgrades for the prorated amount, and a cheaper plan waits for the renewal
   expect(quote.amount).toBeLessThan(pro.priceMonthly);
   await pro.card.getByRole("button", { name: "আপগ্রেড করুন" }).click();
   await expect(page.getByRole("dialog").getByText("শুধু পার্থক্যটুকু")).toBeVisible();
-  await expect(payButton(page)).toHaveText(`${taka(quote.amount)} পেমেন্ট করুন`);
+  await page
+    .getByRole("dialog")
+    .getByRole("radio", { name: /নগদ$|^নগদ/ })
+    .check();
+  await expect(payButton(page)).toHaveText(`নগদে ${taka(quote.amount)} দিন`);
   await payButton(page).click();
+  // SSLCommerz names no page of Nagad's own: it opens on the mobile wallets.
+  await expect(page.getByText("Opens on: mobilebank")).toBeVisible();
   await page.getByRole("link", { name: "Pay", exact: true }).click();
   await expect(page.getByText(`${taka(quote.amount)} পেমেন্ট পাওয়া গেছে।`, { exact: false })).toBeVisible();
   const after = (await (await page.request.get("/api/v1/billing")).json()) as { plan: { code: string } };

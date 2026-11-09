@@ -118,6 +118,8 @@ export default function RecordDamageDialog({ onClose }: { onClose: () => void })
             },
           ],
     );
+    // "Add at least one product" is answered now.
+    setProblem((current) => (current === t("damages.dialog.nothing") ? undefined : current));
   }
 
   function change(variantId: string, quantity: string) {
@@ -294,7 +296,10 @@ export default function RecordDamageDialog({ onClose }: { onClose: () => void })
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-input bg-card hover:bg-muted",
               )}
-              onClick={() => setReason(option)}
+              onClick={() => {
+                setReason(option);
+                setProblem((current) => (current === t("damages.dialog.pickReason") ? undefined : current));
+              }}
             >
               {t(`damages.reason.${option}`)}
             </button>

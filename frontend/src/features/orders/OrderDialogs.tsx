@@ -46,6 +46,7 @@ export function useOrderChange<V>(
 function OrderDialog({
   title,
   action,
+  dismiss,
   problem,
   pending,
   onSubmit,
@@ -54,6 +55,8 @@ function OrderDialog({
 }: {
   title: string;
   action: string;
+  /** The button that closes without doing it; "Cancel" unless that would be confused with the action. */
+  dismiss?: string;
   problem?: string;
   pending: boolean;
   onSubmit: () => void;
@@ -77,7 +80,7 @@ function OrderDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            {t("page.cancel")}
+            {dismiss ?? t("page.cancel")}
           </Button>
           <Button disabled={pending} onClick={onSubmit}>
             {action}
@@ -257,6 +260,7 @@ export function CancelDialog({ order, onClose }: { order: Order; onClose: () => 
     <OrderDialog
       title={t("orders.cancelTitle", { number: format.orderNumber(order.numberLabel) })}
       action={t("orders.cancel")}
+      dismiss={t("orders.keep")}
       problem={problem}
       pending={change.isPending}
       onSubmit={submit}

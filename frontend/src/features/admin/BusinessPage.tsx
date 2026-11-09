@@ -413,6 +413,7 @@ function monthsAhead(day: string, months: number): string {
 
 function PlanDialog({ id, name, onClose }: { id: string; name: string; onClose: () => void }) {
   const text = useAdminTexts();
+  const planName = usePlanNames();
   const today = dhakaToday();
   const { data: plans } = useQuery(plansQuery);
   // A paid plan until a date; Free has no period, so the owner moves to it, not an admin.
@@ -471,7 +472,7 @@ function PlanDialog({ id, name, onClose }: { id: string; name: string; onClose: 
                 onChange={() => setPlanCode(plan.code)}
                 className="size-4.5 accent-primary"
               />
-              {plan.nameEn}
+              {planName(plan.code)}
             </label>
           ))}
         </div>

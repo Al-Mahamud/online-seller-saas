@@ -76,6 +76,7 @@ public interface OrderReports {
     /** Days in order, each day of the range (days without sales are zero). */
     List<DaySales> salesByDay(LocalDate from, LocalDate to);
 
+    /** Kept items by variant; their values carry their share of the order's discount, so they total the revenue. */
     List<VariantSales> salesByVariant(LocalDate from, LocalDate to);
 
     ProfitReport profit(LocalDate from, LocalDate to);

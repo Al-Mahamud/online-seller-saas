@@ -270,9 +270,15 @@ function SourceBadge({ damage }: { damage: Damage }) {
   );
 }
 
-/** The picked reason on the shelf; a return's own reason is its note. */
+/**
+ * The picked reason on the shelf; a return's own reason is its note. Damage written from a product's
+ * stock dialog has only a note, so "no reason" is said only when there is no note either.
+ */
 function reasonText(damage: Damage, t: TFunction) {
-  return damage.reason ? t(`damages.reason.${damage.reason}`) : damage.source === "SHELF" ? t("damages.noReason") : "";
+  if (damage.reason) {
+    return t(`damages.reason.${damage.reason}`);
+  }
+  return damage.source === "SHELF" && !damage.note ? t("damages.noReason") : "";
 }
 
 function DamageTable({ rows, canSeeMoney }: { rows: Damage[]; canSeeMoney: boolean }) {

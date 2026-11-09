@@ -81,6 +81,9 @@ class AccountService {
     void changePassword(UUID userId, String currentPassword, String newPassword, String currentSessionId,
             String clientIp) {
         passwordConfirmation.confirm(userId, currentPassword, clientIp);
+        if (newPassword.equals(currentPassword)) {
+            throw ApiException.invalidField("newPassword", "field.password_unchanged");
+        }
         String hash = passwords.encode(newPassword);
         transactions.executeWithoutResult(status ->
                 users.findById(userId).orElseThrow(ApiException::notFound).changePassword(hash, clock.instant()));
@@ -101,6 +104,10 @@ class AccountService {
         }
         if (before.startingPasswordExpired(clock.instant())) {
             throw new ApiException(ErrorCode.STARTING_PASSWORD_EXPIRED);
+        }
+        // The business saw the starting password and sent it on: keeping it would leave them able to sign in as this person.
+        if (passwords.matches(newPassword, before.getPasswordHash())) {
+            throw ApiException.invalidField("newPassword", "field.password_unchanged");
         }
         String hash = passwords.encode(newPassword);
         User after = transactions.execute(status -> {

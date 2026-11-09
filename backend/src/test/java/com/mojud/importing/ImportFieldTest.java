@@ -19,6 +19,25 @@ class ImportFieldTest {
         assertThat(ImportField.recognise("Supplier phone")).isEmpty();
     }
 
+    /** The app's own labels for these fields, as a seller copies them into a sheet. */
+    @Test
+    void theAppsOwnLabelsAreRecognised() {
+        assertThat(ImportField.recognise("বিক্রয় দাম")).hasValue(ImportField.PRICE);
+        assertThat(ImportField.recognise("বিক্রয় দাম (৳)")).hasValue(ImportField.PRICE);
+        assertThat(ImportField.recognise("কেনা দাম (৳)")).hasValue(ImportField.COST_PRICE);
+        assertThat(ImportField.recognise("কম স্টকের সীমা")).hasValue(ImportField.LOW_STOCK_THRESHOLD);
+    }
+
+    /** "য়" is one character (U+09DF) on some keyboards and two (য + ়) on others. */
+    @Test
+    void bothWaysOfWritingYaMatch() {
+        String oneCharacter = "বিক্রয় দাম";
+        String twoCharacters = "বিক্রয় দাম";
+        assertThat(ImportField.recognise(oneCharacter)).hasValue(ImportField.PRICE);
+        assertThat(ImportField.recognise(twoCharacters)).hasValue(ImportField.PRICE);
+        assertThat(ImportField.recognise("ক্রয় মূল্য")).hasValue(ImportField.COST_PRICE);
+    }
+
     @Test
     void optionNamesDropUnitsAndMarks() {
         assertThat(ImportField.optionName("Size (inch) *")).isEqualTo("Size");

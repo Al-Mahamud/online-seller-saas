@@ -10,6 +10,8 @@ import { currentLanguage, type Language } from ".";
 const PAGES = {
   activity: { bn: () => import("./pages/activity.bn.json"), en: () => import("./pages/activity.en.json") },
   team: { bn: () => import("./pages/team.bn.json"), en: () => import("./pages/team.en.json") },
+  pay: { bn: () => import("./pages/pay.bn.json"), en: () => import("./pages/pay.en.json") },
+  twoFactor: { bn: () => import("./pages/twoFactor.bn.json"), en: () => import("./pages/twoFactor.en.json") },
 };
 type Page = keyof typeof PAGES;
 
@@ -18,7 +20,7 @@ const wanted = new Set<Page>();
 async function add(page: Page, language: Language) {
   if (
     !i18n.hasResourceBundle(language, "translation") ||
-    !i18n.exists(`${page}.subtitle` as never, { lng: language })
+    i18n.getResource(language, "translation", page) === undefined
   ) {
     i18n.addResourceBundle(language, "translation", { [page]: (await PAGES[page][language]()).default }, true, true);
   }

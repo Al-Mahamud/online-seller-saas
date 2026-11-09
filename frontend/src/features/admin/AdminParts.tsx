@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { plansQuery } from "./api";
 import { useAdminTexts } from "./texts";
@@ -69,10 +70,14 @@ export function AdminCard({
   );
 }
 
-/** Plans by code, for their names; null until they arrive. */
+/** Plans by code, for their names in the language on screen; the code until they arrive. */
 export function usePlanNames() {
   const { data } = useQuery(plansQuery);
-  return (code: string) => data?.find((plan) => plan.code === code)?.nameEn ?? code;
+  const bangla = useTranslation().i18n.resolvedLanguage !== "en";
+  return (code: string) => {
+    const plan = data?.find((each) => each.code === code);
+    return plan ? (bangla ? plan.nameBn : plan.nameEn) : code;
+  };
 }
 
 const PLAN_LOOK: Record<string, string> = {

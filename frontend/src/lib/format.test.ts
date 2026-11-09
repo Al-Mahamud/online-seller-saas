@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDateTime, formatNumber, formatTaka } from "./format";
+import { banglaTime, formatDate, formatDateTime, formatNumber, formatTaka } from "./format";
 
 describe("formatTaka", () => {
   it("shows Bangla digits with lakh grouping in Bangla", () => {
@@ -36,5 +36,15 @@ describe("dates", () => {
 
   it("use Bangla digits in Bangla", () => {
     expect(formatDate("2026-10-29T06:00:00Z", "bn")).toContain("২০২৬");
+  });
+
+  it("say the part of the day first in Bangla, with no AM or PM", () => {
+    // Dhaka times: 02:30, 09:05, 12:00, 17:16, 19:45, 23:59.
+    expect(formatDateTime("2026-10-29T20:30:00Z", "bn")).toMatch(/^৩০ অক্টো.*২০২৬, রাত ২:৩০$/);
+    expect(banglaTime(new Date("2026-11-07T03:05:00Z"))).toBe("সকাল ৯:০৫");
+    expect(banglaTime(new Date("2026-11-07T06:00:00Z"))).toBe("দুপুর ১২:০০");
+    expect(banglaTime(new Date("2026-11-07T11:16:00Z"))).toBe("বিকাল ৫:১৬");
+    expect(banglaTime(new Date("2026-11-07T13:45:00Z"))).toBe("সন্ধ্যা ৭:৪৫");
+    expect(banglaTime(new Date("2026-11-07T17:59:00Z"))).toBe("রাত ১১:৫৯");
   });
 });

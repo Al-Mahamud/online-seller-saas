@@ -2487,6 +2487,8 @@ export interface components {
             /** @enum {string} */
             payBy?: "SSLCOMMERZ" | "BANK_TRANSFER";
             planCode: string;
+            /** @enum {string} */
+            wallet?: "BKASH" | "NAGAD";
         };
         BillingChooseRequest: {
             planCode: string;
@@ -2507,6 +2509,8 @@ export interface components {
             currentPeriodEnd: string | null;
             /** Format: date-time */
             graceEndsAt: string | null;
+            /** Format: int32 */
+            reportDays: number | null;
             status: string;
             /** Format: date-time */
             trialEndsAt: string | null;
@@ -2515,6 +2519,8 @@ export interface components {
             /** @enum {string} */
             payBy?: "SSLCOMMERZ" | "BANK_TRANSFER";
             planCode: string;
+            /** @enum {string} */
+            wallet?: "BKASH" | "NAGAD";
         };
         BillingUsage: {
             /** Format: int32 */

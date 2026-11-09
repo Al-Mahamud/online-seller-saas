@@ -56,9 +56,12 @@ class BillingController {
             @Nullable Instant graceEndsAt, @Nullable String pendingPlanCode, Map<String, Usage> usage) {
     }
 
-    /** What every member's screen needs to know: the banners. */
+    /**
+     * What every member's screen needs to know: the banners, and how many days back reports reach
+     * ({@code reportDays}, today included; null when the plan has no limit).
+     */
     record Status(String status, @Nullable Instant trialEndsAt, @Nullable Instant currentPeriodEnd,
-            @Nullable Instant graceEndsAt) {
+            @Nullable Instant graceEndsAt, @Nullable Integer reportDays) {
     }
 
     private final Subscriptions subscriptions;
@@ -105,7 +108,7 @@ class BillingController {
     Status status() {
         Subscriptions.Subscription subscription = subscriptions.current();
         return new Status(subscription.status(), subscription.trialEndsAt(), subscription.currentPeriodEnd(),
-                subscription.graceEndsAt());
+                subscription.graceEndsAt(), entitlements.limit(Metric.REPORT_DAYS).orElse(null));
     }
 
     /**
@@ -134,8 +137,12 @@ class BillingController {
         return billing();
     }
 
-    /** {@code payBy}: SSLCOMMERZ (default) or BANK_TRANSFER (paid when an admin sees it arrive). */
-    record CheckoutRequest(@NotNull String planCode, @NotNull Integer months, Invoices.PayBy payBy) {
+    /**
+     * {@code payBy}: SSLCOMMERZ (default) or BANK_TRANSFER (paid when an admin sees it arrive).
+     * {@code wallet} (BKASH or NAGAD, SSLCOMMERZ only): the gateway's page opens on that wallet.
+     */
+    record CheckoutRequest(@NotNull String planCode, @NotNull Integer months, Invoices.PayBy payBy,
+            Invoices.Wallet wallet) {
     }
 
     /**
@@ -147,10 +154,12 @@ class BillingController {
     @RequiresRole(BusinessRole.OWNER)
     @ResponseStatus(HttpStatus.CREATED)
     Invoices.Checkout checkout(@Valid @RequestBody CheckoutRequest body) {
-        return invoices.checkout(body.planCode(), body.months(), body.payBy() == null ? Invoices.PayBy.SSLCOMMERZ : body.payBy());
+        return invoices.checkout(body.planCode(), body.months(), body.payBy() == null ? Invoices.PayBy.SSLCOMMERZ : body.payBy(),
+                body.wallet());
     }
 
-    record UpgradeRequest(@NotNull String planCode, Invoices.PayBy payBy) {
+    /** {@code payBy} and {@code wallet} as for a checkout. */
+    record UpgradeRequest(@NotNull String planCode, Invoices.PayBy payBy, Invoices.Wallet wallet) {
     }
 
     /** A dearer plan for the rest of the running period, prorated; the plan changes when paid. */
@@ -158,7 +167,7 @@ class BillingController {
     @RequiresRole(BusinessRole.OWNER)
     @ResponseStatus(HttpStatus.CREATED)
     Invoices.Checkout upgrade(@Valid @RequestBody UpgradeRequest body) {
-        return invoices.upgrade(body.planCode(), body.payBy() == null ? Invoices.PayBy.SSLCOMMERZ : body.payBy());
+        return invoices.upgrade(body.planCode(), body.payBy() == null ? Invoices.PayBy.SSLCOMMERZ : body.payBy(), body.wallet());
     }
 
     @GetMapping("/api/v1/billing/invoices")
