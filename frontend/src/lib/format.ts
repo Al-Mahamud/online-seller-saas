@@ -102,6 +102,9 @@ export function useFormat() {
   return {
     number: (value: number) => formatNumber(value, language),
     taka: (poisha: number) => formatTaka(poisha, language),
+    /** "৳১,২০০ – ৳১,৩০০", or one amount when both ends are the same. */
+    takaRange: (low: number, high: number) =>
+      low === high ? formatTaka(low, language) : `${formatTaka(low, language)} – ${formatTaka(high, language)}`,
     /** "৮৯.৯%": a share, to one decimal place. */
     percent: (value: number) => `${numberFormat(language, 1).format(value)}%`,
     date: (at: string | Date) => formatDate(at, language),

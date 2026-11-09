@@ -42,16 +42,16 @@ interface CustomerRepository extends JpaRepository<Customer, UUID> {
             select c.* from customers c
             where c.business_id = :businessId
               and ((:digits <> '' and c.phone like '%' || :digits || '%')
-                   or lower(c.name) like :pattern
-                   or word_similarity(lower(:q), lower(c.name)) >= 0.4)
+                   or search_text(c.name) like :pattern
+                   or word_similarity(lower(:q), search_text(c.name)) >= 0.4)
             order by (:digits <> '' and c.phone like '%' || :digits || '%') desc,
-                     (lower(c.name) like :pattern) desc,
-                     word_similarity(lower(:q), lower(c.name)) desc,
+                     (search_text(c.name) like :pattern) desc,
+                     word_similarity(lower(:q), search_text(c.name)) desc,
                      c.created_at desc, c.id desc""", countQuery = """
             select count(*) from customers c
             where c.business_id = :businessId
               and ((:digits <> '' and c.phone like '%' || :digits || '%')
-                   or lower(c.name) like :pattern
-                   or word_similarity(lower(:q), lower(c.name)) >= 0.4)""")
+                   or search_text(c.name) like :pattern
+                   or word_similarity(lower(:q), search_text(c.name)) >= 0.4)""")
     Page<Customer> search(UUID businessId, String q, String pattern, String digits, Pageable pageable);
 }

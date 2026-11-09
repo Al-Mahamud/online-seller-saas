@@ -75,6 +75,18 @@ class CustomerTests {
         assertThat(search("50%")).isEmpty();
     }
 
+    /** য় is one character (U+09DF) on some keyboards and two (য + ়) on others. */
+    @Test
+    void searchFindsYaTypedEitherWay() {
+        String oneCharacter = create("আ\u09DFেশা", "01712345678");
+        String twoCharacters = create("সা\u09AF\u09BCমা", "01819876543");
+
+        assertThat(search("আ\u09DFে")).containsExactly(oneCharacter);
+        assertThat(search("আ\u09AF\u09BCে")).containsExactly(oneCharacter);
+        assertThat(search("সা\u09DF")).containsExactly(twoCharacters);
+        assertThat(search("সা\u09AF\u09BC")).containsExactly(twoCharacters);
+    }
+
     @Test
     void theListIsNewestFirstInPages() {
         String first = create("A", "01711111111");

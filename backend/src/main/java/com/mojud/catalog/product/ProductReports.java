@@ -48,11 +48,11 @@ class ProductReports implements CatalogReports {
                         select v.id
                         from product_variants v join products p on p.id = v.product_id
                         where v.business_id = :business
-                          and (lower(p.name) like :pattern or upper(v.sku) like upper(:pattern)
-                               or word_similarity(lower(:q), lower(p.name)) >= 0.4)
+                          and (search_text(p.name) like :pattern or upper(v.sku) like upper(:pattern)
+                               or word_similarity(lower(:q), search_text(p.name)) >= 0.4)
                         """)
                 .param("business", TenantScope.current().orElseThrow())
-                .param("q", q)
+                .param("q", Text.searchable(q))
                 .param("pattern", Text.containsPattern(q))
                 .query(UUID.class)
                 .list());

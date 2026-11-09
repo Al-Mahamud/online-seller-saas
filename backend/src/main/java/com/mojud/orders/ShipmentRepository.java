@@ -27,8 +27,8 @@ interface ShipmentRepository extends JpaRepository<Shipment, UUID> {
               and (:search = ''
                 or lower(s.trackingNo) like :pattern escape '\\'
                 or lower(o.numberLabel) like :pattern escape '\\'
-                or lower(o.customerName) like :pattern escape '\\'
-                or lower(o.deliveryName) like :pattern escape '\\'
+                or function('search_text' as String, o.customerName) like :pattern escape '\\'
+                or function('search_text' as String, o.deliveryName) like :pattern escape '\\'
                 or o.customerPhone like :pattern escape '\\'
                 or o.deliveryPhone like :pattern escape '\\')
             """;

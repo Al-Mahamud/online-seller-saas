@@ -159,3 +159,4 @@ In `frontend/src/i18n/bn.json` and `en.json` under `orders.list`, `orders.detail
 - **Nov 1, 2026:** the delivered, take items back and parcel came back modals designed and built.
 - **Nov 1, 2026:** COD to settle gets a search panel and pages. Its totals now come from the server, which fixes them being too low past 500 parcels.
 - **Nov 7, 2026:** fixes after a walk-through as a new seller. The order note's hint now says it prints on the slip too ("স্লিপেও ছাপা হবে, কুরিয়ার আর গ্রাহকও দেখবেন।"): the slip has always printed it, for the courier, and the old hint promised only the team would see it. The cancel dialog's other button says "রেখে দিন" (it said "বাতিল" beside "অর্ডার বাতিল করুন"). Times read "বিকাল ৫:১৬", not "৫:১৬ PM", everywhere in Bangla.
+- **Nov 9, 2026:** a packing slip's browser tab title shows the order number in Bangla digits on a Bangla slip.

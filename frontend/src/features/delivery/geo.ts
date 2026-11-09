@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { api, call } from "@/api/client";
 import type { components } from "@/api/schema";
 import { latinDigits } from "@/lib/digits";
+import { containsText } from "@/lib/search";
 
 export type Division = components["schemas"]["GeoDirectoryDivision"];
 export type District = components["schemas"]["GeoDirectoryDistrict"];
@@ -44,6 +45,6 @@ export function usePlaceName() {
 
 /** Whether a place's name, in either language, has this text in it. */
 export function matchesPlace(place: Named, search: string): boolean {
-  const wanted = latinDigits(search).trim().toLowerCase();
-  return !wanted || place.nameBn.includes(wanted) || place.nameEn.toLowerCase().includes(wanted);
+  const wanted = latinDigits(search).trim();
+  return !wanted || containsText(place.nameBn, wanted) || containsText(place.nameEn, wanted);
 }

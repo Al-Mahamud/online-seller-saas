@@ -71,7 +71,7 @@ class PackingSlips {
         Page page = new Page(bangla ? BANGLA : ENGLISH, bangla);
         StringBuilder html = new StringBuilder(8192);
         html.append("<!doctype html>\n<html lang=\"").append(bangla ? "bn" : "en").append("\">\n<head>\n<meta charset=\"utf-8\">\n")
-                .append("<title>").append(e(details.size() == 1 ? page.label("slip.order") + " " + details.get(0).numberLabel()
+                .append("<title>").append(e(details.size() == 1 ? page.label("slip.order") + " " + page.digits(details.get(0).numberLabel())
                         : page.label("slip.title"))).append("</title>\n<style>\n").append(STYLE).append("</style>\n");
         if (autoprint) {
             html.append("<script>").append(PRINT_SCRIPT).append("</script>\n");

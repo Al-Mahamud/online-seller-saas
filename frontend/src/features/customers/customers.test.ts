@@ -29,4 +29,9 @@ describe("matchesPlace", () => {
     expect(matchesPlace(dhaka, "খুলনা")).toBe(false);
     expect(matchesPlace(dhaka, "  ")).toBe(true);
   });
+
+  it("finds য় typed either way", () => {
+    const kotwali = { id: 2, nameBn: "কোতো\u09AF\u09BCালী", nameEn: "Kotwali" };
+    expect(matchesPlace(kotwali, "কোতো\u09DFা")).toBe(true);
+  });
 });

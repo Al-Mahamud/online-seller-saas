@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { dhakaToday } from "@/lib/dates";
 import { useFormat } from "@/lib/format";
 import { parseCount } from "@/lib/money";
+import { containsText } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { lowStockAllQuery, stockChanged } from "./api";
 
@@ -163,13 +164,10 @@ function List({
   const format = useFormat();
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<Tab>("all");
-  const text = q.trim().toLowerCase();
+  const text = q.trim();
   const matching = items.filter(
     (item) =>
-      !text ||
-      item.productName.toLowerCase().includes(text) ||
-      item.label.toLowerCase().includes(text) ||
-      item.sku.toLowerCase().includes(text),
+      !text || containsText(item.productName, text) || containsText(item.label, text) || containsText(item.sku, text),
   );
   const counts = {
     all: matching.length,

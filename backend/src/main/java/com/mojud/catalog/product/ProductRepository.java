@@ -39,12 +39,12 @@ interface ProductRepository extends JpaRepository<Product, UUID> {
                    or p.category_id in (select c.id from categories c where c.business_id = :businessId and c.parent_id = :categoryId))
               and (cast(:tagId as uuid) is null or exists (select 1 from product_tags t
                    where t.business_id = :businessId and t.product_id = p.id and t.tag_id = :tagId))
-              and (lower(p.name) like :pattern
-                   or word_similarity(lower(:q), lower(p.name)) >= 0.4
+              and (search_text(p.name) like :pattern
+                   or word_similarity(lower(:q), search_text(p.name)) >= 0.4
                    or exists (select 1 from product_variants v
                               where v.business_id = :businessId and v.product_id = p.id and upper(v.sku) like upper(:pattern)))
-            order by (lower(p.name) like :pattern) desc,
-                     word_similarity(lower(:q), lower(p.name)) desc,
+            order by (search_text(p.name) like :pattern) desc,
+                     word_similarity(lower(:q), search_text(p.name)) desc,
                      p.created_at desc, p.id desc""", countQuery = """
             select count(*) from products p
             where p.business_id = :businessId and p.status = :status
@@ -52,8 +52,8 @@ interface ProductRepository extends JpaRepository<Product, UUID> {
                    or p.category_id in (select c.id from categories c where c.business_id = :businessId and c.parent_id = :categoryId))
               and (cast(:tagId as uuid) is null or exists (select 1 from product_tags t
                    where t.business_id = :businessId and t.product_id = p.id and t.tag_id = :tagId))
-              and (lower(p.name) like :pattern
-                   or word_similarity(lower(:q), lower(p.name)) >= 0.4
+              and (search_text(p.name) like :pattern
+                   or word_similarity(lower(:q), search_text(p.name)) >= 0.4
                    or exists (select 1 from product_variants v
                               where v.business_id = :businessId and v.product_id = p.id and upper(v.sku) like upper(:pattern)))""")
     Page<Product> search(UUID businessId, String status, UUID categoryId, UUID tagId, String q, String pattern, Pageable pageable);
