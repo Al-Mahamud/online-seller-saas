@@ -4,10 +4,12 @@ import { Download as DownloadIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { can, hasRole, useBusiness } from "@/api/business";
+import { ApiError } from "@/api/errors";
 import { errorMessages } from "@/api/query";
 import { Choice } from "@/components/form/Choice";
 import { Field } from "@/components/form/Field";
 import { BackToMore } from "@/components/layout/PageHeader";
+import { subscriptionStatusQuery } from "@/features/billing/status";
 import { addDays, dhakaToday } from "@/lib/dates";
 import { useFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -53,7 +55,13 @@ export function ReportsPage() {
   const days = useQuery(salesQuery(from, to, "day"));
   const profit = useQuery({ ...profitQuery(from, to), enabled: canSeeProfit });
   const length = daysBetween(from, to);
-  const before = useQuery(salesToCompareQuery(addDays(from, -length), addDays(from, -1)));
+  // The days before, to compare with: only when the plan reaches back that far.
+  const reportDays = useQuery(subscriptionStatusQuery).data?.reportDays;
+  const compareFrom = addDays(from, -length);
+  const before = useQuery({
+    ...salesToCompareQuery(compareFrom, addDays(from, -1)),
+    enabled: reportDays === null || (reportDays !== undefined && compareFrom >= addDays(today, -(reportDays - 1))),
+  });
   const orders = (days.data?.rows ?? []).reduce((sum, row) => sum + (row.orders ?? 0), 0);
   const difference = days.data && before.data ? changeFrom(before.data.value, days.data.value) : null;
   const shownDays = format.number(length);
@@ -300,6 +308,14 @@ function SalesShare({
   );
 }
 
+/** Further back than the plan reaches says so, with the plan's days; anything else as the server put it. */
+function reportError(error: unknown, reportDays: (limit: number) => string): string {
+  if (error instanceof ApiError && error.code === "plan.limit_reached" && error.properties.metric === "report_days") {
+    return reportDays(Number(error.properties.limit));
+  }
+  return errorMessages(error);
+}
+
 function Sales({ from, to, by, onBy }: { from: string; to: string; by: GroupBy; onBy: (by: GroupBy) => void }) {
   const { t } = useTranslation();
   const format = useFormat();
@@ -335,7 +351,7 @@ function Sales({ from, to, by, onBy }: { from: string; to: string; by: GroupBy; 
           role="alert"
           className="mx-3.5 mb-4 rounded-[10px] bg-danger-soft px-3.5 py-2.75 text-[15px] font-semibold text-danger-ink md:mx-5"
         >
-          {errorMessages(error)}
+          {reportError(error, (limit) => t("planLimit.reportDays", { limit: format.number(limit) }))}
         </p>
       )}
       {data && rows.length === 0 && (

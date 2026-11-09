@@ -61,14 +61,34 @@ class SecurityEmails {
     }
 
     /**
+     * "28 Oct 2026, 9:58 PM", or in Bangla "২৮ অক্টো ২০২৬, রাত ৯:৫৮": Bangla says the part of the day
+     * first and has no AM or PM (as the app shows times).
+     */
+    static String when(Instant at, Locale locale) {
+        if (!"bn".equals(locale.getLanguage())) {
+            return DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a", locale).withZone(DhakaTime.ZONE).format(at);
+        }
+        int hour = at.atZone(DhakaTime.ZONE).getHour();
+        String part = hour >= 4 && hour < 12 ? "সকাল"
+                : hour >= 12 && hour < 16 ? "দুপুর"
+                : hour >= 16 && hour < 18 ? "বিকাল"
+                : hour >= 18 && hour < 20 ? "সন্ধ্যা"
+                : "রাত";
+        DateTimeFormatter day = DateTimeFormatter.ofPattern("d MMM yyyy", locale).withDecimalStyle(DecimalStyle.of(locale))
+                .withZone(DhakaTime.ZONE);
+        DateTimeFormatter time = DateTimeFormatter.ofPattern("h:mm", locale).withDecimalStyle(DecimalStyle.of(locale))
+                .withZone(DhakaTime.ZONE);
+        return day.format(at) + ", " + part + " " + time.format(at);
+    }
+
+    /**
      * {@code kind}: a message prefix such as {@code email.security.two_factor_on}; {@code more}: its
      * arguments after the time (snapshots in SecurityEmailTests).
      */
     static EmailMessage email(EmailComposer.Draft draft, String kind, Instant at, String webBaseUrl, Object... more) {
         Locale locale = draft.locale();
         Object[] args = new Object[more.length + 1];
-        args[0] = DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a", locale).withDecimalStyle(DecimalStyle.of(locale))
-                .withZone(DhakaTime.ZONE).format(at);
+        args[0] = when(at, locale);
         System.arraycopy(more, 0, args, 1, more.length);
         return draft.subject(kind + ".subject")
                 .paragraph(kind + ".body", args)

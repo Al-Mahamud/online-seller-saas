@@ -29,8 +29,8 @@ class SalesReports {
     }
 
     /**
-     * {@code value}: for days, goods after discount and returns (revenue); for products and
-     * categories, items kept at their order prices (order discounts are not split over items).
+     * {@code value}: goods after discount and returns (revenue). For products and categories, each
+     * order's discount is shared over its kept items by their value, so they add up to the days' total.
      * {@code orders} and {@code deliveryCharged} only for days.
      */
     record Row(String key, String label, @Nullable Integer orders, int quantity, long value, @Nullable Long deliveryCharged) {

@@ -2509,6 +2509,8 @@ export interface components {
             currentPeriodEnd: string | null;
             /** Format: date-time */
             graceEndsAt: string | null;
+            /** Format: int32 */
+            reportDays: number | null;
             status: string;
             /** Format: date-time */
             trialEndsAt: string | null;

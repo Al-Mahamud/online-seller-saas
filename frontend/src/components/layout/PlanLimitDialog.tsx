@@ -32,7 +32,7 @@ export default function PlanLimitDialog({ limit, onClose: close }: { limit: Plan
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("planLimit.title")}</DialogTitle>
+          <DialogTitle>{t(limit.metric === "exports" ? "planLimit.notOnPlan" : "planLimit.title")}</DialogTitle>
           <DialogDescription>
             {text}
             {!can(business, "SETTINGS") && ` ${t("planLimit.askOwner")}`}

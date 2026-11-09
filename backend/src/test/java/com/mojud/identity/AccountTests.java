@@ -136,6 +136,16 @@ class AccountTests {
     }
 
     @Test
+    void theNewPasswordMustBeANewOne() {
+        ApiClient client = client();
+        Account account = TestAccounts.signUp(client, messages);
+
+        assertThat(client.post("/api/v1/me/password", Map.of("currentPassword", account.password(),
+                "newPassword", account.password())).expectError(400, "validation.failed")
+                .<List<String>>json("$.errors[*].field")).containsExactly("newPassword");
+    }
+
+    @Test
     void aStolenSessionCannotGuessThePasswordForever() {
         ApiClient client = client();
         Account account = TestAccounts.signUp(client, messages);

@@ -523,9 +523,12 @@ function metaOf(entry: Entry, details: Details, t: T, format: Format): string | 
         }),
       );
       break;
-    case "stock.adjusted":
-      parts.push(str(details?.reason), str(details?.note));
+    case "stock.adjusted": {
+      // The reason is stored as its code (STAIN); the damage page's words for it.
+      const reason = str(details?.reason);
+      parts.push(reason ? t(`damages.reason.${reason}`, { defaultValue: reason }) : undefined, str(details?.note));
       break;
+    }
     case "variant.prices_changed":
       parts.push(str(details?.product) ? str(details?.sku) : undefined);
       break;

@@ -2,10 +2,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod/mini";
 import { api, call } from "@/api/client";
+import { ApiError } from "@/api/errors";
 import { type Me, meQuery } from "@/api/session";
 import { CodeField, FormError, PasswordField, TextField } from "@/components/form/fields";
 import { showServerError } from "@/components/form/serverErrors";
@@ -13,6 +13,7 @@ import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { appOrRecoveryCode, code, currentPassword } from "@/features/auth/schemas";
+import { useLooseT } from "@/i18n/pages";
 import { useFormat } from "@/lib/format";
 
 const statusQuery = queryOptions({
@@ -23,7 +24,7 @@ const statusQuery = queryOptions({
 type Open = "enable" | "new-codes" | "disable";
 
 export function TwoFactorSection() {
-  const { t } = useTranslation();
+  const t = useLooseT();
   const format = useFormat();
   const { data: status } = useQuery(statusQuery);
   const [open, setOpen] = useState<Open>();
@@ -81,7 +82,7 @@ const codeSchema = z.object({ code });
 
 /** The password, then the QR code and the app's first code, then the recovery codes, shown this once. */
 function EnableDialog({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
+  const t = useLooseT();
   const changed = useTwoFactorChanged();
   const [setup, setSetup] = useState<{ secret: string; otpauthUri: string }>();
   const [codes, setCodes] = useState<string[]>();
@@ -101,7 +102,11 @@ function EnableDialog({ onClose }: { onClose: () => void }) {
       setCodes(result.recoveryCodes);
       changed(true);
     },
-    onError: (error) => showServerError(codeForm, error, { codes: { "two_factor.invalid_code": "code" } }),
+    // The server's words mention recovery codes, which don't exist until this is done.
+    onError: (error) =>
+      error instanceof ApiError && error.code === "two_factor.invalid_code"
+        ? codeForm.setError("code", { type: "server", message: t("twoFactor.setupWrongCode") })
+        : showServerError(codeForm, error),
   });
 
   if (codes) {
@@ -158,7 +163,7 @@ function EnableDialog({ onClose }: { onClose: () => void }) {
 
 /** Drawn here in the browser, so the secret never goes to anyone else to draw. */
 function QrCode({ uri }: { uri: string }) {
-  const { t } = useTranslation();
+  const t = useLooseT();
   const [image, setImage] = useState<string>();
   useEffect(() => {
     let current = true;
@@ -182,7 +187,7 @@ function QrCode({ uri }: { uri: string }) {
 
 /** Shown once: the dialog closes only by saying they are saved. */
 function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
-  const { t } = useTranslation();
+  const t = useLooseT();
   const text = `${codes.join("\n")}\n`;
 
   async function copy() {
@@ -235,7 +240,7 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
 }
 
 function NewCodesDialog({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
+  const t = useLooseT();
   const changed = useTwoFactorChanged();
   const [codes, setCodes] = useState<string[]>();
   const form = useForm({ resolver: zodResolver(codeSchema), defaultValues: { code: "" } });
@@ -278,7 +283,7 @@ function NewCodesDialog({ onClose }: { onClose: () => void }) {
 const disableSchema = z.object({ password: currentPassword, code: appOrRecoveryCode });
 
 function DisableDialog({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
+  const t = useLooseT();
   const changed = useTwoFactorChanged();
   const form = useForm({ resolver: zodResolver(disableSchema), defaultValues: { password: "", code: "" } });
   const disable = useMutation({

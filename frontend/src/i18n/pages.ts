@@ -11,6 +11,7 @@ const PAGES = {
   activity: { bn: () => import("./pages/activity.bn.json"), en: () => import("./pages/activity.en.json") },
   team: { bn: () => import("./pages/team.bn.json"), en: () => import("./pages/team.en.json") },
   pay: { bn: () => import("./pages/pay.bn.json"), en: () => import("./pages/pay.en.json") },
+  twoFactor: { bn: () => import("./pages/twoFactor.bn.json"), en: () => import("./pages/twoFactor.en.json") },
 };
 type Page = keyof typeof PAGES;
 

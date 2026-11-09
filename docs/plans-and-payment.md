@@ -101,3 +101,4 @@ ID and password in `.env` (deploy/.env.example).
 - **Nov 5, 2026:** the trial promise left on sign-in and sign-up is gone. The admin overview drops its "on trial" and "trial to paying" tiles. A business still on a trial from before (none exist yet) can still have it extended from its admin page.
 - **Nov 5, 2026:** the SSLCommerz sandbox works on a local run: a payment is confirmed when the browser returns from the gateway (validated with SSLCommerz), not only by the IPN. Servers on the sandbox warn at start.
 - **Nov 7, 2026:** bKash and Nagad as their own choices in the pay dialog.
+- **Nov 7, 2026:** the payment notification reads in Bangla for Bangla readers ("৭ ডিসেম্বর ২০২৬ পর্যন্ত আপনি স্টার্টার প্ল্যানে আছেন"; notifications can carry `args_bn`). Downloads on Free open "আপনার প্ল্যানে এটি নেই", not "…সীমা শেষ".

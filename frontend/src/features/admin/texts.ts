@@ -109,7 +109,11 @@ const bn = {
   invoice: {
     plan: (plan: string, months: string) => `${plan}, ${months} মাস`,
     upgrade: (plan: string) => `${plan}-এ আপগ্রেড`,
-    payBy: { ONLINE: "অনলাইন", BANK_TRANSFER: "ব্যাংক ট্রান্সফার" } as Record<string, string>,
+    payBy: {
+      ONLINE: "অনলাইন",
+      SSLCOMMERZ: "অনলাইন (SSLCommerz)",
+      BANK_TRANSFER: "ব্যাংক ট্রান্সফার",
+    } as Record<string, string>,
   },
   suspend: {
     action: "স্থগিত করুন",
@@ -339,7 +343,7 @@ const en: typeof bn = {
   invoice: {
     plan: (plan: string, months: string) => `${plan}, ${months} ${months === "1" ? "month" : "months"}`,
     upgrade: (plan: string) => `Upgrade to ${plan}`,
-    payBy: { ONLINE: "Online", BANK_TRANSFER: "Bank transfer" },
+    payBy: { ONLINE: "Online", SSLCOMMERZ: "Online (SSLCommerz)", BANK_TRANSFER: "Bank transfer" },
   },
   suspend: {
     action: "Suspend",

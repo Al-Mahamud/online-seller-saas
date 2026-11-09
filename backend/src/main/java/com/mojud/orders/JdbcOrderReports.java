@@ -220,16 +220,32 @@ class JdbcOrderReports implements OrderReports {
     @Override
     @Transactional(readOnly = true)
     public List<VariantSales> salesByVariant(LocalDate from, LocalDate to) {
-        return jdbc.sql("with " + DAY_ORDERS + """
-                        select i.variant_id, min(i.product_name), min(i.variant_label),
-                               sum(i.quantity - coalesce(r.quantity, 0)),
-                               sum((i.quantity - coalesce(r.quantity, 0)) * i.unit_price)
-                        from order_items i left join returned r on r.order_item_id = i.id
-                        where i.business_id = :business and i.order_id in (select id from day_orders)
-                        group by i.variant_id
-                        having sum(i.quantity - coalesce(r.quantity, 0)) > 0
+        // Each order's discount (and any credit beyond the returned items' prices) is shared over its kept
+        // items by their value, so the products add up to the revenue. Running sums share it out to the
+        // paisa: each item takes the change in floor(running x gap / order value), which totals the gap.
+        return jdbc.sql(("with " + DAY_ORDERS + """
+                        , kept_items as (
+                            select i.id, i.order_id, i.variant_id, i.product_name, i.variant_label,
+                                   i.quantity - coalesce(r.quantity, 0) as quantity,
+                                   (i.quantity - coalesce(r.quantity, 0)) * i.unit_price as value
+                            from order_items i left join returned r on r.order_item_id = i.id
+                            where i.business_id = :business and i.order_id in (select id from day_orders)
+                        ),
+                        shared as (
+                            select k.variant_id, k.product_name, k.variant_label, k.quantity, k.value,
+                                   sum(k.value) over (partition by k.order_id order by k.id) as running,
+                                   sum(k.value) over (partition by k.order_id) as order_value,
+                                   sum(k.value) over (partition by k.order_id) - (%s) as gap
+                            from kept_items k join day_orders o on o.id = k.order_id
+                        )
+                        select variant_id, min(product_name), min(variant_label), sum(quantity),
+                               sum(value - case when order_value = 0 then 0
+                                   else div(running * gap, order_value) - div((running - value) * gap, order_value) end)
+                        from shared
+                        group by variant_id
+                        having sum(quantity) > 0
                         order by 5 desc, 2, 3
-                        """)
+                        """).formatted(GOODS_KEPT))
                 .param("business", TenantScope.current().orElseThrow())
                 .param("from", start(from)).param("to", start(to.plusDays(1)))
                 .query((rs, n) -> new VariantSales(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),

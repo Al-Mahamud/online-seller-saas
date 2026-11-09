@@ -131,9 +131,13 @@ class NotificationController {
         return Arrays.stream(BusinessRole.values()).filter(role::atLeast).map(Enum::name).toList();
     }
 
-    /** {@code notification.<type>} with the payload's {@code args} array in order. */
+    /**
+     * {@code notification.<type>} with the payload's {@code args} array in order, or {@code args_<language>}
+     * when the payload has one for the reader's language (names and dates written in that language).
+     */
     private String title(String type, JsonNode payload, Locale locale) {
-        JsonNode args = payload.path("args");
+        JsonNode local = payload.path("args_" + locale.getLanguage());
+        JsonNode args = local.isArray() ? local : payload.path("args");
         Object[] values = new Object[args.size()];
         for (int i = 0; i < args.size(); i++) {
             values[i] = args.get(i).isNumber() ? args.get(i).numberValue() : args.get(i).asString();

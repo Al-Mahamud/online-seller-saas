@@ -948,6 +948,10 @@
             "format" : "date-time",
             "type" : [ "string", "null" ]
           },
+          "reportDays" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
           "status" : {
             "type" : "string"
           },
@@ -956,7 +960,7 @@
             "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "currentPeriodEnd", "graceEndsAt", "status", "trialEndsAt" ],
+        "required" : [ "currentPeriodEnd", "graceEndsAt", "reportDays", "status", "trialEndsAt" ],
         "type" : "object"
       },
       "BillingUpgradeRequest" : {

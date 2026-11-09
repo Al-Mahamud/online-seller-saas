@@ -42,3 +42,4 @@ Built on Nov 2, 2026, at Al Mahamud's request, from the design at https://claude
 ## Change log
 
 - **Nov 2, 2026:** designed and built.
+- **Nov 7, 2026:** a damage written from a product's stock dialog (a note, no reason picked) no longer shows "কারণ লেখা নেই" beside its note. The record dialog's "add at least one product" and "pick a reason" messages go once they are answered.

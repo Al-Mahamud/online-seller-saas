@@ -88,7 +88,7 @@ class ProductImporter implements CatalogImport {
         for (Map.Entry<String, List<String>> option : values.entrySet()) {
             options.save(new ProductOption(product.getId(), option.getKey(), option.getValue(), position++));
         }
-        List<String> skus = skus(product.getName(), values, rows.variants());
+        List<String> skus = skus(product, values, rows.variants());
         List<Result> results = new ArrayList<>();
         for (int i = 0; i < rows.variants().size(); i++) {
             VariantRow row = rows.variants().get(i);
@@ -172,7 +172,7 @@ class ProductImporter implements CatalogImport {
         for (ProductOption option : productOptions) {
             option.change(option.getName(), values.get(option.getName()), option.getPosition());
         }
-        List<String> skus = skus(product.getName(), values, added);
+        List<String> skus = skus(product, values, added);
         int position = current.stream().mapToInt(ProductVariant::getPosition).max().orElse(-1) + 1;
         for (int i = 0; i < added.size(); i++) {
             VariantRow row = added.get(i);
@@ -258,8 +258,9 @@ class ProductImporter implements CatalogImport {
     }
 
     /** Given SKUs as they are; the missing ones generated as the product form does. */
-    private List<String> skus(String productName, Map<String, List<String>> values, List<VariantRow> rows) {
-        String base = SkuGenerator.base(productName);
+    private List<String> skus(Product product, Map<String, List<String>> values, List<VariantRow> rows) {
+        String base = SkuGenerator.base(product.getName(), product.getId(),
+                variants.findByProductIdOrderByPosition(product.getId()).stream().map(ProductVariant::getSku).toList());
         Set<String> taken = new HashSet<>(variants.findSkusStartingWith(base));
         rows.stream().map(VariantRow::sku).filter(Objects::nonNull).forEach(sku -> taken.add(sku.toUpperCase(Locale.ROOT)));
         List<String> skus = new ArrayList<>();

@@ -41,3 +41,4 @@ main file. The Bangla review list and the translation tests include them. The bu
 ## Change log
 
 - Nov 4, 2026: numbered pages (20, 50 or 100 rows) instead of the "আগের কাজ দেখুন" button.
+- Nov 7, 2026: a stock change shows its reason in words ("দাগ বা রং নষ্ট"), not its code (STAIN).

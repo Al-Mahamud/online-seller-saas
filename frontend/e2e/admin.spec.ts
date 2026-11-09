@@ -104,7 +104,7 @@ test("finds a business, and suspending it shows that business the banner", async
   await expect(page.getByRole("link", { name: new RegExp(shop) })).toBeVisible();
   await expect(page.getByRole("link", { name: /অ্যাডমিনের দোকান/ })).toHaveCount(0);
   // Narrowed by plan: this one is on Pro.
-  await page.getByRole("group", { name: "প্ল্যান" }).getByRole("button", { name: "Free" }).click();
+  await page.getByRole("group", { name: "প্ল্যান" }).getByRole("button", { name: "ফ্রি" }).click();
   await expect(page).toHaveURL(/plan=FREE/);
   await expect(page.getByText("কোনো ব্যবসা পাওয়া যায়নি।")).toBeVisible();
   await page.getByRole("button", { name: "সব ব্যবসা দেখুন" }).click();
@@ -163,7 +163,7 @@ test("extends a trial and sets a plan", async ({ page, browser }) => {
 
   await page.getByRole("button", { name: "প্ল্যান দিন" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("radio", { name: "Pro" }).check();
+  await dialog.getByRole("radio", { name: "প্রো" }).check();
   await dialog.getByRole("button", { name: "৩ মাস" }).click();
   await label(dialog, "কারণ (ঐচ্ছিক)").fill("সৌজন্য");
   await expectAccessible(page);

@@ -33,7 +33,7 @@ class GeoTests {
             assertThat(district.nameBn()).isNotBlank();
             assertThat(geo.areas(district.id())).as(district.nameEn()).isNotEmpty();
         });
-        assertThat(geo.districts().stream().mapToInt(d -> geo.areas(d.id()).size()).sum()).isEqualTo(494 + 50);
+        assertThat(geo.districts().stream().mapToInt(d -> geo.areas(d.id()).size()).sum()).isEqualTo(494 + 50 + 15);
         assertThat(geo.district(9)).hasValueSatisfying(d -> assertThat(d.nameEn()).isEqualTo("Cox's Bazar"));
     }
 
@@ -52,6 +52,20 @@ class GeoTests {
         assertThat(user.get("/api/v1/geo/districts?divisionId=6").<List<String>>json("$[*].nameEn")).contains("Dhaka", "Gazipur")
                 .doesNotContain("Sylhet");
         user.get("/api/v1/geo/districts/999/areas").expectError(404, "resource.not_found");
+    }
+
+    /** Chattogram city's thanas, for a "Chattogram city" delivery charge (V39). */
+    @Test
+    void chattogramHasItsCityAreasToo() {
+        ApiClient user = new ApiClient(port);
+        TestAccounts.signUp(user, messages);
+
+        ApiResponse chattogram = user.get("/api/v1/geo/districts/8/areas").expectStatus(200);
+
+        assertThat(chattogram.<List<String>>json("$[*].nameBn")).contains("পাঁচলাইশ", "কোতোয়ালী", "ডবলমুরিং", "হাটহাজারী");
+        assertThat(chattogram.<List<String>>json("$[?(@.nameEn == 'Panchlaish')].kind")).containsExactly("METRO_THANA");
+        // Karnaphuli is there once, as the upazila it already was.
+        assertThat(chattogram.<List<String>>json("$[?(@.nameBn == 'কর্ণফুলী')].kind")).containsExactly("UPAZILA");
     }
 
     @Test

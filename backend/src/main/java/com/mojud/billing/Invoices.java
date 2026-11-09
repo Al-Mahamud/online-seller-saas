@@ -55,6 +55,7 @@ class Invoices implements PaymentConfirmations {
     static final Set<Integer> MONTHS = Set.of(1, 6, 12);
     private static final String ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final Locale BANGLA = Locale.forLanguageTag("bn");
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("d MMM yyyy").withZone(DhakaTime.ZONE);
 
     enum PayBy {
@@ -404,7 +405,10 @@ class Invoices implements PaymentConfirmations {
                 "method", method, "reference", reference, "plan", invoice.planCode(), "until", periodEnd);
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("invoiceId", invoice.id().toString());
-        payload.put("args", List.of(plans.get(invoice.planCode()).nameEn(), periodEnd == null ? "" : DAY.format(periodEnd)));
+        Plans.Plan plan = plans.get(invoice.planCode());
+        payload.put("args", List.of(plan.nameEn(), periodEnd == null ? "" : DAY.format(periodEnd)));
+        // Read in Bangla: the plan's Bangla name and a Bangla date (NotificationController picks by language).
+        payload.put("args_bn", List.of(plan.nameBn(), periodEnd == null ? "" : BillingEmails.day(periodEnd, BANGLA)));
         if (notifier.notify("billing.paid", BusinessRole.OWNER, payload, "billing.paid:" + invoice.id())) {
             emails.receipt(invoice.id(), invoice.number(), invoice.planCode(), invoice.amount(), periodEnd);
         }

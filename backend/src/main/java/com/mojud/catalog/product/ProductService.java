@@ -198,7 +198,7 @@ class ProductService {
                 options.save(new ProductOption(product.getId(), grid.get(i).name(), grid.get(i).values(), i));
             }
             List<Map<String, String>> combinations = VariantGrid.combinations(grid);
-            List<String> skus = requestedSku != null ? List.of(requestedSku) : newSkus(product.getName(), grid, combinations);
+            List<String> skus = requestedSku != null ? List.of(requestedSku) : newSkus(product, grid, combinations);
             List<StockService.Line> opening = new ArrayList<>();
             for (int i = 0; i < combinations.size(); i++) {
                 ProductVariant variant = variants.save(new ProductVariant(product.getId(), skus.get(i),
@@ -244,7 +244,7 @@ class ProductService {
             for (int i = 0; i < grid.size(); i++) {
                 options.save(new ProductOption(product.getId(), grid.get(i).name(), grid.get(i).values(), i));
             }
-            List<String> skus = newSkus(product.getName(), grid, combinations);
+            List<String> skus = newSkus(product, grid, combinations);
             List<StockService.Line> opening = new ArrayList<>();
             for (int i = 0; i < rows.size(); i++) {
                 VariantRow row = rows.get(i);
@@ -283,7 +283,7 @@ class ProductService {
                     .map(option -> new VariantGrid.Option(option.getKey(), option.getValue())).toList();
             int position = existing.stream().mapToInt(ProductVariant::getPosition).max().orElse(-1) + 1;
             ProductVariant variant = variants.save(new ProductVariant(productId,
-                    newSkus(product.getName(), grid, List.of(attributes)).get(0), attributes, row.price(), row.costPrice(),
+                    newSkus(product, grid, List.of(attributes)).get(0), attributes, row.price(), row.costPrice(),
                     position, now));
             product.touch(now);
             products.saveAndFlush(product);
@@ -526,7 +526,7 @@ class ProductService {
                 }
             }
 
-            List<String> skus = newSkus(product.getName(), grid, missing);
+            List<String> skus = newSkus(product, grid, missing);
             for (int i = 0; i < missing.size(); i++) {
                 variants.save(new ProductVariant(productId, skus.get(i), missing.get(i), newPrice, newCost,
                         missingPositions.get(i), now));
@@ -640,7 +640,7 @@ class ProductService {
                         ordered.put(option.name(), variant.getAttributes().get(option.name()));
                     }
                 });
-                variant.changeSku(newSkus(product.getName(), grid, List.of(ordered), variant.getSku()).get(0), now);
+                variant.changeSku(newSkus(product, grid, List.of(ordered), variant.getSku()).get(0), now);
             }
             long price = command.price() != null ? command.price() : variant.getPrice();
             Long cost = command.clearCostPrice() ? null
@@ -751,17 +751,18 @@ class ProductService {
                 LinkedHashMap::new, Collectors.mapping(tag -> new ProductViews.Tag(tag.id(), tag.name()), Collectors.toList())));
     }
 
-    private List<String> newSkus(String productName, List<VariantGrid.Option> grid, List<Map<String, String>> combinations) {
-        return newSkus(productName, grid, combinations, null);
+    private List<String> newSkus(Product product, List<VariantGrid.Option> grid, List<Map<String, String>> combinations) {
+        return newSkus(product, grid, combinations, null);
     }
 
     /** {@code ownSku}: the SKU being replaced, which may be generated again. */
-    private List<String> newSkus(String productName, List<VariantGrid.Option> grid, List<Map<String, String>> combinations,
+    private List<String> newSkus(Product product, List<VariantGrid.Option> grid, List<Map<String, String>> combinations,
             String ownSku) {
         if (combinations.isEmpty()) {
             return List.of();
         }
-        String base = SkuGenerator.base(productName);
+        String base = SkuGenerator.base(product.getName(), product.getId(),
+                variants.findByProductIdOrderByPosition(product.getId()).stream().map(ProductVariant::getSku).toList());
         Map<String, List<String>> positions = new LinkedHashMap<>();
         grid.forEach(option -> positions.put(option.name(), option.values()));
         Set<String> taken = new HashSet<>(variants.findSkusStartingWith(base));

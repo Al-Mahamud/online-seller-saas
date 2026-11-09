@@ -56,9 +56,12 @@ class BillingController {
             @Nullable Instant graceEndsAt, @Nullable String pendingPlanCode, Map<String, Usage> usage) {
     }
 
-    /** What every member's screen needs to know: the banners. */
+    /**
+     * What every member's screen needs to know: the banners, and how many days back reports reach
+     * ({@code reportDays}, today included; null when the plan has no limit).
+     */
     record Status(String status, @Nullable Instant trialEndsAt, @Nullable Instant currentPeriodEnd,
-            @Nullable Instant graceEndsAt) {
+            @Nullable Instant graceEndsAt, @Nullable Integer reportDays) {
     }
 
     private final Subscriptions subscriptions;
@@ -105,7 +108,7 @@ class BillingController {
     Status status() {
         Subscriptions.Subscription subscription = subscriptions.current();
         return new Status(subscription.status(), subscription.trialEndsAt(), subscription.currentPeriodEnd(),
-                subscription.graceEndsAt());
+                subscription.graceEndsAt(), entitlements.limit(Metric.REPORT_DAYS).orElse(null));
     }
 
     /**
