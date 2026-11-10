@@ -188,7 +188,7 @@ public class TwoFactor {
                 resealed++;
             }
         }
-        log.info("Re-sealed {} authenticator secret(s) with the current encryption key", resealed);
+        log.info("[KEY-ROTATION] re-sealed {} authenticator secret(s) with the current encryption key", resealed);
         return resealed;
     }
 

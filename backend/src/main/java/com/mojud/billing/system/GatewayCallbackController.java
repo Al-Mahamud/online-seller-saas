@@ -66,7 +66,7 @@ class GatewayCallbackController {
         store("IPN", tranId, fields);
         Optional<AttemptRef> attempt = attempt(tranId);
         if (attempt.isEmpty()) {
-            log.warn("SSLCommerz IPN for unknown tran_id {}", tranId);
+            log.warn("[SSLCOMMERZ-IPN] unknown tran_id {}", tranId);
             return ResponseEntity.ok("UNKNOWN");
         }
         String status = fields.getOrDefault("status", "");
@@ -118,7 +118,7 @@ class GatewayCallbackController {
             }
         } catch (RuntimeException e) {
             // The browser still goes on; the IPN or the pending check will apply the payment.
-            log.warn("Checking payment {} on the browser's return failed", tranId, e);
+            log.warn("[SSLCOMMERZ-RETURN] checking payment {} on the browser's return failed", tranId, e);
         }
     }
 

@@ -218,9 +218,9 @@ describe("requestIdOf", () => {
   it("reads the server's ID for the failed request, and nothing from other errors", () => {
     const error = ApiError.from(new Response(null, { status: 500 }), {
       code: "server.error",
-      requestId: "7f3a9c2e1b4d",
+      requestId: "261110140020-e38a8e5",
     });
-    expect(requestIdOf(error)).toBe("7f3a9c2e1b4d");
+    expect(requestIdOf(error)).toBe("261110140020-e38a8e5");
     expect(requestIdOf(ApiError.from(new Response(null, { status: 500 }), {}))).toBeNull();
     expect(requestIdOf(new NetworkError(null))).toBeNull();
     expect(requestIdOf(new Error("boom"))).toBeNull();

@@ -150,11 +150,11 @@ class ApiExceptionHandlerTests {
     void everyAnswerHasARequestIdAndEveryErrorRepeatsIt() throws Exception {
         Problem fine = get("/test/page?limit=5", null);
         assertThat(fine.status).isEqualTo(200);
-        assertThat(fine.requestId).matches("[0-9a-f]{12}");
+        assertThat(fine.requestId).matches("\\d{12}-[0-9a-f]{7}");
 
         for (String path : List.of("/test/boom", "/test/missing", "/test/page?limit=500", "/test/no-such-route")) {
             Problem problem = get(path, null);
-            assertThat(problem.requestId).as(path).matches("[0-9a-f]{12}").isNotEqualTo(fine.requestId);
+            assertThat(problem.requestId).as(path).matches("\\d{12}-[0-9a-f]{7}").isNotEqualTo(fine.requestId);
             assertThat((String) problem.json.read("$.requestId")).as(path).isEqualTo(problem.requestId);
         }
     }
@@ -167,7 +167,7 @@ class ApiExceptionHandlerTests {
 
         for (String given : List.of("short", "has spaces in it", "x".repeat(65), "ok] [forged-id")) {
             Problem replaced = send(request("/test/boom", null).header("X-Request-Id", given).GET());
-            assertThat(replaced.requestId).as(given).matches("[0-9a-f]{12}");
+            assertThat(replaced.requestId).as(given).matches("\\d{12}-[0-9a-f]{7}");
         }
     }
 
@@ -177,7 +177,7 @@ class ApiExceptionHandlerTests {
         Problem problem = get("/test/boom", null);
 
         assertThat(output.getAll().lines()
-                .filter(line -> line.contains("Unhandled error") && line.contains("[" + problem.requestId + "]")))
+                .filter(line -> line.contains("EXCEPTION: ") && line.contains("T[" + problem.requestId + "]")))
                 .hasSize(1);
     }
 

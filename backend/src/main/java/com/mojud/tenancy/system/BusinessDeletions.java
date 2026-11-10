@@ -41,7 +41,7 @@ public class BusinessDeletions implements BusinessDeletion {
     @Override
     public int deleteNow(UUID businessId) {
         int rows = database.jdbc().sql("select mojud_delete_business(?)").param(businessId).query(Integer.class).single();
-        log.info("Business {} deleted ({} rows)", businessId, rows);
+        log.info("[JOB-BUSINESS-DELETE] business {} deleted ({} rows)", businessId, rows);
         events.publishEvent(new BusinessDeleted(businessId));
         return rows;
     }
@@ -54,7 +54,7 @@ public class BusinessDeletions implements BusinessDeletion {
             try {
                 deleteNow(business);
             } catch (RuntimeException e) {
-                log.error("Deleting business {} failed", business, e);
+                log.error("[JOB-BUSINESS-DELETE] deleting business {} failed", business, e);
             }
         }
         return due;

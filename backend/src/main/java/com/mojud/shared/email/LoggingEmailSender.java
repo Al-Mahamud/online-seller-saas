@@ -14,6 +14,6 @@ class LoggingEmailSender implements EmailSender {
 
     @Override
     public void send(EmailAddress to, EmailMessage message) {
-        log.info("Email to {}: {}\n{}", to, message.subject(), message.text());
+        log.info("[DEV-EMAIL] email not sent - to: {}, subject: {}\n{}", to, message.subject(), message.text());
     }
 }

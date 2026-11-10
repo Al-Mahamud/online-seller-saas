@@ -129,7 +129,7 @@ Storing the private key in GitHub is the price of an automatic drill. Without it
 
 ## Monitoring
 
-- **Errors:** set `SENTRY_DSN`. Every error the app logs (failed requests, jobs, emails) becomes a Sentry event, without customers' details.
+- **Errors:** set `SENTRY_DSN`. Every error the app logs (failed requests, jobs, emails) becomes a Sentry event, without customers' details. The request lines that go with an event keep only their method, path and status.
 - **Errors in the web app:** a separate Sentry project is tidiest. Set its DSN as the `WEB_SENTRY_DSN` variable in the GitHub repository (Settings > Secrets and variables > Actions), and the DSN's host as `WEB_SENTRY_ORIGIN` in `.env`, then rebuild. Addresses and phone numbers are taken out before anything is sent (`frontend/src/lib/reporting.ts`).
 - **Uptime:**
   - **Built in:** set the repository variable `HEALTHZ_URL` to `https://<APP_DOMAIN>/healthz`. `.github/workflows/uptime.yml` checks it every 10 minutes and GitHub emails a failure.
@@ -138,4 +138,4 @@ Storing the private key in GitHub is the price of an automatic drill. Without it
   ```sh
   docker compose logs --since 1h app
   ```
-  The app writes JSON lines.
+  The app writes text lines, one format everywhere: `T[…]` is the request's ID and `U[…]` the user. It also keeps hourly files for 14 days in the `app-logs` volume, `/data/logs/mojud-2026111014-0.log`. See `docs/logging.md`.

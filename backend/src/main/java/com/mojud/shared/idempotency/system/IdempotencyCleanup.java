@@ -35,7 +35,7 @@ public class IdempotencyCleanup {
         int removed = database.jdbc().sql("delete from idempotency_keys where created_at < ?")
                 .param(Timestamp.from(clock.instant().minus(KEEP)))
                 .update();
-        log.info("Idempotency cleanup: {} key(s) removed", removed);
+        log.info("[JOB-IDEMPOTENCY] {} key(s) removed", removed);
         return removed;
     }
 

@@ -12,12 +12,6 @@ spring:
     # Requests in progress get this long to finish when the app is stopped for an update.
     timeout-per-shutdown-phase: 25s
 
-logging:
-  # One JSON object per line, ready for a log collector.
-  structured:
-    format:
-      console: ecs
-
 mojud:
   storage:
     # Files on Cloudflare R2: the server's disk holds nothing that backups would miss.

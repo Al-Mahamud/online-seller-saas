@@ -182,11 +182,7 @@ sentry:
     minimum-event-level: error
     minimum-breadcrumb-level: info
 
-logging:
-  pattern:
-    # Each line written while serving a request shows its ID (RequestIdFilter); server logs are
-    # JSON (application-prod.yml), where it is the requestId field.
-    correlation: "%correlationId{requestId(12)}"
+# The log's format and files are in logback-spring.xml; docs/logging.md explains each part.
 
 management:
   endpoints:

@@ -46,8 +46,8 @@ public class StockReconciliation {
                 .query((row, n) -> new Mismatch(row.getObject(1, UUID.class), row.getObject(2, UUID.class),
                         row.getInt(3), row.getInt(4), row.getInt(5), row.getInt(6)))
                 .list();
-        mismatches.forEach(m -> log.error("Stock cache differs from the ledger: {}", m));
-        log.info("Stock reconciliation: {} mismatch(es)", mismatches.size());
+        mismatches.forEach(m -> log.error("[JOB-STOCK-CHECK] stock cache differs from the ledger: {}", m));
+        log.info("[JOB-STOCK-CHECK] {} mismatch(es)", mismatches.size());
         return mismatches;
     }
 

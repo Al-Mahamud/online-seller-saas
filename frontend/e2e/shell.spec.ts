@@ -94,17 +94,17 @@ test("a fault on the server shows the request's code, to find it in the server's
       route.fulfill({
         status: 500,
         contentType: "application/problem+json",
-        headers: { "X-Request-Id": "7f3a9c2e1b4d" },
+        headers: { "X-Request-Id": "261110140020-e38a8e5" },
         body: JSON.stringify({
           status: 500,
           code: "server.error",
           detail: "সার্ভারে সমস্যা হয়েছে।",
-          requestId: "7f3a9c2e1b4d",
+          requestId: "261110140020-e38a8e5",
         }),
       }),
   );
   await page.goto("/customers");
 
   await expect(page.getByText("সার্ভারে সমস্যা হয়েছে।").first()).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("কোড: 7f3a9c2e1b4d").first()).toBeVisible();
+  await expect(page.getByText("কোড: 261110140020-e38a8e5").first()).toBeVisible();
 });

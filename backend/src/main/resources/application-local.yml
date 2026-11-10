@@ -1,6 +1,9 @@
 # Local development only. Never enable this profile on a server.
 
 mojud:
+  logging:
+    # Nearly all of each body (docs/logging.md).
+    body-limit: 65536
   admin:
     # The admin area without two-step sign-in, while it is set up (Al Mahamud, Nov 5, 2026). A
     # server refuses to start with this (ProductionChecks).
@@ -27,17 +30,6 @@ server:
       cookie:
         # Local runs use plain http.
         secure: false
-  tomcat:
-    # A line in the console for every API call, refused ones too: method, path, status and time. Bodies and
-    # query values stay out. Writing to /dev/stdout works on Linux and macOS; on Windows, remove this block.
-    accesslog:
-      enabled: true
-      directory: /dev
-      prefix: stdout
-      suffix: ""
-      file-date-format: ""
-      buffered: false
-      pattern: "API %m %U -> %s (%{ms}T ms) [%{X-Request-Id}o]"
 
 springdoc:
   api-docs:
@@ -47,3 +39,17 @@ springdoc:
     # "Try it out" sends the XSRF-TOKEN cookie back as X-XSRF-TOKEN; call GET /api/v1/auth/csrf first.
     csrf:
       enabled: true
+
+# Everything, for debugging (docs/logging.md): each SQL statement with its values, Spring's own
+# steps, and nearly all of every request and answer body. Servers log INFO and the start of each body.
+logging:
+  level:
+    com.mojud: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.transaction: DEBUG
+    org.springframework.jdbc.core: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    # The connection pool's size every 30 seconds.
+    com.zaxxer.hikari.pool.HikariPool: DEBUG

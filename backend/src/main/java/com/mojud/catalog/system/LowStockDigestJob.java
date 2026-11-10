@@ -38,10 +38,10 @@ public class LowStockDigestJob {
             try {
                 sent += digests.send(business);
             } catch (RuntimeException e) {
-                log.error("Low-stock digest failed for business {}", business, e);
+                log.error("[JOB-LOW-STOCK] failed for business {}", business, e);
             }
         }
-        log.info("Low-stock digest: {} businesses, {} emails", businesses.size(), sent);
+        log.info("[JOB-LOW-STOCK] {} businesses, {} emails", businesses.size(), sent);
         return sent;
     }
 
