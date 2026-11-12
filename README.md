@@ -9,10 +9,15 @@ Mojud is a multi-tenant SaaS for F-commerce sellers: businesses that sell throug
 
 > Working name. Release 1 (inventory and orders) is built; release 2 adds an AI inbox for Messenger and WhatsApp. See [Status](#status).
 
+<p align="center">
+  <img src="docs/screenshots/today.png" alt="The Today page: the order pipeline, today's sales and profit, and what needs attention" width="900">
+</p>
+
 ---
 
 ## Contents
 
+- [A day with Mojud](#a-day-with-mojud)
 - [Features](#features)
 - [Tech stack](#tech-stack)
 - [Architecture](#architecture)
@@ -22,6 +27,114 @@ Mojud is a multi-tenant SaaS for F-commerce sellers: businesses that sell throug
 - [Deployment](#deployment)
 - [Documentation](#documentation)
 - [Status](#status)
+
+## A day with Mojud
+
+Follow Rahima, who sells kurtis, saris and jewellery from her Facebook page, through one working day. The screens are in Bangla, the app's default language; every one is also in English. The shop and its customers are demo data, made by `npm run screenshots`.
+
+### 1. Morning: sign in and see the day
+
+Rahima signs in with her user ID and password. **Today** shows where every order stands, from draft to delivered; today's sales, profit and the cash couriers still hold; and what needs her attention, such as stock running low.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/sign-in.png" alt="Sign-in page"></td>
+    <td width="50%"><img src="docs/screenshots/today.png" alt="Today page"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Sign in</sub></td>
+    <td align="center"><sub>Today</sub></td>
+  </tr>
+</table>
+
+### 2. Check the shelves
+
+**Products** lists everything she sells, with photos, categories, what is free to sell and a price range across variants. One product shows its stock on hand, what open orders have set aside, and each colour and size with its own price, cost and SKU.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/products.png" alt="Product list"></td>
+    <td width="50%"><img src="docs/screenshots/product.png" alt="One product with its variants"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Products</sub></td>
+    <td align="center"><sub>One product and its variants</sub></td>
+  </tr>
+</table>
+
+### 3. A customer messages: take the order
+
+A message arrives on Facebook. Rahima types the customer's phone number, and Mojud finds them or adds them. She picks the items; the delivery charge comes from the area, and an advance paid by bKash lowers what the courier must collect. Each order then moves along its path: confirmed, packed, with the courier, delivered.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/new-order.png" alt="New order form"></td>
+    <td width="50%"><img src="docs/screenshots/order.png" alt="One order with its progress, items, customer and payments"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>New order</sub></td>
+    <td align="center"><sub>One order</sub></td>
+  </tr>
+</table>
+
+### 4. Afternoon: pack and hand to couriers
+
+**Orders** filters by status, so she can select everything confirmed and pack or ship it in one go. **Customers** keeps each buyer's addresses and order history.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/orders.png" alt="Order list with status tabs"></td>
+    <td width="50%"><img src="docs/screenshots/customers.png" alt="Customer list"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Orders</sub></td>
+    <td align="center"><sub>Customers</sub></td>
+  </tr>
+</table>
+
+### 5. Evening: settle the cash
+
+**COD** shows what each courier collected and still owes, and settles a courier's parcels together. **Reports** break sales down by product or category, with profit after costs, returns and courier charges.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/cod.png" alt="Cash on delivery by courier"></td>
+    <td width="50%"><img src="docs/screenshots/reports.png" alt="Reports with sales share and profit"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Cash on delivery</sub></td>
+    <td align="center"><sub>Reports</sub></td>
+  </tr>
+</table>
+
+### 6. Before closing: restock and write off
+
+**Running low** lists the variants to reorder, and stock can be received there. **Damaged goods** records stained or broken items and what they cost. **Plans** shows how much of her plan she is using.
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/low-stock.png" alt="Running-low window"></td>
+    <td width="33%"><img src="docs/screenshots/damages.png" alt="Damaged goods page"></td>
+    <td width="33%"><img src="docs/screenshots/billing.png" alt="Plan and usage"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Running low</sub></td>
+    <td align="center"><sub>Damaged goods</sub></td>
+    <td align="center"><sub>Plans and payment</sub></td>
+  </tr>
+</table>
+
+### On the phone
+
+Most sellers work from a phone, so every screen is built for one first, with the main pages one tap away at the bottom.
+
+<p align="center">
+  <img src="docs/screenshots/phone-today.png" alt="Today on a phone" width="250">
+  &nbsp;
+  <img src="docs/screenshots/phone-orders.png" alt="Orders on a phone" width="250">
+  &nbsp;
+  <img src="docs/screenshots/phone-order.png" alt="One order on a phone" width="250">
+</p>
 
 ## Features
 
@@ -152,6 +265,7 @@ npm run dev       # http://localhost:5173, with /api sent to port 8080
 | `npm run perf` | First and return visits timed on a slow phone and connection. Run by hand, since the timings depend on the machine. |
 | `npm run api:types` | Regenerate `src/api/schema.d.ts` from `src/api/openapi.json` |
 | `npm run texts:review` | Export every text, English beside Bangla, to `docs/bangla-review.csv` |
+| `npm run screenshots` | Retake the README's screenshots in `docs/screenshots/` with a fresh demo shop. Needs the test backend and `vite preview` running, as for `npm run e2e`. |
 
 ### Continuous integration
 

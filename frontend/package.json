@@ -18,7 +18,8 @@
     "size": "node scripts/check-size.mjs",
     "e2e": "playwright test",
     "perf": "npm run build && playwright test --config playwright.perf.config.ts",
-    "texts:review": "node scripts/texts-for-review.mjs"
+    "texts:review": "node scripts/texts-for-review.mjs",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
     "@fontsource/hind-siliguri": "5.3.0",
