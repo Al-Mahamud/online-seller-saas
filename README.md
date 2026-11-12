@@ -27,6 +27,7 @@ Mojud is a multi-tenant SaaS for F-commerce sellers: businesses that sell throug
 - [Deployment](#deployment)
 - [Documentation](#documentation)
 - [Status](#status)
+- [License](#license)
 
 ## A day with Mojud
 
@@ -311,3 +312,7 @@ One Ubuntu server with Docker runs the whole system: PostgreSQL, the backend, Ca
 | Release 2: AI inbox for Messenger and WhatsApp | Planned. See the [product plan](docs/product-plan.md#ai-agent-design). |
 
 Progress by phase is tracked in the [implementation plan](docs/implementation-plan.md#status) and the [frontend plan](docs/frontend-plan.md#phases).
+
+## License
+
+Copyright © 2026 Al Mahamud. **All rights reserved.** The code is public so it can be read and evaluated. It may not be copied, run or reused without written permission. See [LICENSE](LICENSE).
