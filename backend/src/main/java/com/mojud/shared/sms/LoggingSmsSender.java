@@ -15,6 +15,6 @@ class LoggingSmsSender implements SmsSender {
 
     @Override
     public void send(PhoneNumber to, String text) {
-        log.info("SMS to {}: {}", to, text);
+        log.info("[DEV-SMS] SMS not sent - to: {}, text: {}", to, text);
     }
 }

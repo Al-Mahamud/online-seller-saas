@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One text format everywhere (docs/logging.md):
+
+    2026-11-10 14:00:20.416.http-nio-8080-exec-7> INFO  - T[261110140020-e38a8e5] U[01a1b5b8-…] - [CLIENT-REQ] GET /api/v1/orders
+
+  T[] is the request's ID (RequestIdFilter), U[] the signed-in user. Times are Dhaka time.
+  Servers (the prod profile) also write hourly files to mojud.logging.dir, kept for 14 days:
+  mojud-2026111014-0.log, then -1 if an hour passes 100 MB.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <property name="MOJUD_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS, Asia/Dhaka}.%thread&gt; %-5level - T[%X{requestId}] U[%X{userId}] - %msg%n%wEx"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${MOJUD_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <springProfile name="prod">
+        <springProperty scope="context" name="LOG_DIR" source="mojud.logging.dir" defaultValue="/data/logs"/>
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_DIR}/mojud-%d{yyyyMMddHH, Asia/Dhaka}-%i.log</fileNamePattern>
+                <maxFileSize>100MB</maxFileSize>
+                <!-- Hours: 14 days. -->
+                <maxHistory>336</maxHistory>
+                <totalSizeCap>5GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder>
+                <pattern>${MOJUD_PATTERN}</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>

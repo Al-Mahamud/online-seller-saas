@@ -27,7 +27,7 @@ class BusinessFiles {
         try {
             storage.deleteAll(event.businessId() + "/");
         } catch (RuntimeException e) {
-            log.error("Deleting the files of deleted business {} failed", event.businessId(), e);
+            log.error("[FILES] deleting the files of deleted business {} failed", event.businessId(), e);
         }
     }
 }

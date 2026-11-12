@@ -55,7 +55,7 @@ public final class RateLimiter {
         int count = current.events.incrementAndGet();
         if (count == limit + 1) {
             // Unusual activity shows in the logs, once per key and window, not per attempt.
-            log.warn("Rate limit {} reached for {}", name, key);
+            log.warn("[RATE-LIMIT] {} reached for {}", name, key);
         }
         if (count > limit) {
             throw limited(current);
@@ -72,7 +72,7 @@ public final class RateLimiter {
 
     public void recordFailure(String key) {
         if (window(key).events.incrementAndGet() == limit) {
-            log.warn("Rate limit {} reached for {}", name, key);
+            log.warn("[RATE-LIMIT] {} reached for {}", name, key);
         }
     }
 

@@ -76,7 +76,7 @@ class BulkActions {
         } catch (OptimisticLockingFailureException e) {
             return failed(id, ErrorCode.CONCURRENT_MODIFICATION);
         } catch (RuntimeException e) {
-            log.error("Bulk action on order {} failed", id, e);
+            log.error("[BULK-ACTION] order {} failed", id, e);
             return failed(id, ErrorCode.SERVER_ERROR);
         }
     }

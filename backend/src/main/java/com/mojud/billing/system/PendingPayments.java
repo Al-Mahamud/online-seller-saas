@@ -56,7 +56,7 @@ public class PendingPayments {
             try {
                 check(attempt);
             } catch (RuntimeException e) {
-                log.error("Checking payment {} failed", attempt.tranId(), e);
+                log.error("[JOB-PENDING-PAYMENTS] checking payment {} failed", attempt.tranId(), e);
             }
         }
         return pending.size();

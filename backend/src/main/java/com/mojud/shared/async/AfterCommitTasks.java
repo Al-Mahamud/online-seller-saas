@@ -52,7 +52,7 @@ public class AfterCommitTasks implements DisposableBean {
             try {
                 task.run();
             } catch (RuntimeException e) {
-                log.error("Background task failed", e);
+                log.error("[BACKGROUND-TASK] failed", e);
             }
         };
         if (TransactionSynchronizationManager.isSynchronizationActive()) {

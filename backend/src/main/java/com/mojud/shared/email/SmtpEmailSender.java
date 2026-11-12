@@ -72,7 +72,7 @@ class SmtpEmailSender implements EmailSender {
             mail.send(mime);
         } catch (MessagingException | UnsupportedEncodingException | MailException e) {
             // After commit, in the background: the caller has already answered. Logged for alerting (Sentry, 13b).
-            log.error("Email to {} failed: {}", to, message.subject(), e);
+            log.error("[EMAIL] to {} failed: {}", to, message.subject(), e);
         }
     }
 

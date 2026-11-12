@@ -1,5 +1,7 @@
 package com.mojud.billing.gateway;
 
+import com.mojud.shared.logging.LoggingProperties;
+import com.mojud.shared.logging.OutboundLog;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -39,13 +41,15 @@ public class SslCommerzClient {
     private final JsonMapper json;
     private final RestClient http;
 
-    SslCommerzClient(Environment environment, JsonMapper json) {
+    SslCommerzClient(Environment environment, JsonMapper json, LoggingProperties logging) {
         this.environment = environment;
         this.json = json;
         SimpleClientHttpRequestFactory requests = new SimpleClientHttpRequestFactory();
         requests.setConnectTimeout(Duration.ofSeconds(5));
         requests.setReadTimeout(Duration.ofSeconds(20));
-        this.http = RestClient.builder().requestFactory(requests).build();
+        // Each call and its answer in the log, the store password masked ([REQ] and [RES]).
+        this.http = RestClient.builder().requestFactory(requests)
+                .requestInterceptor(new OutboundLog(logging.bodyLimit())).build();
     }
 
     /** False until the store's credentials are set: checkout then answers 503. */

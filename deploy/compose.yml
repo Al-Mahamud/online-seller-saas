@@ -32,6 +32,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      app-logs-owner:
+        condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:postgresql://db:5432/mojud
@@ -64,9 +66,19 @@ services:
       SSLCOMMERZ_STORE_PASSWORD: ${SSLCOMMERZ_STORE_PASSWORD:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+    # The log, also in hourly files kept 14 days (docs/logging.md): mojud-2026111014-0.log.
+    volumes:
+      - app-logs:/data/logs
     # Reached only through Caddy, on the internal network.
     expose:
       - "8080"
+
+  # The app runs as user 65532; a new volume belongs to root. Gives it the log folder once per start.
+  app-logs-owner:
+    image: busybox:1.37
+    command: ["chown", "65532:65532", "/data/logs"]
+    volumes:
+      - app-logs:/data/logs
 
   # Caddy with the web app's files (built by CI from frontend/; the image is caddy:2 plus them).
   caddy:
@@ -114,5 +126,6 @@ services:
 
 volumes:
   db-data:
+  app-logs:
   caddy-data:
   caddy-config:

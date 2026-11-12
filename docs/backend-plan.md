@@ -49,7 +49,7 @@ One Spring Boot application with PostgreSQL as the only stateful service. **(cha
 | Images | Thumbnailator; EXIF stripped on re-encode | |
 | Excel / CSV | Apache POI streaming reader for `.xlsx`, FastCSV for `.csv` | |
 | API docs | springdoc-openapi | The frontend generates its typed client from this |
-| Observability | Sentry Java SDK, Spring Boot structured JSON logs, Actuator health | |
+| Observability | Sentry Java SDK, text logs with request and user IDs and hourly files (docs/logging.md), Actuator health | |
 | Tests | JUnit 5, AssertJ, zonky embedded PostgreSQL | No Docker needed, which suits this machine |
 | Container image | Jib (builds images without a Docker daemon), built in CI | |
 | Real-time (release 2) | Server-Sent Events **(changed from Socket.IO)** | Inbox only needs server → browser pushes; SSE needs no extra library. Revisit if two-way is needed. |

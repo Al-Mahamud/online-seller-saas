@@ -52,7 +52,7 @@ public class ImportSweeper {
                 .query((row, n) -> new Waiting(row.getObject(1, UUID.class), row.getObject(2, UUID.class)))
                 .list();
         for (Waiting job : waiting) {
-            log.warn("Resuming import {} of business {}", job.jobId(), job.businessId());
+            log.warn("[IMPORT-RESUME] import {} of business {}", job.jobId(), job.businessId());
             resumer.run(job.businessId(), job.jobId());
         }
         return waiting.size();

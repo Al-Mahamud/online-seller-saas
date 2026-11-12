@@ -22,10 +22,10 @@ class LogContextTests {
 
     @Test
     void aBackgroundTaskLogsWithTheRequestIdOfWhoHandedItOver() throws Exception {
-        MDC.put("requestId", "7f3a9c2e1b4d");
+        MDC.put("requestId", "261110140020-e38a8e5");
         CompletableFuture<String> seen = new CompletableFuture<>();
         pool.execute(LogContext.carrying(() -> seen.complete(MDC.get("requestId"))));
-        assertThat(seen.get(5, TimeUnit.SECONDS)).isEqualTo("7f3a9c2e1b4d");
+        assertThat(seen.get(5, TimeUnit.SECONDS)).isEqualTo("261110140020-e38a8e5");
 
         // The pool's thread forgets it afterwards, so the next task can't log under the wrong request.
         MDC.clear();

@@ -86,7 +86,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ProblemDetail> handleUnexpected(Exception ex) {
-        log.error("Unhandled error", ex);
+        log.error("EXCEPTION: {}", ex.toString(), ex);
         return respond(problem(ErrorCode.SERVER_ERROR));
     }
 

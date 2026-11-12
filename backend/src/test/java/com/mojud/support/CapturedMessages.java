@@ -30,13 +30,13 @@ public final class CapturedMessages implements SmsSender, EmailSender {
 
     @Override
     public void send(PhoneNumber to, String text) {
-        log.info("SMS to {}: {}", to, text);
+        log.info("[DEV-SMS] SMS not sent - to: {}, text: {}", to, text);
         messages.add(new Message(to.e164(), null, text, null));
     }
 
     @Override
     public void send(EmailAddress to, EmailMessage message) {
-        log.info("Email to {}: {}\n{}", to, message.subject(), message.text());
+        log.info("[DEV-EMAIL] email not sent - to: {}, subject: {}\n{}", to, message.subject(), message.text());
         messages.add(new Message(to.value(), message.subject(), message.text(), message.html()));
     }
 

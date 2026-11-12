@@ -52,10 +52,10 @@ public class SubscriptionJobs {
                 advancer.advance(business);
             } catch (RuntimeException e) {
                 failed++;
-                log.error("Subscription lifecycle failed for business {}", business, e);
+                log.error("[JOB-SUBSCRIPTIONS] failed for business {}", business, e);
             }
         }
-        log.info("Subscription lifecycle: {} businesses, {} failed", businesses.size(), failed);
+        log.info("[JOB-SUBSCRIPTIONS] {} businesses, {} failed", businesses.size(), failed);
         return businesses.size();
     }
 
@@ -69,14 +69,14 @@ public class SubscriptionJobs {
                 .param(Timestamp.from(clock.instant().minus(KEEP_READ_ONLY)))
                 .query(UUID.class).list();
         if (!deletionEnabled) {
-            log.info("Data deletion is disabled; {} business(es) are past 90 days read-only", due.size());
+            log.info("[JOB-SUBSCRIPTIONS] data deletion is disabled; {} business(es) are past 90 days read-only", due.size());
             return due;
         }
         for (UUID business : due) {
             try {
                 deletion.deleteNow(business);
             } catch (RuntimeException e) {
-                log.error("Deleting read-only business {} failed", business, e);
+                log.error("[JOB-SUBSCRIPTIONS] deleting read-only business {} failed", business, e);
             }
         }
         return due;

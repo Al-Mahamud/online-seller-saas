@@ -117,13 +117,13 @@ class ImportRunner implements ImportResumer, DisposableBean {
                 }
             });
         } catch (RuntimeException e) {
-            log.error("Import {} of business {} failed", jobId, businessId, e);
+            log.error("[IMPORT] import {} of business {} failed", jobId, businessId, e);
             try {
                 TenantScope.run(businessId, () -> transactions.executeWithoutResult(status -> jdbc
                         .sql("update import_jobs set status = 'FAILED', finished_at = ? where id = ?")
                         .params(Timestamp.from(clock.instant()), jobId).update()));
             } catch (RuntimeException again) {
-                log.error("Could not mark import {} failed", jobId, again);
+                log.error("[IMPORT] could not mark import {} failed", jobId, again);
             }
         }
     }
@@ -249,7 +249,7 @@ class ImportRunner implements ImportResumer, DisposableBean {
         } else if (cause instanceof ApiException api) {
             error = RowChecker.error(name, "error." + api.code().code());
         } else {
-            log.error("Import {}: rows {} could not be saved", jobId, rows.stream().map(RowChecker.Parsed::rowNumber).toList(), cause);
+            log.error("[IMPORT] import {}: rows {} could not be saved", jobId, rows.stream().map(RowChecker.Parsed::rowNumber).toList(), cause);
             error = RowChecker.error(name, "save_failed");
         }
         String errors = json.writeValueAsString(List.of(error));
