@@ -30,7 +30,7 @@ Mojud is a multi-tenant SaaS for F-commerce sellers: businesses that sell throug
 
 ## A day with Mojud
 
-Follow Rahima, who sells kurtis, saris and jewellery from her Facebook page, through one working day. The screens are in Bangla, the app's default language; every one is also in English. The shop and its customers are demo data.
+Follow Rahima, who sells kurtis, saris and jewellery from her Facebook page, through one working day. The screens are in Bangla, the app's default language; every one is also in English. The shop and its customers are demo data, made by `npm run screenshots`.
 
 ### 1. Morning: sign in and see the day
 
@@ -265,6 +265,7 @@ npm run dev       # http://localhost:5173, with /api sent to port 8080
 | `npm run perf` | First and return visits timed on a slow phone and connection. Run by hand, since the timings depend on the machine. |
 | `npm run api:types` | Regenerate `src/api/schema.d.ts` from `src/api/openapi.json` |
 | `npm run texts:review` | Export every text, English beside Bangla, to `docs/bangla-review.csv` |
+| `npm run screenshots` | Retake the README's screenshots in `docs/screenshots/` with a fresh demo shop. Needs the test backend and `vite preview` running, as for `npm run e2e`. |
 
 ### Continuous integration
 
