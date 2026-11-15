@@ -75,7 +75,7 @@ services:
 
   # The app runs as user 65532; a new volume belongs to root. Gives it the log folder once per start.
   app-logs-owner:
-    image: busybox:1.37
+    image: busybox:1.38
     command: ["chown", "65532:65532", "/data/logs"]
     volumes:
       - app-logs:/data/logs
